@@ -57,16 +57,34 @@ fun AvatarWithFrame(
     isOnline: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
-    // Pulse animation when speaking
+    // Multi-stage pulse animation when speaking
     val infiniteTransition = rememberInfiniteTransition(label = "speaking")
-    val pulseScale by infiniteTransition.animateFloat(
+    val pulseScale1 by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = 1.15f,
+        targetValue = 1.25f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = FastOutSlowInEasing),
+            animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "speaking_pulse"
+        label = "speaking_pulse1"
+    )
+    val pulseScale2 by infiniteTransition.animateFloat(
+        initialValue = 1.05f,
+        targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, delayMillis = 200, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "speaking_pulse2"
+    )
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 0.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "speaking_alpha"
     )
 
     val frameBorderBrush = when {
@@ -82,14 +100,24 @@ fun AvatarWithFrame(
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         contentAlignment = Alignment.Center
     ) {
-        // Outer Speaking ripple
+        // Multi-ring Speaking concentric ripple waves
         if (isSpeaking) {
+            // Outer diffuse ring
             Box(
                 modifier = Modifier
                     .size(size)
-                    .scale(pulseScale)
+                    .scale(pulseScale2)
                     .clip(CircleShape)
-                    .background(Color(0x3300E5FF))
+                    .background(BrightCyan.copy(alpha = pulseAlpha * 0.4f))
+            )
+            // Middle ring
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .scale(pulseScale1)
+                    .clip(CircleShape)
+                    .border(1.5.dp, BrightCyan.copy(alpha = pulseAlpha), CircleShape)
+                    .background(ElectricBlue.copy(alpha = pulseAlpha * 0.5f))
             )
         }
 
@@ -103,12 +131,18 @@ fun AvatarWithFrame(
             contentScale = ContentScale.Crop
         )
 
-        // Transparent Frame Overlay (Center is transparent)
+        // Frame Overlay
         Box(
             modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
-                .border(BorderStroke(2.5.dp, frameBorderBrush), CircleShape)
+                .border(
+                    BorderStroke(
+                        if (isSpeaking) 3.dp else 2.5.dp,
+                        if (isSpeaking) Brush.sweepGradient(listOf(BrightCyan, EmeraldGreen, ElectricBlue, BrightCyan)) else frameBorderBrush
+                    ),
+                    CircleShape
+                )
         )
 
         // VIP Mini Crown Badge
@@ -132,7 +166,7 @@ fun AvatarWithFrame(
         }
 
         // Online dot
-        if (isOnline && vipLevel == 0) {
+        if (isOnline && vipLevel == 0 && !isSpeaking) {
             Box(
                 modifier = Modifier
                     .size(10.dp)
@@ -227,6 +261,186 @@ fun SpeakingWaveAnimation(modifier: Modifier = Modifier) {
         Box(modifier = Modifier.width(3.dp).height(h1.dp).clip(RoundedCornerShape(2.dp)).background(EmeraldGreen))
         Box(modifier = Modifier.width(3.dp).height(h2.dp).clip(RoundedCornerShape(2.dp)).background(EmeraldGreen))
         Box(modifier = Modifier.width(3.dp).height(h3.dp).clip(RoundedCornerShape(2.dp)).background(EmeraldGreen))
+    }
+}
+
+@Composable
+fun AudioActivityEqualizer(
+    isSpeaking: Boolean = true,
+    barCount: Int = 5,
+    modifier: Modifier = Modifier,
+    barColor: Color = EmeraldGreen,
+    maxBarHeight: Dp = 18.dp,
+    minBarHeight: Dp = 3.dp,
+    barWidth: Dp = 3.dp
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "audio_equalizer")
+    
+    // Animate 5 distinct bars with different speeds and phases
+    val h1 by infiniteTransition.animateFloat(
+        initialValue = 0.2f, targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "h1"
+    )
+    val h2 by infiniteTransition.animateFloat(
+        initialValue = 0.9f, targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(tween(280, delayMillis = 50, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "h2"
+    )
+    val h3 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(tween(420, delayMillis = 100, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "h3"
+    )
+    val h4 by infiniteTransition.animateFloat(
+        initialValue = 0.85f, targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(tween(310, delayMillis = 150, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "h4"
+    )
+    val h5 by infiniteTransition.animateFloat(
+        initialValue = 0.15f, targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(tween(390, delayMillis = 80, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "h5"
+    )
+
+    val multipliers = listOf(h1, h2, h3, h4, h5)
+
+    Row(
+        modifier = modifier.height(maxBarHeight),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        for (i in 0 until barCount) {
+            val factor = if (isSpeaking) multipliers[i % multipliers.size] else 0.15f
+            val calculatedHeight = minBarHeight + (maxBarHeight - minBarHeight) * factor
+            val color = if (isSpeaking) {
+                when {
+                    factor > 0.8f -> GoldYellow
+                    factor > 0.4f -> barColor
+                    else -> barColor.copy(alpha = 0.7f)
+                }
+            } else {
+                TextMuted.copy(alpha = 0.4f)
+            }
+
+            Box(
+                modifier = Modifier
+                    .width(barWidth)
+                    .height(calculatedHeight)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color)
+            )
+        }
+    }
+}
+
+@Composable
+fun LiveDecibelMeter(
+    isSpeaking: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "db_meter")
+    val level by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(tween(300, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "db_level"
+    )
+
+    val currentLevel = if (isSpeaking) level else 0.05f
+    val activeBars = (currentLevel * 8).toInt().coerceIn(0, 8)
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x33000000))
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        for (i in 0 until 8) {
+            val barColor = when {
+                i < 4 -> EmeraldGreen
+                i < 6 -> GoldYellow
+                else -> DarkRed
+            }
+            val isActive = i <= activeBars && isSpeaking
+            Box(
+                modifier = Modifier
+                    .width(2.5.dp)
+                    .height((6 + i * 1.2f).dp)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(if (isActive) barColor else Color.White.copy(alpha = 0.15f))
+            )
+        }
+    }
+}
+
+@Composable
+fun InteractiveMuteToggleButton(
+    isMuted: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    hasSeat: Boolean = true
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "mic_glow")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pulse"
+    )
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "glow_alpha"
+    )
+
+    val isLive = !isMuted && hasSeat
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        // Glowing Aura when unmuted & active
+        if (isLive) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .scale(pulseScale)
+                    .clip(CircleShape)
+                    .background(EmeraldGreen.copy(alpha = glowAlpha))
+            )
+        }
+
+        // Main Button Surface
+        Surface(
+            onClick = onToggle,
+            shape = CircleShape,
+            color = when {
+                !hasSeat -> SurfaceCard
+                !isMuted -> EmeraldGreen
+                else -> Color(0x33FF1744)
+            },
+            border = BorderStroke(
+                1.5.dp,
+                when {
+                    !hasSeat -> SurfaceCardBorder
+                    !isMuted -> BrightCyan
+                    else -> DarkRed
+                }
+            ),
+            modifier = Modifier.size(46.dp),
+            shadowElevation = if (isLive) 8.dp else 2.dp
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isLive) Icons.Default.Mic else Icons.Default.MicOff,
+                    contentDescription = if (isLive) "Mute Microphone" else "Unmute Microphone",
+                    tint = if (isLive) Color.Black else if (!hasSeat) TextMuted else DarkRed,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 

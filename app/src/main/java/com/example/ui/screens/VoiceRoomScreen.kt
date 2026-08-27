@@ -116,7 +116,21 @@ fun VoiceRoomScreen(
             // Room Announcement Banner
             RoomAnnouncementBanner(announcement = currentRoom.announcement)
 
-            Spacer(modifier = Modifier.height(6.dp))
+            // Live Audio Activity Status & Spectrogram Banner
+            val speakingSeats = seats.filter { it.isSpeaking && it.userId != null }
+            RoomAudioActivityBanner(
+                speakingSeats = speakingSeats,
+                mySeat = mySeat,
+                onQuickMuteToggle = {
+                    if (mySeat != null) {
+                        coroutineScope.launch {
+                            repository.toggleMic(currentRoom.id, mySeat.seatIndex, !mySeat.isMuted)
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Room Seats Grid (Layout changes according to seatCount: 4, 6, 8, 10, 12, 15, 20)
             val columns = when {
@@ -380,6 +394,144 @@ fun RoomAnnouncementBanner(announcement: String) {
 }
 
 @Composable
+fun RoomAudioActivityBanner(
+    speakingSeats: List<RoomSeat>,
+    mySeat: RoomSeat?,
+    onQuickMuteToggle: () -> Unit
+) {
+    val activeSpeaker = speakingSeats.firstOrNull()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                Brush.horizontalGradient(
+                    if (activeSpeaker != null)
+                        listOf(Color(0x5500E5FF), Color(0x3300C853), Color(0x221A0B2E))
+                    else
+                        listOf(Color(0x331E1236), Color(0x22120A22))
+                )
+            )
+            .border(
+                1.dp,
+                if (activeSpeaker != null) BrightCyan.copy(alpha = 0.6f) else SurfaceCardBorder,
+                RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left: Active Speaker Avatar & Audio Visualizer
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                if (activeSpeaker != null) {
+                    AvatarWithFrame(
+                        avatarUrl = activeSpeaker.avatarUrl,
+                        size = 28.dp,
+                        frameId = activeSpeaker.frameId,
+                        vipLevel = activeSpeaker.vipLevel,
+                        isSpeaking = true
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "🎙️ ${activeSpeaker.username}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            AudioActivityEqualizer(
+                                isSpeaking = true,
+                                barCount = 4,
+                                maxBarHeight = 12.dp,
+                                minBarHeight = 3.dp,
+                                barColor = BrightCyan
+                            )
+                        }
+                        Text(
+                            text = "HD Voice 48kHz • Low Latency",
+                            fontSize = 9.sp,
+                            color = BrightCyan.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.GraphicEq,
+                        contentDescription = null,
+                        tint = TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Audio Stage • Ready to talk",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextSecondary
+                        )
+                        Text(
+                            text = "Tap any open seat to join the conversation",
+                            fontSize = 9.sp,
+                            color = TextMuted
+                        )
+                    }
+                }
+            }
+
+            // Right: Live Decibel Meter & Quick Mute Badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                LiveDecibelMeter(
+                    isSpeaking = activeSpeaker != null
+                )
+
+                if (mySeat != null) {
+                    Surface(
+                        onClick = onQuickMuteToggle,
+                        color = if (mySeat.isMuted) DarkRed.copy(alpha = 0.25f) else EmeraldGreen.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (mySeat.isMuted) DarkRed else EmeraldGreen)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (mySeat.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                                contentDescription = "Mute Toggle",
+                                tint = if (mySeat.isMuted) DarkRed else EmeraldGreen,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (mySeat.isMuted) "MUTED" else "LIVE",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (mySeat.isMuted) DarkRed else EmeraldGreen
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun RoomSeatItem(
     seat: RoomSeat,
     isHostSeat: Boolean,
@@ -398,37 +550,38 @@ fun RoomSeatItem(
             Box(contentAlignment = Alignment.Center) {
                 AvatarWithFrame(
                     avatarUrl = seat.avatarUrl,
-                    size = 50.dp,
+                    size = 52.dp,
                     frameId = seat.frameId,
                     vipLevel = seat.vipLevel,
                     isSpeaking = seat.isSpeaking
                 )
 
-                // Mic Muted indicator
-                if (seat.isMuted) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(DarkRed)
-                            .padding(2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MicOff,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                // Mic Status Badge (Bottom Right)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(if (seat.isMuted) DarkRed else EmeraldGreen)
+                        .border(1.dp, Color.Black, CircleShape)
+                        .padding(2.5.dp)
+                ) {
+                    Icon(
+                        imageVector = if (seat.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
+            // User Name
             Text(
                 text = seat.username ?: "User",
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isMySeat) NeonPink else Color.White,
                 maxLines = 1,
@@ -436,25 +589,42 @@ fun RoomSeatItem(
                 textAlign = TextAlign.Center
             )
 
-            if (isHostSeat) {
+            // Visual Audio Equalizer Indicator (Visible when speaking)
+            if (seat.isSpeaking) {
+                AudioActivityEqualizer(
+                    isSpeaking = true,
+                    barCount = 4,
+                    maxBarHeight = 10.dp,
+                    minBarHeight = 2.dp,
+                    barColor = EmeraldGreen,
+                    modifier = Modifier.padding(top = 1.dp)
+                )
+            } else if (isHostSeat) {
                 Surface(
                     color = GoldAmber,
-                    shape = RoundedCornerShape(4.dp)
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.padding(top = 1.dp)
                 ) {
                     Text(
-                        text = "HOST",
+                        text = "HOST 👑",
                         color = Color.Black,
                         fontSize = 7.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
                     )
                 }
+            } else {
+                Text(
+                    text = "Seat ${seat.seatIndex + 1}",
+                    fontSize = 8.sp,
+                    color = TextMuted
+                )
             }
         } else {
             // Empty Seat
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(52.dp)
                     .clip(CircleShape)
                     .background(SurfaceCard.copy(alpha = 0.6f))
                     .border(1.dp, SurfaceCardBorder, CircleShape),
@@ -475,7 +645,7 @@ fun RoomSeatItem(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = if (isHostSeat) "Host" else "Seat ${seat.seatIndex + 1}",
                 fontSize = 9.sp,
@@ -583,21 +753,12 @@ fun RoomBottomControlBar(
                 )
             )
 
-            // Mic Toggle
-            IconButton(
-                onClick = onToggleMic,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(if (!isMicMuted && hasSeat) EmeraldGreen else SurfaceCard)
-            ) {
-                Icon(
-                    imageVector = if (!isMicMuted && hasSeat) Icons.Default.Mic else Icons.Default.MicOff,
-                    contentDescription = "Mic",
-                    tint = if (!isMicMuted && hasSeat) Color.Black else Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // Prominent Mute / Unmute Toggle Button
+            InteractiveMuteToggleButton(
+                isMuted = isMicMuted,
+                hasSeat = hasSeat,
+                onToggle = onToggleMic
+            )
 
             // Soundboard
             IconButton(
