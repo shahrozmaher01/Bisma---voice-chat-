@@ -93,83 +93,110 @@ fun RankingsScreen(
             when (selectedTab) {
                 0 -> {
                     // Top Wealth Users
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 30.dp)
-                    ) {
-                        itemsIndexed(topWealth) { index, user ->
-                            RankUserCard(
-                                rank = index + 1,
-                                user = user,
-                                scoreText = "🪙 ${user.coins} Coins",
-                                scoreColor = GoldYellow,
-                                onClick = { onOpenUserProfile(user.id) }
-                            )
+                    if (topWealth.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No wealth rankings available yet.", color = TextSecondary, fontSize = 14.sp)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(bottom = 30.dp)
+                        ) {
+                            itemsIndexed(topWealth) { index, user ->
+                                RankUserCard(
+                                    rank = index + 1,
+                                    user = user,
+                                    scoreText = "🪙 ${user.coins} Coins",
+                                    scoreColor = GoldYellow,
+                                    onClick = { onOpenUserProfile(user.id) }
+                                )
+                            }
                         }
                     }
                 }
                 1 -> {
                     // Top Charm Users
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 30.dp)
-                    ) {
-                        itemsIndexed(topCharm) { index, user ->
-                            RankUserCard(
-                                rank = index + 1,
-                                user = user,
-                                scoreText = "💜 Lv ${user.charmLevel} Charm",
-                                scoreColor = CharmPink,
-                                onClick = { onOpenUserProfile(user.id) }
-                            )
+                    if (topCharm.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No charm rankings available yet.", color = TextSecondary, fontSize = 14.sp)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(bottom = 30.dp)
+                        ) {
+                            itemsIndexed(topCharm) { index, user ->
+                                RankUserCard(
+                                    rank = index + 1,
+                                    user = user,
+                                    scoreText = "💜 Lv ${user.charmLevel} Charm",
+                                    scoreColor = CharmPink,
+                                    onClick = { onOpenUserProfile(user.id) }
+                                )
+                            }
                         }
                     }
                 }
                 2 -> {
                     // Top Rooms
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 30.dp)
-                    ) {
-                        itemsIndexed(activeRooms) { index, room ->
-                            GlassCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onOpenRoom(room.id) }
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                    if (activeRooms.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No active rooms available.", color = TextSecondary, fontSize = 14.sp)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(bottom = 30.dp)
+                        ) {
+                            itemsIndexed(activeRooms) { index, room ->
+                                GlassCard(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onOpenRoom(room.id) }
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = when (index) {
-                                                0 -> "🥇"
-                                                1 -> "🥈"
-                                                2 -> "🥉"
-                                                else -> "#${index + 1}"
-                                            },
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        AvatarWithFrame(avatarUrl = room.ownerAvatar, size = 42.dp, vipLevel = room.ownerVip)
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(text = room.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                                            Text(text = "Host: ${room.ownerName} • ${room.country}", color = TextSecondary, fontSize = 10.sp)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = when (index) {
+                                                    0 -> "🥇"
+                                                    1 -> "🥈"
+                                                    2 -> "🥉"
+                                                    else -> "#${index + 1}"
+                                                },
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            AvatarWithFrame(avatarUrl = room.ownerAvatar, size = 42.dp, vipLevel = room.ownerVip)
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(text = room.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                                                Text(text = "Host: ${room.ownerName} • ${room.country}", color = TextSecondary, fontSize = 10.sp)
+                                            }
                                         }
-                                    }
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        SpeakingWaveAnimation(modifier = Modifier.height(10.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(text = "${room.onlineCount}", color = EmeraldGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            SpeakingWaveAnimation(modifier = Modifier.height(10.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(text = "${room.onlineCount}", color = EmeraldGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
                                     }
                                 }
                             }

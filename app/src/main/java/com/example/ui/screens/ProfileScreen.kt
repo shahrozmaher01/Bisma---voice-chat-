@@ -65,6 +65,11 @@ fun ProfileScreen(
 
     val user = currentUser!!
 
+    val followingCount by repository.getFollowingCountFlow(user.id).collectAsState(initial = user.followingCount)
+    val followersCount by repository.getFollowersCountFlow(user.id).collectAsState(initial = user.followersCount)
+    val friendsCount by repository.getFriendsCountFlow(user.id).collectAsState(initial = user.friendsCount)
+    val visitorsCount by repository.getVisitorsCountFlow(user.id).collectAsState(initial = 0)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -264,10 +269,10 @@ fun ProfileScreen(
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                StatItem(count = user.followingCount, label = "Following")
-                                StatItem(count = user.followersCount, label = "Followers")
-                                StatItem(count = user.friendsCount, label = "Friends")
-                                StatItem(count = 14, label = "Visitors", onClick = onOpenVisitors)
+                                StatItem(count = followingCount, label = "Following")
+                                StatItem(count = followersCount, label = "Followers")
+                                StatItem(count = friendsCount, label = "Friends")
+                                StatItem(count = visitorsCount, label = "Visitors", onClick = onOpenVisitors)
                             }
                         }
                     }

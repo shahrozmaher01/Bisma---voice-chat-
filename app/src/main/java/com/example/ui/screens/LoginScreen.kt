@@ -255,7 +255,7 @@ fun LoginScreen(
                                 leadingIcon = {
                                     Icon(Icons.Default.Badge, contentDescription = "ID", tint = NeonPink)
                                 },
-                                placeholder = { Text("e.g. 883921", color = TextMuted) },
+                                placeholder = { Text("e.g. 123456", color = TextMuted) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -344,57 +344,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isLoading
-                            )
-                        }
-                    }
-                }
-
-                // Demo Quick Logins
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "⚡ Quick Demo Accounts (Tap to test):",
-                            fontSize = 12.sp,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            DemoLoginChip(
-                                name = "Bisma 👑",
-                                id = "883921",
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    loginId = "883921"
-                                    loginPassword = "123456"
-                                }
-                            )
-                            DemoLoginChip(
-                                name = "Ali Khan 🎙️",
-                                id = "104928",
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    loginId = "104928"
-                                    loginPassword = "123456"
-                                }
-                            )
-                            DemoLoginChip(
-                                name = "Zara Noor ✨",
-                                id = "305182",
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    loginId = "305182"
-                                    loginPassword = "123456"
-                                }
                             )
                         }
                     }
@@ -691,8 +640,11 @@ fun LoginScreen(
             }
         }
 
-        // GOOGLE ACCOUNT SELECTOR DIALOG
+        // GOOGLE ACCOUNT SIGN IN DIALOG
         if (showGoogleAccountDialog) {
+            var googleEmail by remember { mutableStateOf("") }
+            var googleName by remember { mutableStateOf("") }
+
             AlertDialog(
                 onDismissRequest = { showGoogleAccountDialog = false },
                 containerColor = SurfaceDark,
@@ -703,51 +655,70 @@ fun LoginScreen(
                     }
                 },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Select a Google account to continue to Bisma Voice Chat:",
+                            text = "Enter your Google account details to sign in or create an account with Google:",
                             color = TextSecondary,
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
 
-                        GoogleAccountCard(
-                            email = "shahrozmaher01@gmail.com",
-                            name = "Shahroz Maher",
-                            avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
-                            onClick = {
-                                showGoogleAccountDialog = false
-                                coroutineScope.launch {
-                                    repository.loginWithGoogle(
-                                        email = "shahrozmaher01@gmail.com",
-                                        displayName = "Shahroz Maher",
-                                        avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
-                                    )
-                                    Toast.makeText(context, "Signed in as Shahroz Maher!", Toast.LENGTH_SHORT).show()
-                                    onLoginSuccess()
-                                }
-                            }
+                        OutlinedTextField(
+                            value = googleEmail,
+                            onValueChange = { googleEmail = it },
+                            label = { Text("Google Email", color = TextSecondary) },
+                            placeholder = { Text("user@gmail.com", color = TextMuted) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NeonPink,
+                                unfocusedBorderColor = SurfaceCardBorder,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
                         )
 
-                        GoogleAccountCard(
-                            email = "bisma.user@gmail.com",
-                            name = "Bisma Voice User",
-                            avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-                            onClick = {
-                                showGoogleAccountDialog = false
-                                coroutineScope.launch {
-                                    repository.loginWithGoogle(
-                                        email = "bisma.user@gmail.com",
-                                        displayName = "Bisma Voice User",
-                                        avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
-                                    )
-                                    Toast.makeText(context, "Signed in as Bisma Voice User!", Toast.LENGTH_SHORT).show()
-                                    onLoginSuccess()
-                                }
-                            }
+                        OutlinedTextField(
+                            value = googleName,
+                            onValueChange = { googleName = it },
+                            label = { Text("Display Name", color = TextSecondary) },
+                            placeholder = { Text("Your Name", color = TextMuted) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NeonPink,
+                                unfocusedBorderColor = SurfaceCardBorder,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
                         )
                     }
                 },
-                confirmButton = {},
+                confirmButton = {
+                    NeonButton(
+                        text = "Continue with Google",
+                        onClick = {
+                            if (googleEmail.isBlank() || !googleEmail.contains("@")) {
+                                Toast.makeText(context, "Please enter a valid Google email", Toast.LENGTH_SHORT).show()
+                                return@NeonButton
+                            }
+                            showGoogleAccountDialog = false
+                            coroutineScope.launch {
+                                val result = repository.loginWithGoogle(
+                                    email = googleEmail.trim(),
+                                    displayName = googleName.trim().ifBlank { googleEmail.substringBefore("@") },
+                                    avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
+                                )
+                                result.onSuccess { user ->
+                                    Toast.makeText(context, "Welcome, ${user.username}! ✨", Toast.LENGTH_SHORT).show()
+                                    onLoginSuccess()
+                                }.onFailure { err ->
+                                    Toast.makeText(context, err.message ?: "Sign in failed", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    )
+                },
                 dismissButton = {
                     TextButton(onClick = { showGoogleAccountDialog = false }) {
                         Text("Cancel", color = TextSecondary)
@@ -766,39 +737,6 @@ fun LoginScreen(
                     Toast.makeText(context, "Password reset successfully! You can now log in.", Toast.LENGTH_LONG).show()
                 }
             )
-        }
-    }
-}
-
-@Composable
-fun GoogleAccountCard(
-    email: String,
-    name: String,
-    avatar: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceCard)
-            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = avatar,
-            contentDescription = name,
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(text = name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Text(text = email, color = TextSecondary, fontSize = 11.sp)
         }
     }
 }
@@ -829,29 +767,6 @@ fun GenderSelectionChip(
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             fontSize = 14.sp
         )
-    }
-}
-
-@Composable
-fun DemoLoginChip(
-    name: String,
-    id: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(SurfaceCard)
-            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(10.dp))
-            .clickable { onClick() }
-            .padding(vertical = 8.dp, horizontal = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = name, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text(text = "ID: $id", color = TextSecondary, fontSize = 9.sp)
-        }
     }
 }
 
@@ -887,7 +802,7 @@ fun ForgotPasswordDialog(
                     value = accountQuery,
                     onValueChange = { accountQuery = it },
                     label = { Text("ID Number or Email") },
-                    placeholder = { Text("e.g. 883921") },
+                    placeholder = { Text("e.g. 123456 or user@gmail.com") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(

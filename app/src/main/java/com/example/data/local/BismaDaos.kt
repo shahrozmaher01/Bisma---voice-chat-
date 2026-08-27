@@ -47,6 +47,9 @@ interface UserDao {
 
     @Query("SELECT * FROM users")
     suspend fun getAllUsers(): List<User>
+
+    @Query("DELETE FROM users WHERE id = :userId")
+    suspend fun deleteUserById(userId: String)
 }
 
 @Dao
@@ -77,6 +80,9 @@ interface RoomDao {
 
     @Query("DELETE FROM rooms WHERE id = :roomId")
     suspend fun deleteRoom(roomId: String)
+
+    @Query("DELETE FROM rooms WHERE id = :roomId")
+    suspend fun deleteRoomById(roomId: String)
 }
 
 @Dao
@@ -141,8 +147,14 @@ interface VisitorDao {
     @Query("SELECT * FROM visitors WHERE targetUserId = :targetUserId ORDER BY visitedAt DESC")
     fun getVisitorsFlow(targetUserId: String): Flow<List<VisitorRecord>>
 
+    @Query("SELECT COUNT(*) FROM visitors WHERE targetUserId = :targetUserId")
+    fun getVisitorsCountFlow(targetUserId: String): Flow<Int>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVisitor(visitor: VisitorRecord)
+
+    @Query("DELETE FROM visitors WHERE targetUserId = :targetUserId")
+    suspend fun clearVisitors(targetUserId: String)
 }
 
 @Dao
@@ -177,6 +189,9 @@ interface AgencyFamilyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAgency(agency: Agency)
 
+    @Query("DELETE FROM agencies WHERE id = :id")
+    suspend fun deleteAgencyById(id: String)
+
     @Query("SELECT * FROM families ORDER BY ranking ASC")
     fun getAllFamiliesFlow(): Flow<List<Family>>
 
@@ -185,6 +200,9 @@ interface AgencyFamilyDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFamily(family: Family)
+
+    @Query("DELETE FROM families WHERE id = :id")
+    suspend fun deleteFamilyById(id: String)
 }
 
 @Dao
@@ -200,6 +218,9 @@ interface WalletTransactionDao {
 interface SocialDao {
     @Query("SELECT * FROM friendships WHERE (userId = :userId OR friendId = :userId) AND status = 'accepted'")
     fun getFriendsFlow(userId: String): Flow<List<Friendship>>
+
+    @Query("SELECT COUNT(*) FROM friendships WHERE (userId = :userId OR friendId = :userId) AND status = 'accepted'")
+    fun getFriendsCountFlow(userId: String): Flow<Int>
 
     @Query("SELECT * FROM friendships WHERE friendId = :userId AND status = 'pending'")
     fun getPendingFriendRequestsFlow(userId: String): Flow<List<Friendship>>
@@ -225,6 +246,12 @@ interface SocialDao {
     @Query("SELECT * FROM follows WHERE followerId = :userId")
     fun getFollowingFlow(userId: String): Flow<List<Follow>>
 
+    @Query("SELECT COUNT(*) FROM follows WHERE followerId = :userId")
+    fun getFollowingCountFlow(userId: String): Flow<Int>
+
     @Query("SELECT * FROM follows WHERE followingId = :userId")
     fun getFollowersFlow(userId: String): Flow<List<Follow>>
+
+    @Query("SELECT COUNT(*) FROM follows WHERE followingId = :userId")
+    fun getFollowersCountFlow(userId: String): Flow<Int>
 }

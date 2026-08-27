@@ -21,11 +21,11 @@ class BismaRepository(private val context: Context) {
     private val _isLoggedIn = MutableStateFlow(prefs.getBoolean("KEY_IS_LOGGED_IN", false))
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    private val _currentUserId = MutableStateFlow(prefs.getString("KEY_CURRENT_USER_ID", "883921") ?: "883921")
+    private val _currentUserId = MutableStateFlow(prefs.getString("KEY_CURRENT_USER_ID", "") ?: "")
     val currentUserId: StateFlow<String> = _currentUserId.asStateFlow()
 
     val currentUser: Flow<User?> = _currentUserId.flatMapLatest { id ->
-        db.userDao().getUserByIdFlow(id)
+        if (id.isBlank()) flowOf(null) else db.userDao().getUserByIdFlow(id)
     }
 
     val activeRooms: Flow<List<VoiceRoom>> = db.roomDao().getAllActiveRoomsFlow()
@@ -63,235 +63,44 @@ class BismaRepository(private val context: Context) {
 
     init {
         scope.launch {
-            seedInitialDataIfNeeded()
+            cleanAndSeedStoreCatalog()
         }
     }
 
-    private suspend fun seedInitialDataIfNeeded() {
-        val existingUser = db.userDao().getUserById("883921")
-        val defaultPasswordHash = hashPassword("123456")
-        if (existingUser == null) {
-            val defaultUser = User(
-                id = "883921",
-                username = "Princess Bisma 👑",
-                avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-                bio = "Welcome to Bisma Voice Chat! Let's connect & sing 🎵",
-                country = "🇵🇰 Pakistan",
-                language = "English",
-                gender = "Female",
-                dateOfBirth = "2002-05-14",
-                passwordHash = defaultPasswordHash,
-                email = "bisma.official@bisma.app",
-                userLevel = 5,
-                richLevel = 3,
-                charmLevel = 4,
-                vipLevel = 2,
-                coins = 5000,
-                diamonds = 120,
-                followersCount = 18,
-                followingCount = 6,
-                friendsCount = 4,
-                equippedFrameId = "frame_vip_neon"
-            )
-            db.userDao().insertOrUpdate(defaultUser)
+    private suspend fun cleanAndSeedStoreCatalog() {
+        // Purge any legacy demo/fake accounts and rooms
+        val fakeUserIds = listOf("883921", "104928", "209411", "305182", "402819", "509124", "601832", "708912")
+        fakeUserIds.forEach { fakeId ->
+            db.userDao().deleteUserById(fakeId)
+        }
+        val fakeRoomIds = listOf("772184", "883109", "994012", "652190", "541829", "432901", "321876", "210985", "109874")
+        fakeRoomIds.forEach { roomId ->
+            db.roomDao().deleteRoomById(roomId)
+            db.seatDao().clearSeatsForRoom(roomId)
+        }
+        db.agencyFamilyDao().deleteAgencyById("ag_1")
+        db.agencyFamilyDao().deleteAgencyById("ag_2")
+        db.agencyFamilyDao().deleteFamilyById("fam_1")
+        db.agencyFamilyDao().deleteFamilyById("fam_2")
+        db.momentDao().deleteMoment("m_1")
+        db.notificationDao().deleteNotification("notif_1")
 
-            // Seed other community users
-            val sampleUsers = listOf(
-                User(id = "104928", username = "Ali Khan 🎙️", avatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300", country = "🇵🇰 Pakistan", gender = "Male", dateOfBirth = "1999-08-20", passwordHash = defaultPasswordHash, email = "ali.khan@gmail.com", userLevel = 8, richLevel = 6, charmLevel = 5, vipLevel = 3, coins = 12000),
-                User(id = "209411", username = "Aarav Sharma 🎸", avatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300", country = "🇮🇳 India", gender = "Male", dateOfBirth = "2000-03-15", passwordHash = defaultPasswordHash, email = "aarav.music@gmail.com", userLevel = 7, richLevel = 5, charmLevel = 7, vipLevel = 4, coins = 25000),
-                User(id = "305182", username = "Zara Noor ✨", avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300", country = "🇵🇰 Pakistan", gender = "Female", dateOfBirth = "2001-11-28", passwordHash = defaultPasswordHash, email = "zara.noor@gmail.com", userLevel = 6, richLevel = 4, charmLevel = 8, vipLevel = 3, coins = 18000),
-                User(id = "402819", username = "Tanvir Ahmed 🇧🇩", avatarUrl = "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300", country = "🇧🇩 Bangladesh", gender = "Male", dateOfBirth = "1998-01-10", passwordHash = defaultPasswordHash, email = "tanvir.bd@gmail.com", userLevel = 4, richLevel = 2, charmLevel = 3, vipLevel = 1, coins = 4500),
-                User(id = "509124", username = "Pooja Thapa 🇳🇵", avatarUrl = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300", country = "🇳🇵 Nepal", gender = "Female", dateOfBirth = "2003-07-04", passwordHash = defaultPasswordHash, email = "pooja.thapa@gmail.com", userLevel = 5, richLevel = 3, charmLevel = 4, vipLevel = 2, coins = 8000),
-                User(id = "601832", username = "Hamza Sheikh 👑", avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300", country = "🇸🇦 Saudi", gender = "Male", dateOfBirth = "1997-12-05", passwordHash = defaultPasswordHash, email = "hamza.sheikh@gmail.com", userLevel = 12, richLevel = 10, charmLevel = 9, vipLevel = 5, coins = 85000),
-                User(id = "708912", username = "Sara Khan 💖", avatarUrl = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300", country = "🇦🇪 UAE", gender = "Female", dateOfBirth = "2002-09-19", passwordHash = defaultPasswordHash, email = "sara.dubai@gmail.com", userLevel = 6, richLevel = 5, charmLevel = 7, vipLevel = 3, coins = 32000)
-            )
-            sampleUsers.forEach { db.userDao().insertOrUpdate(it) }
-
-            // Seed default rooms
-            val sampleRooms = listOf(
-                VoiceRoom(
-                    id = "772184",
-                    title = "🎤 Bisma Royal Lounge | Urdu & Hindi Songs",
-                    description = "24/7 Live Singing, Chill Vibes, and Friendly Conversations.",
-                    coverUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400",
-                    ownerId = "883921",
-                    ownerName = "Princess Bisma 👑",
-                    ownerAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300",
-                    ownerVip = 2,
-                    country = "🇵🇰 Pakistan",
-                    seatCount = 8,
-                    onlineCount = 840,
-                    category = "Singing & Chill",
-                    isFeatured = true
-                ),
-                VoiceRoom(
-                    id = "883109",
-                    title = "✨ Desi Beats & Late Night Talks",
-                    description = "Share your stories, poems, and join the microphone!",
-                    coverUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
-                    ownerId = "104928",
-                    ownerName = "Ali Khan 🎙️",
-                    ownerAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
-                    ownerVip = 3,
-                    country = "🇵🇰 Pakistan",
-                    seatCount = 10,
-                    onlineCount = 520,
-                    category = "Talk & Podcast"
-                ),
-                VoiceRoom(
-                    id = "994012",
-                    title = "🎸 Bollywood Acoustic Live Jam",
-                    description = "Guitarists & Vocalists open mic room.",
-                    coverUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400",
-                    ownerId = "209411",
-                    ownerName = "Aarav Sharma 🎸",
-                    ownerAvatar = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300",
-                    ownerVip = 4,
-                    country = "🇮🇳 India",
-                    seatCount = 8,
-                    onlineCount = 310,
-                    category = "Music"
-                ),
-                VoiceRoom(
-                    id = "652190",
-                    title = "🎮 Ludo King Tournament & Voice Fun",
-                    description = "Playing 4-player Ludo matches while chatting on mic!",
-                    coverUrl = "https://images.unsplash.com/photo-1612287233207-61c028247072?w=400",
-                    ownerId = "305182",
-                    ownerName = "Zara Noor ✨",
-                    ownerAvatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300",
-                    ownerVip = 3,
-                    country = "🇵🇰 Pakistan",
-                    seatCount = 8,
-                    onlineCount = 670,
-                    category = "Gaming & Ludo"
-                ),
-                VoiceRoom(
-                    id = "541829",
-                    title = "💖 Singles Blind Date & CP Matching 🌹",
-                    description = "Find your soulmate and play romantic voice games.",
-                    coverUrl = "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400",
-                    ownerId = "708912",
-                    ownerName = "Sara Khan 💖",
-                    ownerAvatar = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300",
-                    ownerVip = 3,
-                    country = "🇦🇪 UAE",
-                    seatCount = 8,
-                    onlineCount = 1240,
-                    category = "Dating & Singles",
-                    isFeatured = true
-                ),
-                VoiceRoom(
-                    id = "432901",
-                    title = "🌙 Midnight Shayari & Heart-to-Heart",
-                    description = "Calm ambience, Urdu poetry, and soothing discussions.",
-                    coverUrl = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=400",
-                    ownerId = "104928",
-                    ownerName = "Ali Khan 🎙️",
-                    ownerAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
-                    ownerVip = 3,
-                    country = "🇵🇰 Pakistan",
-                    seatCount = 6,
-                    onlineCount = 490,
-                    category = "Late Night & Chill"
-                ),
-                VoiceRoom(
-                    id = "321876",
-                    title = "👑 Imperial VIP Club & High Rollers",
-                    description = "Exclusive lounge for top gifting leaders and VIP members.",
-                    coverUrl = "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400",
-                    ownerId = "601832",
-                    ownerName = "Hamza Sheikh 👑",
-                    ownerAvatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300",
-                    ownerVip = 5,
-                    country = "🇸🇦 Saudi",
-                    seatCount = 10,
-                    onlineCount = 1580,
-                    category = "Royal VIP",
-                    isFeatured = true
-                ),
-                VoiceRoom(
-                    id = "210985",
-                    title = "🇧🇩 Dhaka Acoustic Melodies & Adda",
-                    description = "Bengali folk songs, modern rock, and warm tea-time adda.",
-                    coverUrl = "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=400",
-                    ownerId = "402819",
-                    ownerName = "Tanvir Ahmed 🇧🇩",
-                    ownerAvatar = "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300",
-                    ownerVip = 1,
-                    country = "🇧🇩 Bangladesh",
-                    seatCount = 8,
-                    onlineCount = 410,
-                    category = "Singing & Chill"
-                ),
-                VoiceRoom(
-                    id = "109874",
-                    title = "🇳🇵 Himalayan Acoustic Chill & Folk",
-                    description = "Nepali acoustic flute, guitar & mountain vibes.",
-                    coverUrl = "https://images.unsplash.com/photo-1486572788966-cfd3dfdd4a48?w=400",
-                    ownerId = "509124",
-                    ownerName = "Pooja Thapa 🇳🇵",
-                    ownerAvatar = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300",
-                    ownerVip = 2,
-                    country = "🇳🇵 Nepal",
-                    seatCount = 6,
-                    onlineCount = 290,
-                    category = "Music"
-                )
-            )
-            sampleRooms.forEach { room ->
-                db.roomDao().insertOrUpdate(room)
-                initSeatsForRoom(room.id, room.seatCount, room.ownerId, room.ownerName, room.ownerAvatar, room.ownerVip)
-            }
-
-            // Seed store items
+        // Seed store catalog items (shop items only, not owned until purchased)
+        val existingStore = db.storeDao().getAllStoreItemsFlow().firstOrNull() ?: emptyList()
+        if (existingStore.isEmpty()) {
             val items = listOf(
-                StoreItem("frame_vip_neon", "Neon Pink Crown Frame", "Frames", 1200, "👑", 0xFFFF2A85, isPermanent = true, isOwned = true, isEquipped = true),
-                StoreItem("frame_galaxy_gold", "Galaxy Gold Ring", "Frames", 2500, "🪐", 0xFFFFD700, isPermanent = true),
-                StoreItem("frame_cyber_blue", "Cyberpunk Hologram", "Frames", 1800, "⚡", 0xFF00E5FF, isPermanent = true),
-                StoreItem("frame_heart_romance", "Romantic Rose CP Frame", "Frames", 3000, "💖", 0xFFFF4081, isPermanent = true),
-                StoreItem("head_angel_wings", "Angel Wings Halo", "Headwear", 1500, "🪽", 0xFFFFFFFF),
-                StoreItem("head_devil_horns", "Neon Devil Horns", "Headwear", 1400, "😈", 0xFFFF1744),
-                StoreItem("entry_supercar", "Lamborghini Entry Effect", "Entry Effects", 5000, "🏎️", 0xFFFFD700),
-                StoreItem("entry_dragon", "Phoenix Flame Entry", "Entry Effects", 8000, "🔥", 0xFFFF8800),
-                StoreItem("bubble_neon_glow", "Pink Neon Chat Bubble", "Chat Bubbles", 800, "💬", 0xFFFF2A85),
-                StoreItem("sound_laser_wave", "Laser Sound Waves", "Sound Waves", 1000, "🌊", 0xFF00E5FF)
+                StoreItem("frame_vip_neon", "Neon Pink Crown Frame", "Frames", 1200, "👑", 0xFFFF2A85, isPermanent = true, isOwned = false, isEquipped = false),
+                StoreItem("frame_galaxy_gold", "Galaxy Gold Ring", "Frames", 2500, "🪐", 0xFFFFD700, isPermanent = true, isOwned = false, isEquipped = false),
+                StoreItem("frame_cyber_blue", "Cyberpunk Hologram", "Frames", 1800, "⚡", 0xFF00E5FF, isPermanent = true, isOwned = false, isEquipped = false),
+                StoreItem("frame_heart_romance", "Romantic Rose CP Frame", "Frames", 3000, "💖", 0xFFFF4081, isPermanent = true, isOwned = false, isEquipped = false),
+                StoreItem("head_angel_wings", "Angel Wings Halo", "Headwear", 1500, "🪽", 0xFFFFFFFF, isOwned = false, isEquipped = false),
+                StoreItem("head_devil_horns", "Neon Devil Horns", "Headwear", 1400, "😈", 0xFFFF1744, isOwned = false, isEquipped = false),
+                StoreItem("entry_supercar", "Lamborghini Entry Effect", "Entry Effects", 5000, "🏎️", 0xFFFFD700, isOwned = false, isEquipped = false),
+                StoreItem("entry_dragon", "Phoenix Flame Entry", "Entry Effects", 8000, "🔥", 0xFFFF8800, isOwned = false, isEquipped = false),
+                StoreItem("bubble_neon_glow", "Pink Neon Chat Bubble", "Chat Bubbles", 800, "💬", 0xFFFF2A85, isOwned = false, isEquipped = false),
+                StoreItem("sound_laser_wave", "Laser Sound Waves", "Sound Waves", 1000, "🌊", 0xFF00E5FF, isOwned = false, isEquipped = false)
             )
             db.storeDao().insertAll(items)
-
-            // Seed Agencies & Families
-            db.agencyFamilyDao().insertAgency(Agency("ag_1", "Diamond Elite Agency", "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200", "883921", "Princess Bisma", 24, 3, "Top verified voice talent hub.", 180000, 1))
-            db.agencyFamilyDao().insertAgency(Agency("ag_2", "Royal Stars Entertainment", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200", "104928", "Ali Khan", 19, 2, "Building international voice creators.", 95000, 2))
-
-            db.agencyFamilyDao().insertFamily(Family("fam_1", "🌟 Bisma Royal Family", "https://images.unsplash.com/photo-1557683316-973673baf926?w=200", "883921", "Princess Bisma", 38, 4, "United by voice, bonded by love!", 78000, 1))
-            db.agencyFamilyDao().insertFamily(Family("fam_2", "🔥 Desi Vibe Squad", "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=200", "209411", "Aarav Sharma", 27, 3, "Music & fun always.", 42000, 2))
-
-            // Seed Moments
-            db.momentDao().insertMoment(
-                MomentPost(
-                    id = "m_1",
-                    authorId = "883921",
-                    authorName = "Princess Bisma 👑",
-                    authorAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300",
-                    authorVip = 2,
-                    content = "Thank you so much to everyone who joined our room tonight! Over 800+ friends hanging out 🎉✨ Don't forget to follow our family.",
-                    imageUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600",
-                    likesCount = 42,
-                    commentsCount = 8
-                )
-            )
-
-            // Seed notifications
-            db.notificationDao().insertNotification(
-                NotificationItem(
-                    id = "notif_1",
-                    userId = "883921",
-                    type = "system",
-                    title = "🎉 Welcome to Bisma Voice Chat",
-                    message = "Your VIP tier and wallet balance have been credited. Enjoy real-time voice rooms and social features!",
-                    timestamp = System.currentTimeMillis()
-                )
-            )
         }
     }
 
@@ -373,12 +182,18 @@ class BismaRepository(private val context: Context) {
         return db.seatDao().getSeatsForRoomFlow(roomId)
     }
 
+    fun getFollowersCountFlow(userId: String): Flow<Int> = db.socialDao().getFollowersCountFlow(userId)
+    fun getFollowingCountFlow(userId: String): Flow<Int> = db.socialDao().getFollowingCountFlow(userId)
+    fun getFriendsCountFlow(userId: String): Flow<Int> = db.socialDao().getFriendsCountFlow(userId)
+    fun getVisitorsCountFlow(userId: String): Flow<Int> = db.visitorDao().getVisitorsCountFlow(userId)
+
     suspend fun refreshLiveListenerCounts() {
         val rooms = db.roomDao().getAllActiveRoomsFlow().firstOrNull() ?: return
         rooms.forEach { room ->
-            val delta = Random.nextInt(-8, 15)
-            val newCount = (room.onlineCount + delta).coerceAtLeast(12)
-            db.roomDao().updateOnlineCount(room.id, newCount)
+            val seats = db.seatDao().getSeatsForRoomFlow(room.id).firstOrNull() ?: emptyList()
+            val activeOccupants = seats.count { it.userId != null }
+            val realCount = if (activeOccupants > 0) activeOccupants else 1
+            db.roomDao().updateOnlineCount(room.id, realCount)
         }
     }
 
@@ -400,6 +215,14 @@ class BismaRepository(private val context: Context) {
                     )
                 )
             }
+            // Update real listener count
+            val room = db.roomDao().getRoomById(roomId)
+            if (room != null) {
+                val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+                val activeOccupants = seats.count { it.userId != null }
+                val realCount = activeOccupants.coerceAtLeast(1)
+                db.roomDao().updateOnlineCount(roomId, realCount)
+            }
         }
     }
 
@@ -413,6 +236,8 @@ class BismaRepository(private val context: Context) {
                 seats.filter { it.userId == userId }.forEach { seat ->
                     db.seatDao().updateSeat(seat.copy(userId = null, username = null, avatarUrl = null, isSpeaking = false))
                 }
+                val remainingOccupants = seats.count { it.userId != null && it.userId != userId }
+                db.roomDao().updateOnlineCount(roomId, remainingOccupants.coerceAtLeast(0))
             }
         }
         _activeRoomId.value = null
@@ -647,34 +472,66 @@ class BismaRepository(private val context: Context) {
 
     suspend fun acceptFriendRequest(senderId: String) {
         val currentId = _currentUserId.value
+        if (currentId.isBlank()) return
         db.socialDao().insertFriendship(Friendship(userId = senderId, friendId = currentId, status = "accepted"))
+        val currentFriends = db.socialDao().getFriendsFlow(currentId).firstOrNull()?.size ?: 0
+        val senderFriends = db.socialDao().getFriendsFlow(senderId).firstOrNull()?.size ?: 0
+        val currentUser = db.userDao().getUserById(currentId)
+        if (currentUser != null) {
+            db.userDao().insertOrUpdate(currentUser.copy(friendsCount = currentFriends))
+        }
+        val senderUser = db.userDao().getUserById(senderId)
+        if (senderUser != null) {
+            db.userDao().insertOrUpdate(senderUser.copy(friendsCount = senderFriends))
+        }
     }
 
     suspend fun rejectFriendRequest(senderId: String) {
         val currentId = _currentUserId.value
+        if (currentId.isBlank()) return
         db.socialDao().deleteFriendship(senderId, currentId)
     }
 
     suspend fun toggleFollow(targetUserId: String): Boolean {
         val currentId = _currentUserId.value
+        if (currentId.isBlank() || currentId == targetUserId) return false
         val isFollowing = db.socialDao().isFollowing(currentId, targetUserId)
         if (isFollowing) {
             db.socialDao().deleteFollow(currentId, targetUserId)
+            val currentFollowing = db.socialDao().getFollowingFlow(currentId).firstOrNull()?.size ?: 0
+            val targetFollowers = db.socialDao().getFollowersFlow(targetUserId).firstOrNull()?.size ?: 0
+            val currentUser = db.userDao().getUserById(currentId)
+            if (currentUser != null) {
+                db.userDao().insertOrUpdate(currentUser.copy(followingCount = currentFollowing))
+            }
+            val targetUser = db.userDao().getUserById(targetUserId)
+            if (targetUser != null) {
+                db.userDao().insertOrUpdate(targetUser.copy(followersCount = targetFollowers))
+            }
             return false
         } else {
             db.socialDao().insertFollow(Follow(followerId = currentId, followingId = targetUserId))
-            val user = db.userDao().getUserById(currentId)
-            if (user != null) {
+            val currentFollowing = db.socialDao().getFollowingFlow(currentId).firstOrNull()?.size ?: 0
+            val targetFollowers = db.socialDao().getFollowersFlow(targetUserId).firstOrNull()?.size ?: 0
+            val currentUser = db.userDao().getUserById(currentId)
+            if (currentUser != null) {
+                db.userDao().insertOrUpdate(currentUser.copy(followingCount = currentFollowing))
+            }
+            val targetUser = db.userDao().getUserById(targetUserId)
+            if (targetUser != null) {
+                db.userDao().insertOrUpdate(targetUser.copy(followersCount = targetFollowers))
+            }
+            if (currentUser != null) {
                 db.notificationDao().insertNotification(
                     NotificationItem(
                         id = UUID.randomUUID().toString(),
                         userId = targetUserId,
                         type = "follow",
                         title = "New Follower",
-                        message = "${user.username} started following you!",
-                        senderId = user.id,
-                        senderName = user.username,
-                        senderAvatar = user.avatarUrl
+                        message = "${currentUser.username} started following you!",
+                        senderId = currentUser.id,
+                        senderName = currentUser.username,
+                        senderAvatar = currentUser.avatarUrl
                     )
                 )
             }
@@ -806,19 +663,19 @@ class BismaRepository(private val context: Context) {
             dateOfBirth = dateOfBirth,
             passwordHash = hashPassword(password),
             email = email,
-            bio = "Hey there! I just joined Bisma Voice Chat ✨",
+            bio = "Hey there! I am using Bisma Voice Chat ✨",
             country = "🇵🇰 Pakistan",
             language = "English",
             userLevel = 1,
-            richLevel = 1,
-            charmLevel = 1,
+            richLevel = 0,
+            charmLevel = 0,
             vipLevel = 0,
-            coins = 2000, // Welcome gift coins!
-            diamonds = 50,
+            coins = 0,
+            diamonds = 0,
             followersCount = 0,
-            followingCount = 1,
+            followingCount = 0,
             friendsCount = 0,
-            equippedFrameId = "frame_neon_circle"
+            equippedFrameId = null
         )
 
         db.userDao().insertOrUpdate(newUser)
@@ -854,17 +711,24 @@ class BismaRepository(private val context: Context) {
         val newId = generateUniqueUserId()
         val googleUser = User(
             id = newId,
-            username = displayName.ifBlank { "Google User" },
+            username = displayName.ifBlank { "User $newId" },
             avatarUrl = avatarUrl.ifBlank { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300" },
             gender = "Male",
             dateOfBirth = "2000-01-01",
             passwordHash = hashPassword(UUID.randomUUID().toString()),
             email = email.trim(),
-            bio = "Connected via Google on Bisma Voice Chat 🌟",
+            bio = "Hey there! I am using Bisma Voice Chat ✨",
             country = "🇵🇰 Pakistan",
-            coins = 3000,
-            diamonds = 100,
-            userLevel = 2
+            coins = 0,
+            diamonds = 0,
+            userLevel = 1,
+            richLevel = 0,
+            charmLevel = 0,
+            vipLevel = 0,
+            followersCount = 0,
+            followingCount = 0,
+            friendsCount = 0,
+            equippedFrameId = null
         )
 
         db.userDao().insertOrUpdate(googleUser)

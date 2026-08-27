@@ -244,14 +244,15 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = if (selectedTab == 3) "You don't have an active room yet" else "No active voice rooms found in this category / region",
+                                    text = if (selectedTab == 3) "You haven't created a room yet." else "No rooms available.",
                                     color = TextSecondary,
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
                                     textAlign = TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 NeonButton(
-                                    text = "Create Room Now",
+                                    text = "+ Create Room",
                                     onClick = { showCreateRoomDialog = true },
                                     modifier = Modifier.fillMaxWidth(0.7f)
                                 )

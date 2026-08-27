@@ -34,6 +34,10 @@ fun UserProfileDetailDialog(
     var user by remember { mutableStateOf<User?>(null) }
     var isFollowing by remember { mutableStateOf(false) }
 
+    val followingCount by repository.getFollowingCountFlow(userId).collectAsState(initial = 0)
+    val followersCount by repository.getFollowersCountFlow(userId).collectAsState(initial = 0)
+    val friendsCount by repository.getFriendsCountFlow(userId).collectAsState(initial = 0)
+
     LaunchedEffect(userId) {
         val all = repository.getAllUsers()
         user = all.find { it.id == userId }
@@ -101,6 +105,28 @@ fun UserProfileDetailDialog(
                     LevelBadge(level = target.userLevel, type = LevelType.USER)
                     LevelBadge(level = target.richLevel, type = LevelType.RICH)
                     LevelBadge(level = target.charmLevel, type = LevelType.CHARM)
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Stats Row
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "$followingCount", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(text = "Following", color = TextSecondary, fontSize = 10.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "$followersCount", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(text = "Followers", color = TextSecondary, fontSize = 10.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "$friendsCount", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(text = "Friends", color = TextSecondary, fontSize = 10.sp)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))

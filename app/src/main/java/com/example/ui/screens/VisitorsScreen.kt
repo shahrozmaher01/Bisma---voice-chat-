@@ -8,8 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,15 +34,6 @@ fun VisitorsScreen(
     val coroutineScope = rememberCoroutineScope()
     val visitors by repository.getVisitors().collectAsState(initial = emptyList())
 
-    // Mock initial visitor records if empty for real display
-    val sampleVisitors = listOf(
-        VisitorRecord(id = "v_1", targetUserId = "883921", visitorId = "104928", visitorName = "Ali Khan 🎙️", visitorAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300", visitorVip = 3),
-        VisitorRecord(id = "v_2", targetUserId = "883921", visitorId = "209411", visitorName = "Aarav Sharma 🎸", visitorAvatar = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300", visitorVip = 4),
-        VisitorRecord(id = "v_3", targetUserId = "883921", visitorId = "305182", visitorName = "Zara Noor ✨", visitorAvatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300", visitorVip = 3)
-    )
-
-    val displayedVisitors = if (visitors.isEmpty()) sampleVisitors else visitors
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -65,54 +55,78 @@ fun VisitorsScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
                 Text(
-                    text = "Profile Visitors (${displayedVisitors.size})",
+                    text = "Profile Visitors (${visitors.size})",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 30.dp)
-            ) {
-                items(displayedVisitors) { v ->
-                    GlassCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpenUserProfile(v.visitorId) }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+            if (visitors.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No profile visitors yet.",
+                            color = TextSecondary,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 30.dp)
+                ) {
+                    items(visitors) { v ->
+                        GlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenUserProfile(v.visitorId) }
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AvatarWithFrame(avatarUrl = v.visitorAvatar, size = 44.dp, vipLevel = v.visitorVip)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(text = v.visitorName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    Text(text = "Viewed your profile recently", color = TextSecondary, fontSize = 10.sp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    AvatarWithFrame(avatarUrl = v.visitorAvatar, size = 44.dp, vipLevel = v.visitorVip)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(text = v.visitorName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text(text = "Viewed your profile recently", color = TextSecondary, fontSize = 10.sp)
+                                    }
                                 }
-                            }
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Button(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            repository.sendFriendRequest(v.visitorId)
-                                            Toast.makeText(context, "Friend request sent!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(30.dp)
-                                ) {
-                                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Add", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                repository.sendFriendRequest(v.visitorId)
+                                                Toast.makeText(context, "Friend request sent!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Icon(Icons.Default.PersonAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Add", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }

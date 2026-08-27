@@ -110,35 +110,46 @@ fun AgencyFamilyScreen(
                             }
                         }
 
-                        items(agencies) { ag ->
-                            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                        if (agencies.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        AsyncImage(
-                                            model = ag.logoUrl,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(46.dp).clip(CircleShape)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(text = ag.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            Text(text = "Owner: ${ag.ownerName} • ${ag.memberCount} Hosts", color = TextSecondary, fontSize = 11.sp)
-                                            Text(text = "Agency Monthly Income: 🪙 ${ag.totalIncome}", color = GoldAmber, fontSize = 10.sp)
-                                        }
-                                    }
-
-                                    Button(
-                                        onClick = { Toast.makeText(context, "Application sent to ${ag.name}!", Toast.LENGTH_SHORT).show() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(30.dp)
+                                    Text("No voice agencies registered yet.", color = TextSecondary, fontSize = 13.sp)
+                                }
+                            }
+                        } else {
+                            items(agencies) { ag ->
+                                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("Apply", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            AsyncImage(
+                                                model = ag.logoUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(46.dp).clip(CircleShape)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(text = ag.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Text(text = "Owner: ${ag.ownerName} • ${ag.memberCount} Hosts", color = TextSecondary, fontSize = 11.sp)
+                                                Text(text = "Agency Monthly Income: 🪙 ${ag.totalIncome}", color = GoldAmber, fontSize = 10.sp)
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = { Toast.makeText(context, "Application sent to ${ag.name}!", Toast.LENGTH_SHORT).show() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text("Apply", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
@@ -162,35 +173,46 @@ fun AgencyFamilyScreen(
                             }
                         }
 
-                        items(families) { fam ->
-                            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                        if (families.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        AsyncImage(
-                                            model = fam.logoUrl,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(46.dp).clip(RoundedCornerShape(10.dp))
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(text = fam.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            Text(text = "Leader: ${fam.leaderName} • Lv ${fam.level}", color = TextSecondary, fontSize = 11.sp)
-                                            Text(text = "${fam.memberCount} Members • ${fam.score} Score", color = EmeraldGreen, fontSize = 10.sp)
-                                        }
-                                    }
-
-                                    Button(
-                                        onClick = { Toast.makeText(context, "Join request sent to ${fam.name}!", Toast.LENGTH_SHORT).show() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(30.dp)
+                                    Text("No families created yet.", color = TextSecondary, fontSize = 13.sp)
+                                }
+                            }
+                        } else {
+                            items(families) { fam ->
+                                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("Join", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            AsyncImage(
+                                                model = fam.logoUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(10.dp))
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(text = fam.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Text(text = "Leader: ${fam.leaderName} • Lv ${fam.level}", color = TextSecondary, fontSize = 11.sp)
+                                                Text(text = "${fam.memberCount} Members • ${fam.score} Score", color = EmeraldGreen, fontSize = 10.sp)
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = { Toast.makeText(context, "Join request sent to ${fam.name}!", Toast.LENGTH_SHORT).show() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text("Join", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
