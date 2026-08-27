@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,6 +57,21 @@ fun BismaMainApp() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
     var selectedBottomTab by remember { mutableStateOf(BottomTab.HOME) }
     var inspectUserId by remember { mutableStateOf<String?>(null) }
+
+    // System Back navigation handling for sub-screens and dialogs
+    if (inspectUserId != null) {
+        BackHandler {
+            inspectUserId = null
+        }
+    } else if (currentScreen != Screen.Splash && currentScreen != Screen.Login && currentScreen != Screen.MainTabs) {
+        BackHandler {
+            currentScreen = Screen.MainTabs
+        }
+    } else if (currentScreen == Screen.MainTabs && selectedBottomTab != BottomTab.HOME) {
+        BackHandler {
+            selectedBottomTab = BottomTab.HOME
+        }
+    }
 
     Box(
         modifier = Modifier
