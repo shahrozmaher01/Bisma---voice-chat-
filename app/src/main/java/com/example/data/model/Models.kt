@@ -226,3 +226,59 @@ data class PromoBanner(
     val iconEmoji: String,
     val actionRoute: String
 )
+
+@Entity(tableName = "user_roles")
+data class UserRoleAssignment(
+    @PrimaryKey val userId: String,
+    val username: String = "",
+    val role: String = "User", // "Super Admin", "Admin", "Manager", "BD", "Agency", "Coin Reseller", "User"
+    val assignedBy: String = "System",
+    val assignedByName: String = "System",
+    val assignedAt: Long = System.currentTimeMillis(),
+    val permissions: String = "", // Comma-separated list of granular permissions
+    val assignedArea: String? = null, // e.g. Room ID or Agency ID
+    val notes: String? = null
+)
+
+@Entity(tableName = "app_configs")
+data class AppConfigEntity(
+    @PrimaryKey val key: String,
+    val value: String,
+    val category: String = "general", // "general", "branding", "features", "rooms", "chat", "security"
+    val updatedAt: Long = System.currentTimeMillis(),
+    val updatedBy: String = "Super Admin"
+)
+
+@Entity(tableName = "moderation_reports")
+data class ReportEntity(
+    @PrimaryKey val id: String,
+    val reporterId: String,
+    val reporterName: String,
+    val targetType: String, // "User", "Room", "Chat", "Moment"
+    val targetId: String,
+    val targetTitleOrName: String,
+    val reason: String,
+    val details: String = "",
+    val status: String = "Pending", // "Pending", "Resolved", "Dismissed"
+    val createdAt: Long = System.currentTimeMillis(),
+    val resolvedAt: Long? = null,
+    val resolvedBy: String? = null,
+    val resolutionNotes: String? = null
+)
+
+@Entity(tableName = "audit_logs")
+data class AuditLogEntity(
+    @PrimaryKey val id: String,
+    val adminId: String,
+    val adminName: String,
+    val adminRole: String,
+    val action: String, // e.g. "ROLE_CHANGE", "BAN_USER", "UNBAN_USER", "COIN_ADJUSTMENT", "APP_CONFIG_UPDATE", "BRANDING_UPDATE", "ROOM_MODERATION", "REPORT_RESOLVE"
+    val targetType: String, // "User", "Room", "Config", "Role", "Report"
+    val targetId: String,
+    val targetName: String,
+    val previousValue: String? = null,
+    val newValue: String? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val isSuccess: Boolean = true,
+    val ipAddress: String? = "127.0.0.1"
+)

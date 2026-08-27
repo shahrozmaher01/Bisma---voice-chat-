@@ -2,6 +2,9 @@ package com.example.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.data.admin.AdminSecurityManager
+import com.example.data.admin.AdminService
+import com.example.data.admin.AdminWebServer
 import com.example.data.local.BismaDatabase
 import com.example.data.model.*
 import kotlinx.coroutines.CoroutineScope
@@ -14,9 +17,21 @@ import java.util.UUID
 import kotlin.random.Random
 
 class BismaRepository(private val context: Context) {
-    private val db = BismaDatabase.getDatabase(context)
+    val db = BismaDatabase.getDatabase(context)
     private val scope = CoroutineScope(Dispatchers.IO)
     private val prefs: SharedPreferences = context.getSharedPreferences("bisma_auth_prefs", Context.MODE_PRIVATE)
+
+    // Admin & Web Server Infrastructure
+    val adminSecurityManager = AdminSecurityManager(db)
+    val adminService = AdminService(db, adminSecurityManager)
+    val adminWebServer = AdminWebServer(adminService)
+
+    init {
+        scope.launch {
+            adminService.initializeDefaultConfigs()
+            adminWebServer.start()
+        }
+    }
 
     private val _isLoggedIn = MutableStateFlow(prefs.getBoolean("KEY_IS_LOGGED_IN", false))
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
@@ -27,6 +42,15 @@ class BismaRepository(private val context: Context) {
     val currentUser: Flow<User?> = _currentUserId.flatMapLatest { id ->
         if (id.isBlank()) flowOf(null) else db.userDao().getUserByIdFlow(id)
     }
+
+    val currentUserRole: Flow<UserRoleAssignment?> = _currentUserId.flatMapLatest { id ->
+        if (id.isBlank()) flowOf(null) else db.userRoleDao().getRoleForUserFlow(id)
+    }
+
+    val allUserRoles: Flow<List<UserRoleAssignment>> = db.userRoleDao().getAllRolesFlow()
+    val allAppConfigs: Flow<List<AppConfigEntity>> = db.appConfigDao().getAllConfigsFlow()
+    val allReports: Flow<List<ReportEntity>> = db.reportDao().getAllReportsFlow()
+    val recentAuditLogs: Flow<List<AuditLogEntity>> = db.auditLogDao().getRecentAuditLogsFlow()
 
     val activeRooms: Flow<List<VoiceRoom>> = db.roomDao().getAllActiveRoomsFlow()
     val topWealthUsers: Flow<List<User>> = db.userDao().getTopWealthUsers()

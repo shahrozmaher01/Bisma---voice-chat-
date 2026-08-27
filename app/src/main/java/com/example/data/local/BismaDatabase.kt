@@ -20,9 +20,13 @@ import com.example.data.model.*
         Family::class,
         WalletTransaction::class,
         Friendship::class,
-        Follow::class
+        Follow::class,
+        UserRoleAssignment::class,
+        AppConfigEntity::class,
+        ReportEntity::class,
+        AuditLogEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class BismaDatabase : RoomDatabase() {
@@ -37,6 +41,10 @@ abstract class BismaDatabase : RoomDatabase() {
     abstract fun agencyFamilyDao(): AgencyFamilyDao
     abstract fun walletTransactionDao(): WalletTransactionDao
     abstract fun socialDao(): SocialDao
+    abstract fun userRoleDao(): UserRoleDao
+    abstract fun appConfigDao(): AppConfigDao
+    abstract fun reportDao(): ReportDao
+    abstract fun auditLogDao(): AuditLogDao
 
     companion object {
         @Volatile

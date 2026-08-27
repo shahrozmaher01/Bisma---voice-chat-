@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,11 +53,13 @@ fun VoiceRoomScreen(
     val currentUser by repository.currentUser.collectAsState(initial = null)
 
     var chatInputText by remember { mutableStateOf("") }
+    var showEmojiSheet by remember { mutableStateOf(false) }
     var showGiftSheet by remember { mutableStateOf(false) }
     var showSoundboardSheet by remember { mutableStateOf(false) }
     var showHostToolsSheet by remember { mutableStateOf(false) }
     var showMediaSheet by remember { mutableStateOf(false) }
     var activeGiftBanner by remember { mutableStateOf<ChatMessage?>(null) }
+    val floatingReactions = remember { mutableStateListOf<RoomFloatingReaction>() }
 
     val mySeat = seats.find { it.userId == currentUser?.id }
     val isHost = room?.ownerId == currentUser?.id
@@ -218,10 +222,29 @@ fun VoiceRoomScreen(
                         Toast.makeText(context, "Please take an open seat to use mic", Toast.LENGTH_SHORT).show()
                     }
                 },
+                onOpenEmoji = { showEmojiSheet = true },
                 onOpenGifts = { showGiftSheet = true },
                 onOpenSoundboard = { showSoundboardSheet = true },
                 onOpenGames = onOpenGames
             )
+        }
+
+        // Floating Animated Emoji Reactions Layer
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 72.dp)
+        ) {
+            floatingReactions.forEach { reaction ->
+                key(reaction.id) {
+                    FloatingReactionBubble(
+                        reaction = reaction,
+                        onFinished = {
+                            floatingReactions.removeAll { it.id == reaction.id }
+                        }
+                    )
+                }
+            }
         }
 
         // Active Animated Gift Banner Overlay
@@ -237,6 +260,27 @@ fun VoiceRoomScreen(
             if (activeGiftBanner != null) {
                 GiftAnimationOverlay(giftMessage = activeGiftBanner!!)
             }
+        }
+
+        // Emoji & Reactions Picker Bottom Sheet
+        if (showEmojiSheet) {
+            EmojiPickerBottomSheet(
+                onEmojiSelected = { emoji ->
+                    // 1. Trigger floating reaction animation
+                    floatingReactions.add(
+                        RoomFloatingReaction(
+                            id = System.currentTimeMillis() + (0..99999).random(),
+                            emoji = emoji,
+                            xOffsetDp = (-70..40).random().toFloat()
+                        )
+                    )
+                    // 2. Broadcast in real chat room
+                    coroutineScope.launch {
+                        repository.sendRoomChatMessage(currentRoom.id, emoji)
+                    }
+                },
+                onDismiss = { showEmojiSheet = false }
+            )
         }
 
         // Virtual Gift Bottom Sheet
@@ -714,6 +758,7 @@ fun RoomBottomControlBar(
     isMicMuted: Boolean,
     hasSeat: Boolean,
     onToggleMic: () -> Unit,
+    onOpenEmoji: () -> Unit,
     onOpenGifts: () -> Unit,
     onOpenSoundboard: () -> Unit,
     onOpenGames: () -> Unit
@@ -728,7 +773,7 @@ fun RoomBottomControlBar(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             // Chat Input Field
             OutlinedTextField(
@@ -752,6 +797,22 @@ fun RoomBottomControlBar(
                     unfocusedTextColor = TextPrimary
                 )
             )
+
+            // Dedicated Emoji 😊 Button
+            IconButton(
+                onClick = onOpenEmoji,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(SurfaceCard)
+                    .border(1.dp, SurfaceCardBorder, CircleShape)
+            ) {
+                Text(
+                    text = "😊",
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             // Prominent Mute / Unmute Toggle Button
             InteractiveMuteToggleButton(
@@ -1174,3 +1235,54 @@ fun RoomMediaBottomSheet(
         }
     }
 }
+
+data class RoomFloatingReaction(
+    val id: Long = System.currentTimeMillis() + (0..99999).random(),
+    val emoji: String,
+    val xOffsetDp: Float = (-70..40).random().toFloat()
+)
+
+@Composable
+fun FloatingReactionBubble(
+    reaction: RoomFloatingReaction,
+    onFinished: () -> Unit
+) {
+    val animProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(reaction.id) {
+        animProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 2400, easing = LinearEasing)
+        )
+        onFinished()
+    }
+
+    val progress = animProgress.value
+    val yOffset = (-340 * progress).dp
+    val wobble = (kotlin.math.sin(progress * 4 * Math.PI) * 22).dp + reaction.xOffsetDp.dp
+    val alpha = if (progress < 0.7f) 1f else (1f - (progress - 0.7f) / 0.3f).coerceIn(0f, 1f)
+    val scale = if (progress < 0.15f) {
+        (progress / 0.15f) * 1.35f
+    } else {
+        1.35f - (progress - 0.15f) * 0.4f
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .wrapContentSize(Alignment.BottomEnd)
+            .padding(end = 50.dp)
+            .offset(x = wobble, y = yOffset)
+            .graphicsLayer {
+                this.alpha = alpha
+                this.scaleX = scale
+                this.scaleY = scale
+            }
+    ) {
+        Text(
+            text = reaction.emoji,
+            fontSize = 32.sp
+        )
+    }
+}
+

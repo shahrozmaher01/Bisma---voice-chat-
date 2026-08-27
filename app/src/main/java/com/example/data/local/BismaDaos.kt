@@ -45,8 +45,20 @@ interface UserDao {
     @Query("UPDATE users SET passwordHash = :passwordHash WHERE id = :userId")
     suspend fun updatePassword(userId: String, passwordHash: String)
 
+    @Query("UPDATE users SET isBanned = :isBanned WHERE id = :userId")
+    suspend fun updateBanStatus(userId: String, isBanned: Boolean)
+
     @Query("SELECT * FROM users")
     suspend fun getAllUsers(): List<User>
+
+    @Query("SELECT * FROM users ORDER BY userLevel DESC, coins DESC")
+    fun getAllUsersFlow(): Flow<List<User>>
+
+    @Query("SELECT COUNT(*) FROM users")
+    suspend fun countTotalUsers(): Int
+
+    @Query("SELECT COUNT(*) FROM users WHERE isBanned = 0")
+    suspend fun countActiveUsers(): Int
 
     @Query("DELETE FROM users WHERE id = :userId")
     suspend fun deleteUserById(userId: String)
@@ -254,4 +266,91 @@ interface SocialDao {
 
     @Query("SELECT COUNT(*) FROM follows WHERE followingId = :userId")
     fun getFollowersCountFlow(userId: String): Flow<Int>
+}
+
+@Dao
+interface UserRoleDao {
+    @Query("SELECT * FROM user_roles WHERE userId = :userId LIMIT 1")
+    fun getRoleForUserFlow(userId: String): Flow<UserRoleAssignment?>
+
+    @Query("SELECT * FROM user_roles WHERE userId = :userId LIMIT 1")
+    suspend fun getRoleForUser(userId: String): UserRoleAssignment?
+
+    @Query("SELECT * FROM user_roles ORDER BY assignedAt DESC")
+    fun getAllRolesFlow(): Flow<List<UserRoleAssignment>>
+
+    @Query("SELECT * FROM user_roles ORDER BY assignedAt DESC")
+    suspend fun getAllRoles(): List<UserRoleAssignment>
+
+    @Query("SELECT * FROM user_roles WHERE role = :role")
+    suspend fun getUsersByRole(role: String): List<UserRoleAssignment>
+
+    @Query("SELECT COUNT(*) FROM user_roles WHERE role = :role")
+    suspend fun countByRole(role: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateRole(roleAssignment: UserRoleAssignment)
+
+    @Query("DELETE FROM user_roles WHERE userId = :userId")
+    suspend fun removeRoleForUser(userId: String)
+}
+
+@Dao
+interface AppConfigDao {
+    @Query("SELECT * FROM app_configs")
+    fun getAllConfigsFlow(): Flow<List<AppConfigEntity>>
+
+    @Query("SELECT * FROM app_configs")
+    suspend fun getAllConfigs(): List<AppConfigEntity>
+
+    @Query("SELECT * FROM app_configs WHERE key = :key LIMIT 1")
+    suspend fun getConfigByKey(key: String): AppConfigEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateConfig(config: AppConfigEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConfigs(configs: List<AppConfigEntity>)
+}
+
+@Dao
+interface ReportDao {
+    @Query("SELECT * FROM moderation_reports ORDER BY createdAt DESC")
+    fun getAllReportsFlow(): Flow<List<ReportEntity>>
+
+    @Query("SELECT * FROM moderation_reports ORDER BY createdAt DESC")
+    suspend fun getAllReports(): List<ReportEntity>
+
+    @Query("SELECT * FROM moderation_reports WHERE status = :status ORDER BY createdAt DESC")
+    suspend fun getReportsByStatus(status: String): List<ReportEntity>
+
+    @Query("SELECT COUNT(*) FROM moderation_reports WHERE status = 'Pending'")
+    suspend fun countPendingReports(): Int
+
+    @Query("SELECT COUNT(*) FROM moderation_reports WHERE status = 'Pending'")
+    fun countPendingReportsFlow(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReport(report: ReportEntity)
+
+    @Query("UPDATE moderation_reports SET status = :status, resolvedAt = :resolvedAt, resolvedBy = :resolvedBy, resolutionNotes = :notes WHERE id = :reportId")
+    suspend fun resolveReport(reportId: String, status: String, resolvedAt: Long, resolvedBy: String, notes: String)
+
+    @Query("DELETE FROM moderation_reports WHERE id = :reportId")
+    suspend fun deleteReport(reportId: String)
+}
+
+@Dao
+interface AuditLogDao {
+    @Query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 100")
+    fun getRecentAuditLogsFlow(): Flow<List<AuditLogEntity>>
+
+    @Query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getRecentAuditLogs(limit: Int = 100): List<AuditLogEntity>
+
+    @Query("SELECT * FROM audit_logs WHERE adminId = :adminId ORDER BY timestamp DESC LIMIT 50")
+    suspend fun getLogsByAdmin(adminId: String): List<AuditLogEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAuditLog(log: AuditLogEntity)
 }
