@@ -1,20 +1,27 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.example.data.local.BismaDatabase
 import com.example.data.model.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import java.util.UUID
 import kotlin.random.Random
 
 class BismaRepository(private val context: Context) {
     private val db = BismaDatabase.getDatabase(context)
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val prefs: SharedPreferences = context.getSharedPreferences("bisma_auth_prefs", Context.MODE_PRIVATE)
 
-    private val _currentUserId = MutableStateFlow("883921")
+    private val _isLoggedIn = MutableStateFlow(prefs.getBoolean("KEY_IS_LOGGED_IN", false))
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    private val _currentUserId = MutableStateFlow(prefs.getString("KEY_CURRENT_USER_ID", "883921") ?: "883921")
     val currentUserId: StateFlow<String> = _currentUserId.asStateFlow()
 
     val currentUser: Flow<User?> = _currentUserId.flatMapLatest { id ->
@@ -62,6 +69,7 @@ class BismaRepository(private val context: Context) {
 
     private suspend fun seedInitialDataIfNeeded() {
         val existingUser = db.userDao().getUserById("883921")
+        val defaultPasswordHash = hashPassword("123456")
         if (existingUser == null) {
             val defaultUser = User(
                 id = "883921",
@@ -70,6 +78,10 @@ class BismaRepository(private val context: Context) {
                 bio = "Welcome to Bisma Voice Chat! Let's connect & sing 🎵",
                 country = "🇵🇰 Pakistan",
                 language = "English",
+                gender = "Female",
+                dateOfBirth = "2002-05-14",
+                passwordHash = defaultPasswordHash,
+                email = "bisma.official@bisma.app",
                 userLevel = 5,
                 richLevel = 3,
                 charmLevel = 4,
@@ -85,13 +97,13 @@ class BismaRepository(private val context: Context) {
 
             // Seed other community users
             val sampleUsers = listOf(
-                User(id = "104928", username = "Ali Khan 🎙️", avatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300", country = "🇵🇰 Pakistan", userLevel = 8, richLevel = 6, charmLevel = 5, vipLevel = 3, coins = 12000),
-                User(id = "209411", username = "Aarav Sharma 🎸", avatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300", country = "🇮🇳 India", userLevel = 7, richLevel = 5, charmLevel = 7, vipLevel = 4, coins = 25000),
-                User(id = "305182", username = "Zara Noor ✨", avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300", country = "🇵🇰 Pakistan", userLevel = 6, richLevel = 4, charmLevel = 8, vipLevel = 3, coins = 18000),
-                User(id = "402819", username = "Tanvir Ahmed 🇧🇩", avatarUrl = "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300", country = "🇧🇩 Bangladesh", userLevel = 4, richLevel = 2, charmLevel = 3, vipLevel = 1, coins = 4500),
-                User(id = "509124", username = "Pooja Thapa 🇳🇵", avatarUrl = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300", country = "🇳🇵 Nepal", userLevel = 5, richLevel = 3, charmLevel = 4, vipLevel = 2, coins = 8000),
-                User(id = "601832", username = "Hamza Sheikh 👑", avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300", country = "🇸🇦 Saudi", userLevel = 12, richLevel = 10, charmLevel = 9, vipLevel = 5, coins = 85000),
-                User(id = "708912", username = "Sara Khan 💖", avatarUrl = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300", country = "🇦🇪 UAE", userLevel = 6, richLevel = 5, charmLevel = 7, vipLevel = 3, coins = 32000)
+                User(id = "104928", username = "Ali Khan 🎙️", avatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300", country = "🇵🇰 Pakistan", gender = "Male", dateOfBirth = "1999-08-20", passwordHash = defaultPasswordHash, email = "ali.khan@gmail.com", userLevel = 8, richLevel = 6, charmLevel = 5, vipLevel = 3, coins = 12000),
+                User(id = "209411", username = "Aarav Sharma 🎸", avatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300", country = "🇮🇳 India", gender = "Male", dateOfBirth = "2000-03-15", passwordHash = defaultPasswordHash, email = "aarav.music@gmail.com", userLevel = 7, richLevel = 5, charmLevel = 7, vipLevel = 4, coins = 25000),
+                User(id = "305182", username = "Zara Noor ✨", avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300", country = "🇵🇰 Pakistan", gender = "Female", dateOfBirth = "2001-11-28", passwordHash = defaultPasswordHash, email = "zara.noor@gmail.com", userLevel = 6, richLevel = 4, charmLevel = 8, vipLevel = 3, coins = 18000),
+                User(id = "402819", username = "Tanvir Ahmed 🇧🇩", avatarUrl = "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300", country = "🇧🇩 Bangladesh", gender = "Male", dateOfBirth = "1998-01-10", passwordHash = defaultPasswordHash, email = "tanvir.bd@gmail.com", userLevel = 4, richLevel = 2, charmLevel = 3, vipLevel = 1, coins = 4500),
+                User(id = "509124", username = "Pooja Thapa 🇳🇵", avatarUrl = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300", country = "🇳🇵 Nepal", gender = "Female", dateOfBirth = "2003-07-04", passwordHash = defaultPasswordHash, email = "pooja.thapa@gmail.com", userLevel = 5, richLevel = 3, charmLevel = 4, vipLevel = 2, coins = 8000),
+                User(id = "601832", username = "Hamza Sheikh 👑", avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300", country = "🇸🇦 Saudi", gender = "Male", dateOfBirth = "1997-12-05", passwordHash = defaultPasswordHash, email = "hamza.sheikh@gmail.com", userLevel = 12, richLevel = 10, charmLevel = 9, vipLevel = 5, coins = 85000),
+                User(id = "708912", username = "Sara Khan 💖", avatarUrl = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300", country = "🇦🇪 UAE", gender = "Female", dateOfBirth = "2002-09-19", passwordHash = defaultPasswordHash, email = "sara.dubai@gmail.com", userLevel = 6, richLevel = 5, charmLevel = 7, vipLevel = 3, coins = 32000)
             )
             sampleUsers.forEach { db.userDao().insertOrUpdate(it) }
 
@@ -722,11 +734,187 @@ class BismaRepository(private val context: Context) {
         return Triple(listOf(r1, r2, r3), betCoins * winMultiplier, message)
     }
 
-    suspend fun updateProfile(username: String, avatarUrl: String, bio: String, country: String, language: String) {
+    fun hashPassword(password: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256")
+            .digest((password + "bisma_voice_salt_2026").toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    suspend fun generateUniqueUserId(): String = withContext(Dispatchers.IO) {
+        var idCandidate: String
+        do {
+            idCandidate = Random.nextInt(100000, 999999).toString()
+        } while (db.userDao().countUserById(idCandidate) > 0)
+        idCandidate
+    }
+
+    suspend fun loginWithId(id: String, password: String): Result<User> = withContext(Dispatchers.IO) {
+        val trimmedId = id.trim()
+        val user = db.userDao().getUserById(trimmedId)
+            ?: return@withContext Result.failure(Exception("Account with ID '$trimmedId' not found. Please create an account."))
+
+        val inputHash = hashPassword(password)
+        // If the user's passwordHash is empty (legacy) or matches inputHash
+        if (user.passwordHash.isNotEmpty() && user.passwordHash != inputHash) {
+            return@withContext Result.failure(Exception("Incorrect password. Please try again or use Forgot Password."))
+        }
+
+        // Set session
+        _currentUserId.value = user.id
+        _isLoggedIn.value = true
+        prefs.edit()
+            .putString("KEY_CURRENT_USER_ID", user.id)
+            .putBoolean("KEY_IS_LOGGED_IN", true)
+            .apply()
+
+        Result.success(user)
+    }
+
+    suspend fun createAccount(
+        username: String,
+        avatarUrl: String,
+        gender: String,
+        dateOfBirth: String,
+        password: String,
+        email: String? = null,
+        customId: String? = null
+    ): Result<User> = withContext(Dispatchers.IO) {
+        val nameTrimmed = username.trim()
+        if (nameTrimmed.isEmpty()) {
+            return@withContext Result.failure(Exception("Please enter your name."))
+        }
+        if (password.length < 4) {
+            return@withContext Result.failure(Exception("Password must be at least 4 characters long."))
+        }
+
+        val assignedId = if (!customId.isNullOrBlank() && db.userDao().countUserById(customId) == 0) {
+            customId
+        } else {
+            generateUniqueUserId()
+        }
+
+        val newUser = User(
+            id = assignedId,
+            username = nameTrimmed,
+            avatarUrl = avatarUrl.ifBlank {
+                if (gender.equals("Female", ignoreCase = true))
+                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"
+                else
+                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300"
+            },
+            gender = gender,
+            dateOfBirth = dateOfBirth,
+            passwordHash = hashPassword(password),
+            email = email,
+            bio = "Hey there! I just joined Bisma Voice Chat ✨",
+            country = "🇵🇰 Pakistan",
+            language = "English",
+            userLevel = 1,
+            richLevel = 1,
+            charmLevel = 1,
+            vipLevel = 0,
+            coins = 2000, // Welcome gift coins!
+            diamonds = 50,
+            followersCount = 0,
+            followingCount = 1,
+            friendsCount = 0,
+            equippedFrameId = "frame_neon_circle"
+        )
+
+        db.userDao().insertOrUpdate(newUser)
+
+        // Save session
+        _currentUserId.value = newUser.id
+        _isLoggedIn.value = true
+        prefs.edit()
+            .putString("KEY_CURRENT_USER_ID", newUser.id)
+            .putBoolean("KEY_IS_LOGGED_IN", true)
+            .apply()
+
+        Result.success(newUser)
+    }
+
+    suspend fun loginWithGoogle(
+        email: String,
+        displayName: String,
+        avatarUrl: String
+    ): Result<User> = withContext(Dispatchers.IO) {
+        val existing = db.userDao().getUserByEmail(email.trim())
+        if (existing != null) {
+            _currentUserId.value = existing.id
+            _isLoggedIn.value = true
+            prefs.edit()
+                .putString("KEY_CURRENT_USER_ID", existing.id)
+                .putBoolean("KEY_IS_LOGGED_IN", true)
+                .apply()
+            return@withContext Result.success(existing)
+        }
+
+        // Create new account for Google user
+        val newId = generateUniqueUserId()
+        val googleUser = User(
+            id = newId,
+            username = displayName.ifBlank { "Google User" },
+            avatarUrl = avatarUrl.ifBlank { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300" },
+            gender = "Male",
+            dateOfBirth = "2000-01-01",
+            passwordHash = hashPassword(UUID.randomUUID().toString()),
+            email = email.trim(),
+            bio = "Connected via Google on Bisma Voice Chat 🌟",
+            country = "🇵🇰 Pakistan",
+            coins = 3000,
+            diamonds = 100,
+            userLevel = 2
+        )
+
+        db.userDao().insertOrUpdate(googleUser)
+
+        _currentUserId.value = googleUser.id
+        _isLoggedIn.value = true
+        prefs.edit()
+            .putString("KEY_CURRENT_USER_ID", googleUser.id)
+            .putBoolean("KEY_IS_LOGGED_IN", true)
+            .apply()
+
+        Result.success(googleUser)
+    }
+
+    suspend fun resetPassword(idOrEmail: String, newPassword: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        val query = idOrEmail.trim()
+        if (newPassword.length < 4) {
+            return@withContext Result.failure(Exception("New password must be at least 4 characters."))
+        }
+
+        val user = db.userDao().getUserById(query) ?: db.userDao().getUserByEmail(query)
+            ?: return@withContext Result.failure(Exception("No account found matching ID or Email '$query'."))
+
+        val newHash = hashPassword(newPassword)
+        db.userDao().updatePassword(user.id, newHash)
+        Result.success(true)
+    }
+
+    fun logout() {
+        _isLoggedIn.value = false
+        prefs.edit()
+            .putBoolean("KEY_IS_LOGGED_IN", false)
+            .apply()
+    }
+
+    suspend fun updateProfile(
+        username: String,
+        avatarUrl: String,
+        gender: String,
+        dateOfBirth: String,
+        bio: String,
+        country: String,
+        language: String
+    ) {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return
         val updated = user.copy(
             username = username.ifBlank { user.username },
             avatarUrl = avatarUrl.ifBlank { user.avatarUrl },
+            gender = gender.ifBlank { user.gender },
+            dateOfBirth = dateOfBirth.ifBlank { user.dateOfBirth },
             bio = bio,
             country = country,
             language = language
@@ -744,5 +932,10 @@ class BismaRepository(private val context: Context) {
 
     fun switchUser(userId: String) {
         _currentUserId.value = userId
+        _isLoggedIn.value = true
+        prefs.edit()
+            .putString("KEY_CURRENT_USER_ID", userId)
+            .putBoolean("KEY_IS_LOGGED_IN", true)
+            .apply()
     }
 }

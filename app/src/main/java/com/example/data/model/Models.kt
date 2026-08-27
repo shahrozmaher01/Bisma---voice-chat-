@@ -11,6 +11,10 @@ data class User(
     val bio: String = "Hello, I am using Bisma Voice Chat! ✨",
     val country: String = "🇵🇰 Pakistan",
     val language: String = "English",
+    val gender: String = "Female", // "Male" or "Female"
+    val dateOfBirth: String = "2002-05-14",
+    val passwordHash: String = "",
+    val email: String? = null,
     val userLevel: Int = 1,
     val richLevel: Int = 0,
     val charmLevel: Int = 0,

@@ -26,6 +26,7 @@ import com.example.ui.theme.*
 
 sealed class Screen {
     object Splash : Screen()
+    object Login : Screen()
     object MainTabs : Screen()
     data class VoiceRoom(val roomId: String) : Screen()
     object Wallet : Screen()
@@ -50,6 +51,7 @@ enum class BottomTab(val title: String, val icon: ImageVector) {
 fun BismaMainApp() {
     val context = LocalContext.current
     val repository = remember { BismaRepository(context) }
+    val isLoggedIn by repository.isLoggedIn.collectAsState()
 
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
     var selectedBottomTab by remember { mutableStateOf(BottomTab.HOME) }
@@ -64,6 +66,14 @@ fun BismaMainApp() {
             is Screen.Splash -> {
                 SplashScreen(
                     onSplashFinished = {
+                        currentScreen = if (isLoggedIn) Screen.MainTabs else Screen.Login
+                    }
+                )
+            }
+            is Screen.Login -> {
+                LoginScreen(
+                    repository = repository,
+                    onLoginSuccess = {
                         currentScreen = Screen.MainTabs
                     }
                 )
@@ -121,7 +131,8 @@ fun BismaMainApp() {
                                 onOpenVisitors = { currentScreen = Screen.Visitors },
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 onOpenGames = { currentScreen = Screen.Games },
-                                onOpenAdminPanel = { currentScreen = Screen.AdminPanel }
+                                onOpenAdminPanel = { currentScreen = Screen.AdminPanel },
+                                onLogout = { currentScreen = Screen.Login }
                             )
                         }
                     }
@@ -189,7 +200,10 @@ fun BismaMainApp() {
                 SettingsScreen(
                     repository = repository,
                     onBack = { currentScreen = Screen.MainTabs },
-                    onLogout = { currentScreen = Screen.Splash }
+                    onLogout = {
+                        repository.logout()
+                        currentScreen = Screen.Login
+                    }
                 )
             }
             is Screen.Games -> {

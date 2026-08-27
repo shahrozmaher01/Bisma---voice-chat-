@@ -36,6 +36,15 @@ interface UserDao {
     @Query("UPDATE users SET equippedFrameId = :frameId WHERE id = :userId")
     suspend fun updateEquippedFrame(userId: String, frameId: String?)
 
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    suspend fun getUserByEmail(email: String): User?
+
+    @Query("SELECT COUNT(*) FROM users WHERE id = :id")
+    suspend fun countUserById(id: String): Int
+
+    @Query("UPDATE users SET passwordHash = :passwordHash WHERE id = :userId")
+    suspend fun updatePassword(userId: String, passwordHash: String)
+
     @Query("SELECT * FROM users")
     suspend fun getAllUsers(): List<User>
 }
