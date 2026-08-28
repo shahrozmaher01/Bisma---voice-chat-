@@ -55,7 +55,7 @@ data class VoiceRoom(
     val ownerAvatar: String,
     val ownerVip: Int = 0,
     val country: String = "🇵🇰 Pakistan",
-    val seatCount: Int = 8, // 4, 6, 8, 10, 12, 15, 20
+    val seatCount: Int = 8, // 8, 10, 15, 20
     val isLocked: Boolean = false,
     val password: String = "",
     val announcement: String = "Welcome to our Bisma Voice Chat Room! Please be respectful and enjoy the music & voice interactions.",
@@ -63,6 +63,13 @@ data class VoiceRoom(
     val backgroundRes: String = "bg_neon_purple",
     val category: String = "Singing & Chill",
     val isFeatured: Boolean = false,
+    val allowPublicChat: Boolean = true,
+    val heartbeatValueDisplay: Boolean = true,
+    val soundMuted: Boolean = false,
+    val isMusicPlaying: Boolean = false,
+    val musicTrackName: String = "Neon Lo-Fi Chill Beats 🎧",
+    val blockedUserIds: String = "",
+    val adminUserIds: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val isActive: Boolean = true
 )
@@ -162,11 +169,90 @@ data class Agency(
     val logoUrl: String,
     val ownerId: String,
     val ownerName: String,
+    val agencyCode: String = "",
+    val bdId: String = "BD_OFFICIAL",
     val memberCount: Int = 1,
     val level: Int = 1,
     val announcement: String = "Welcome to our premier Bisma Voice Agency!",
     val totalIncome: Long = 50000,
     val ranking: Int = 1
+) {
+    val description: String get() = announcement
+}
+
+@Entity(tableName = "agency_join_requests")
+data class AgencyJoinRequest(
+    @PrimaryKey val id: String,
+    val agencyId: String,
+    val agencyName: String,
+    val userId: String,
+    val userName: String,
+    val userAvatar: String,
+    val status: String = "pending", // "pending", "accepted", "rejected"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "agency_invitations")
+data class AgencyInvitation(
+    @PrimaryKey val id: String,
+    val agencyId: String,
+    val agencyName: String,
+    val agencyLogo: String,
+    val inviterId: String,
+    val inviterName: String,
+    val inviteeId: String,
+    val status: String = "pending", // "pending", "accepted", "rejected"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "moment_comments")
+data class MomentComment(
+    @PrimaryKey val id: String,
+    val momentId: String,
+    val authorId: String,
+    val authorName: String,
+    val authorAvatar: String,
+    val authorVip: Int = 0,
+    val content: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "cp_relationships", primaryKeys = ["user1Id", "user2Id"])
+data class CpRelationship(
+    val user1Id: String,
+    val user1Name: String,
+    val user1Avatar: String,
+    val user2Id: String,
+    val user2Name: String,
+    val user2Avatar: String,
+    val intimacyScore: Long = 1250,
+    val cpLevel: Int = 1,
+    val ringName: String = "Eternal Diamond Band 💍",
+    val establishedAt: Long = System.currentTimeMillis()
+)
+
+data class LuckyBagEvent(
+    val id: String,
+    val roomId: String,
+    val senderId: String,
+    val senderName: String,
+    val senderAvatar: String,
+    val totalCoins: Long,
+    val remainingCoins: Long,
+    val claimedCount: Int = 0,
+    val maxClaims: Int = 10,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class RoomEmojiEvent(
+    val id: String,
+    val roomId: String,
+    val userId: String,
+    val userName: String,
+    val userAvatar: String,
+    val seatIndex: Int,
+    val emoji: String,
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "families")

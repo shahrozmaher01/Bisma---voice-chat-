@@ -13,10 +13,14 @@ import com.example.data.model.*
         RoomSeat::class,
         ChatMessage::class,
         MomentPost::class,
+        MomentComment::class,
         NotificationItem::class,
         VisitorRecord::class,
         StoreItem::class,
         Agency::class,
+        AgencyJoinRequest::class,
+        AgencyInvitation::class,
+        CpRelationship::class,
         Family::class,
         WalletTransaction::class,
         Friendship::class,
@@ -26,7 +30,7 @@ import com.example.data.model.*
         ReportEntity::class,
         AuditLogEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class BismaDatabase : RoomDatabase() {
@@ -35,10 +39,13 @@ abstract class BismaDatabase : RoomDatabase() {
     abstract fun seatDao(): SeatDao
     abstract fun chatDao(): ChatDao
     abstract fun momentDao(): MomentDao
+    abstract fun momentCommentDao(): MomentCommentDao
     abstract fun notificationDao(): NotificationDao
     abstract fun visitorDao(): VisitorDao
     abstract fun storeDao(): StoreDao
     abstract fun agencyFamilyDao(): AgencyFamilyDao
+    abstract fun agencyInteractionDao(): AgencyInteractionDao
+    abstract fun cpDao(): CpDao
     abstract fun walletTransactionDao(): WalletTransactionDao
     abstract fun socialDao(): SocialDao
     abstract fun userRoleDao(): UserRoleDao

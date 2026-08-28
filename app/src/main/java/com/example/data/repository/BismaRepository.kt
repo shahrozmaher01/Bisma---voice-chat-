@@ -65,6 +65,21 @@ class BismaRepository(private val context: Context) {
     private val _activeRoomId = MutableStateFlow<String?>(null)
     val activeRoomId: StateFlow<String?> = _activeRoomId.asStateFlow()
 
+    // Floating emoji reaction event
+    private val _emojiReactionEvent = MutableSharedFlow<RoomEmojiEvent>(extraBufferCapacity = 20)
+    val emojiReactionEvent: SharedFlow<RoomEmojiEvent> = _emojiReactionEvent.asSharedFlow()
+
+    // Lucky bag event
+    private val _luckyBagEvent = MutableSharedFlow<LuckyBagEvent>(extraBufferCapacity = 10)
+    val luckyBagEvent: SharedFlow<LuckyBagEvent> = _luckyBagEvent.asSharedFlow()
+
+    // Active lucky bag state
+    val activeLuckyBag = MutableStateFlow<LuckyBagEvent?>(null)
+    val activeLuckyBags: Flow<List<LuckyBagEvent>> = activeLuckyBag.map { if (it != null) listOf(it) else emptyList() }
+
+    // Rate limiter tracker for emojis (userId -> lastTimestamp)
+    private val emojiRateLimits = mutableMapOf<String, Long>()
+
     val currentRoom: Flow<VoiceRoom?> = _activeRoomId.flatMapLatest { roomId ->
         if (roomId == null) flowOf(null) else db.roomDao().getRoomByIdFlow(roomId)
     }
@@ -84,6 +99,10 @@ class BismaRepository(private val context: Context) {
     // Gift animation banner event
     private val _giftBannerEvent = MutableSharedFlow<ChatMessage>(extraBufferCapacity = 5)
     val giftBannerEvent: SharedFlow<ChatMessage> = _giftBannerEvent.asSharedFlow()
+
+    // Rocket launch animation event
+    private val _rocketLaunchEvent = MutableSharedFlow<String>(extraBufferCapacity = 5)
+    val rocketLaunchEvent: SharedFlow<String> = _rocketLaunchEvent.asSharedFlow()
 
     init {
         scope.launch {
@@ -109,23 +128,57 @@ class BismaRepository(private val context: Context) {
         db.momentDao().deleteMoment("m_1")
         db.notificationDao().deleteNotification("notif_1")
 
-        // Seed store catalog items (shop items only, not owned until purchased)
-        val existingStore = db.storeDao().getAllStoreItemsFlow().firstOrNull() ?: emptyList()
-        if (existingStore.isEmpty()) {
-            val items = listOf(
-                StoreItem("frame_vip_neon", "Neon Pink Crown Frame", "Frames", 1200, "👑", 0xFFFF2A85, isPermanent = true, isOwned = false, isEquipped = false),
-                StoreItem("frame_galaxy_gold", "Galaxy Gold Ring", "Frames", 2500, "🪐", 0xFFFFD700, isPermanent = true, isOwned = false, isEquipped = false),
-                StoreItem("frame_cyber_blue", "Cyberpunk Hologram", "Frames", 1800, "⚡", 0xFF00E5FF, isPermanent = true, isOwned = false, isEquipped = false),
-                StoreItem("frame_heart_romance", "Romantic Rose CP Frame", "Frames", 3000, "💖", 0xFFFF4081, isPermanent = true, isOwned = false, isEquipped = false),
-                StoreItem("head_angel_wings", "Angel Wings Halo", "Headwear", 1500, "🪽", 0xFFFFFFFF, isOwned = false, isEquipped = false),
-                StoreItem("head_devil_horns", "Neon Devil Horns", "Headwear", 1400, "😈", 0xFFFF1744, isOwned = false, isEquipped = false),
-                StoreItem("entry_supercar", "Lamborghini Entry Effect", "Entry Effects", 5000, "🏎️", 0xFFFFD700, isOwned = false, isEquipped = false),
-                StoreItem("entry_dragon", "Phoenix Flame Entry", "Entry Effects", 8000, "🔥", 0xFFFF8800, isOwned = false, isEquipped = false),
-                StoreItem("bubble_neon_glow", "Pink Neon Chat Bubble", "Chat Bubbles", 800, "💬", 0xFFFF2A85, isOwned = false, isEquipped = false),
-                StoreItem("sound_laser_wave", "Laser Sound Waves", "Sound Waves", 1000, "🌊", 0xFF00E5FF, isOwned = false, isEquipped = false)
-            )
-            db.storeDao().insertAll(items)
-        }
+        // Seed 10 items in each category (Headwear, Entry Effects, Chat Bubbles, Sound Waves)
+        val items = listOf(
+            // Headwear (10 items)
+            StoreItem("head_angel_wings", "Angel Wings Halo", "Headwear", 1500, "🪽", 0xFFFFFFFF, isOwned = false, isEquipped = false),
+            StoreItem("head_devil_horns", "Neon Devil Horns", "Headwear", 1400, "😈", 0xFFFF1744, isOwned = false, isEquipped = false),
+            StoreItem("head_imperial_tiara", "Golden Imperial Tiara", "Headwear", 2200, "👑", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("head_cyber_cat_ears", "Cyberpunk Cat Ears", "Headwear", 1800, "🐱", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("head_dragon_horns", "Mystic Dragon Horns", "Headwear", 3000, "🐉", 0xFFFF2A85, isOwned = false, isEquipped = false),
+            StoreItem("head_sakura_crown", "Sakura Blossom Crown", "Headwear", 1600, "🌸", 0xFFFF80AB, isOwned = false, isEquipped = false),
+            StoreItem("head_galaxy_stars", "Galaxy Star Headband", "Headwear", 2500, "✨", 0xFF7C4DFF, isOwned = false, isEquipped = false),
+            StoreItem("head_sultan_turban", "Royal Sultan Turban", "Headwear", 2800, "👳", 0xFFFFAB00, isOwned = false, isEquipped = false),
+            StoreItem("head_crystal_antlers", "Arctic Crystal Antlers", "Headwear", 2100, "🦌", 0xFF80D8FF, isOwned = false, isEquipped = false),
+            StoreItem("head_phoenix_feathers", "Phoenix Feather Crest", "Headwear", 3500, "🪶", 0xFFFF6D00, isOwned = false, isEquipped = false),
+
+            // Entry Effects (10 items)
+            StoreItem("entry_supercar", "Lamborghini Supercar", "Entry Effects", 5000, "🏎️", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("entry_phoenix", "Phoenix Flame Burst", "Entry Effects", 8000, "🔥", 0xFFFF8800, isOwned = false, isEquipped = false),
+            StoreItem("entry_space_shuttle", "Cyber Space Shuttle", "Entry Effects", 7500, "🚀", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("entry_pegasus_chariot", "Royal Pegasus Chariot", "Entry Effects", 9500, "🦄", 0xFFFF4081, isOwned = false, isEquipped = false),
+            StoreItem("entry_thunder_portal", "Thunder Storm Portal", "Entry Effects", 6500, "⚡", 0xFFFFEB3B, isOwned = false, isEquipped = false),
+            StoreItem("entry_golden_dragon", "Golden Dragon Descent", "Entry Effects", 12000, "🐉", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("entry_diamond_aurora", "Diamond Aurora Waves", "Entry Effects", 8800, "💎", 0xFF00E676, isOwned = false, isEquipped = false),
+            StoreItem("entry_magic_carpet", "Magic Carpet Fly-In", "Entry Effects", 6000, "🧞", 0xFF7C4DFF, isOwned = false, isEquipped = false),
+            StoreItem("entry_meteor_shower", "Meteor Shower Flight", "Entry Effects", 7000, "🌠", 0xFFFF3D00, isOwned = false, isEquipped = false),
+            StoreItem("entry_crystal_carriage", "Crystal Castle Carriage", "Entry Effects", 11000, "🏰", 0xFFE040FB, isOwned = false, isEquipped = false),
+
+            // Chat Bubbles (10 items)
+            StoreItem("bubble_neon_glow", "Pink Neon Glow", "Chat Bubbles", 800, "💬", 0xFFFF2A85, isOwned = false, isEquipped = false),
+            StoreItem("bubble_gold_royale", "Golden Royale Bubble", "Chat Bubbles", 1500, "⚜️", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("bubble_cyber_cyan", "Cyber Matrix Cyan", "Chat Bubbles", 1000, "📟", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("bubble_romantic_heart", "Romantic Hearts Bloom", "Chat Bubbles", 1200, "💖", 0xFFFF4081, isOwned = false, isEquipped = false),
+            StoreItem("bubble_emerald_galaxy", "Emerald Galaxy Glow", "Chat Bubbles", 1100, "🟢", 0xFF00E676, isOwned = false, isEquipped = false),
+            StoreItem("bubble_flame_inferno", "Flame Inferno Bubble", "Chat Bubbles", 1300, "🔥", 0xFFFF5722, isOwned = false, isEquipped = false),
+            StoreItem("bubble_frost_crystal", "Ice Frost Crystal", "Chat Bubbles", 950, "❄️", 0xFF80D8FF, isOwned = false, isEquipped = false),
+            StoreItem("bubble_purple_aura", "Midnight Purple Aura", "Chat Bubbles", 1150, "🔮", 0xFF7C4DFF, isOwned = false, isEquipped = false),
+            StoreItem("bubble_sunset_radiance", "Sunset Radiance", "Chat Bubbles", 900, "🌅", 0xFFFF9800, isOwned = false, isEquipped = false),
+            StoreItem("bubble_rainbow_prism", "Rainbow Prism Glow", "Chat Bubbles", 1600, "🌈", 0xFFE040FB, isOwned = false, isEquipped = false),
+
+            // Sound Waves (10 items)
+            StoreItem("sound_laser_wave", "Laser Sound Wave", "Sound Waves", 1000, "🌊", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("sound_neon_bass", "Neon Bass Pulse", "Sound Waves", 1200, "🔊", 0xFFFF2A85, isOwned = false, isEquipped = false),
+            StoreItem("sound_golden_acoustic", "Golden Acoustic Ring", "Sound Waves", 1400, "🔔", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("sound_cyber_sonic", "Cyber Sonic Blast", "Sound Waves", 1500, "⚡", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("sound_heartbeat_pulse", "Heartbeat Resonance", "Sound Waves", 1100, "💓", 0xFFFF4081, isOwned = false, isEquipped = false),
+            StoreItem("sound_ocean_tide", "Ocean Tide Rhythm", "Sound Waves", 950, "🌊", 0xFF00B0FF, isOwned = false, isEquipped = false),
+            StoreItem("sound_lightning_beat", "Electric Lightning Beat", "Sound Waves", 1300, "⚡", 0xFFFFEB3B, isOwned = false, isEquipped = false),
+            StoreItem("sound_royal_orchestra", "Royal Orchestra Symphony", "Sound Waves", 1800, "🎻", 0xFFFFAB00, isOwned = false, isEquipped = false),
+            StoreItem("sound_firework_boom", "Firework Boom Wave", "Sound Waves", 1600, "🎆", 0xFFFF1744, isOwned = false, isEquipped = false),
+            StoreItem("sound_crystal_chime", "Crystal Chime Melody", "Sound Waves", 1050, "🎵", 0xFF69F0AE, isOwned = false, isEquipped = false)
+        )
+        db.storeDao().insertAll(items)
     }
 
     private suspend fun initSeatsForRoom(
@@ -420,6 +473,49 @@ class BismaRepository(private val context: Context) {
         db.momentDao().insertMoment(moment)
     }
 
+    fun getFollowingMomentsFlow(): Flow<List<MomentPost>> = _currentUserId.flatMapLatest { userId ->
+        val followingFlow = db.socialDao().getFollowingFlow(userId)
+        val allMomentsFlow = db.momentDao().getAllMomentsFlow()
+        combine(followingFlow, allMomentsFlow) { follows, moments ->
+            val followingIds = follows.map { it.followingId }.toSet()
+            moments.filter { it.authorId in followingIds || it.authorId == userId }
+        }
+    }
+
+    fun getCommentsForMoment(momentId: String): Flow<List<MomentComment>> {
+        return db.momentCommentDao().getCommentsForMomentFlow(momentId)
+    }
+
+    suspend fun addCommentToMoment(momentId: String, content: String) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        val comment = MomentComment(
+            id = UUID.randomUUID().toString(),
+            momentId = momentId,
+            authorId = user.id,
+            authorName = user.username,
+            authorAvatar = user.avatarUrl,
+            authorVip = user.vipLevel,
+            content = content
+        )
+        db.momentCommentDao().insertComment(comment)
+    }
+
+    suspend fun shareMomentToFriend(moment: MomentPost, friendUserId: String) {
+        val currentUser = db.userDao().getUserById(_currentUserId.value) ?: return
+        db.chatDao().insertMessage(
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                targetId = friendUserId,
+                isRoomChat = false,
+                senderId = currentUser.id,
+                senderName = currentUser.username,
+                senderAvatar = currentUser.avatarUrl,
+                senderVip = currentUser.vipLevel,
+                content = "📸 Shared a Moment from ${moment.authorName}: \"${moment.content}\""
+            )
+        )
+    }
+
     suspend fun toggleLikeMoment(momentId: String, currentLiked: Boolean) {
         val delta = if (currentLiked) -1 else 1
         db.momentDao().toggleLike(momentId, delta, !currentLiked)
@@ -427,6 +523,477 @@ class BismaRepository(private val context: Context) {
 
     suspend fun deleteMoment(momentId: String) {
         db.momentDao().deleteMoment(momentId)
+    }
+
+    // Emoji reaction in Voice Room
+    suspend fun sendEmojiReaction(roomId: String, emoji: String) {
+        sendEmojiReaction(emoji, 0)
+    }
+
+    suspend fun sendEmojiReaction(emoji: String, seatIndex: Int = 0) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        val roomId = _activeRoomId.value ?: return
+
+        val lastSent = emojiRateLimits[user.id] ?: 0L
+        val now = System.currentTimeMillis()
+        if (now - lastSent < 400L) {
+            return // rate limit
+        }
+        emojiRateLimits[user.id] = now
+
+        val event = RoomEmojiEvent(
+            id = UUID.randomUUID().toString(),
+            roomId = roomId,
+            userId = user.id,
+            userName = user.username,
+            userAvatar = user.avatarUrl,
+            seatIndex = seatIndex,
+            emoji = emoji
+        )
+        _emojiReactionEvent.emit(event)
+    }
+
+    // Lucky bag
+    suspend fun spawnLuckyBag(roomId: String, coins: Int, claimers: Int = 10): Boolean {
+        return spawnLuckyBag(coins.toLong(), claimers)
+    }
+
+    suspend fun spawnLuckyBag(coins: Long, claimers: Int = 10): Boolean {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return false
+        val roomId = _activeRoomId.value ?: return false
+        if (user.coins < coins) return false
+
+        db.userDao().updateBalance(user.id, -coins, 0)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Gift Sent",
+                amountCoins = -coins,
+                description = "Dropped Lucky Bag in Room #$roomId"
+            )
+        )
+
+        val bag = LuckyBagEvent(
+            id = UUID.randomUUID().toString(),
+            roomId = roomId,
+            senderId = user.id,
+            senderName = user.username,
+            senderAvatar = user.avatarUrl,
+            totalCoins = coins,
+            remainingCoins = coins,
+            claimedCount = 0,
+            maxClaims = claimers
+        )
+        activeLuckyBag.value = bag
+        _luckyBagEvent.emit(bag)
+        return true
+    }
+
+    suspend fun claimLuckyBag(bagId: String): Pair<Boolean, Long> {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return Pair(false, 0L)
+        val bag = activeLuckyBag.value ?: return Pair(false, 0L)
+        if (bag.id != bagId || bag.remainingCoins <= 0 || bag.claimedCount >= bag.maxClaims) return Pair(false, 0L)
+
+        val share = (bag.remainingCoins / (bag.maxClaims - bag.claimedCount)).coerceAtLeast(10L)
+        val actualGained = share.coerceAtMost(bag.remainingCoins)
+
+        val updatedBag = bag.copy(
+            remainingCoins = bag.remainingCoins - actualGained,
+            claimedCount = bag.claimedCount + 1
+        )
+        activeLuckyBag.value = if (updatedBag.remainingCoins > 0 && updatedBag.claimedCount < updatedBag.maxClaims) updatedBag else null
+
+        db.userDao().updateBalance(user.id, actualGained, 0)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Game Win",
+                amountCoins = actualGained,
+                description = "Claimed Lucky Bag Reward"
+            )
+        )
+        return Pair(true, actualGained)
+    }
+
+    // Rocket Launch
+    suspend fun launchRocket(roomId: String): Boolean {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return false
+        val rocketCost = 5000L
+        if (user.coins < rocketCost) return false
+
+        db.userDao().updateBalance(user.id, -rocketCost, 0)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Gift Sent",
+                amountCoins = -rocketCost,
+                description = "Launched Super Rocket in Room #$roomId"
+            )
+        )
+
+        val room = db.roomDao().getRoomById(roomId)
+        if (room != null) {
+            // Reward room owner with diamonds
+            val ownerReward = 500L
+            db.userDao().updateBalance(room.ownerId, 0, ownerReward)
+        }
+
+        _rocketLaunchEvent.emit("🚀 ${user.username} Launched a Giant Interstellar Rocket!")
+        return true
+    }
+
+    // CP Relationship
+    fun getCpForUserFlow(userId: String): Flow<CpRelationship?> = db.cpDao().getCpForUserFlow(userId)
+    fun getTopCpListFlow(): Flow<List<CpRelationship>> = db.cpDao().getTopCpListFlow()
+
+    suspend fun proposeOrAcceptCp(targetUserId: String, ringName: String) {
+        val user1 = db.userDao().getUserById(_currentUserId.value) ?: return
+        val user2 = db.userDao().getUserById(targetUserId) ?: return
+        val cp = CpRelationship(
+            user1Id = user1.id,
+            user1Name = user1.username,
+            user1Avatar = user1.avatarUrl,
+            user2Id = user2.id,
+            user2Name = user2.username,
+            user2Avatar = user2.avatarUrl,
+            intimacyScore = 2500,
+            cpLevel = 1,
+            ringName = ringName.ifBlank { "Eternal Diamond Band 💍" }
+        )
+        db.cpDao().insertOrUpdateCp(cp)
+    }
+
+    suspend fun dissolveCp(userId: String) {
+        db.cpDao().dissolveCp(userId)
+    }
+
+    fun getAgencyMembersFlow(agencyId: String): Flow<List<User>> = db.userDao().getAgencyMembersFlow(agencyId)
+    fun getAgencyJoinRequestsFlow(agencyId: String): Flow<List<AgencyJoinRequest>> = db.agencyInteractionDao().getPendingRequestsForAgencyFlow(agencyId)
+
+    suspend fun requestToJoinAgency(agencyId: String) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId) ?: return
+        val req = AgencyJoinRequest(
+            id = UUID.randomUUID().toString(),
+            agencyId = agencyId,
+            agencyName = agency.name,
+            userId = user.id,
+            userName = user.username,
+            userAvatar = user.avatarUrl
+        )
+        db.agencyInteractionDao().insertJoinRequest(req)
+    }
+
+    suspend fun respondToAgencyJoinRequest(requestId: String, accept: Boolean) {
+        val requests = db.agencyInteractionDao().getRequestsByUserFlow(_currentUserId.value).firstOrNull() ?: emptyList()
+        db.agencyInteractionDao().updateRequestStatus(requestId, if (accept) "accepted" else "rejected")
+    }
+
+    suspend fun removeUserFromAgency(agencyId: String, userId: String) {
+        val user = db.userDao().getUserById(userId) ?: return
+        db.userDao().insertOrUpdate(user.copy(agencyId = null, agencyName = null))
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId)
+        if (agency != null && agency.memberCount > 1) {
+            db.agencyFamilyDao().insertAgency(agency.copy(memberCount = agency.memberCount - 1))
+        }
+    }
+
+    suspend fun leaveAgency(userId: String) {
+        val user = db.userDao().getUserById(userId) ?: return
+        val agencyId = user.agencyId
+        db.userDao().insertOrUpdate(user.copy(agencyId = null, agencyName = null))
+        if (agencyId != null) {
+            val agency = db.agencyFamilyDao().getAgencyById(agencyId)
+            if (agency != null && agency.memberCount > 1) {
+                db.agencyFamilyDao().insertAgency(agency.copy(memberCount = agency.memberCount - 1))
+            }
+        }
+    }
+
+    suspend fun updateAgencyProfile(agencyId: String, name: String, announcement: String, logoUrl: String) {
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId) ?: return
+        db.agencyFamilyDao().insertAgency(
+            agency.copy(
+                name = name.ifBlank { agency.name },
+                announcement = announcement.ifBlank { agency.announcement },
+                logoUrl = logoUrl.ifBlank { agency.logoUrl }
+            )
+        )
+    }
+
+    suspend fun createAgency(name: String, agencyCode: String, bdId: String, logoUrl: String): String {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return ""
+        val newAgencyId = "AG_" + Random.nextInt(10000, 99999)
+        val code = if (agencyCode.isNotBlank()) agencyCode else "BISMA_" + Random.nextInt(100, 999)
+        val agency = Agency(
+            id = newAgencyId,
+            name = name.ifBlank { "${user.username}'s Agency" },
+            logoUrl = logoUrl.ifBlank { "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300" },
+            ownerId = user.id,
+            ownerName = user.username,
+            agencyCode = code,
+            bdId = bdId.ifBlank { "BD_OFFICIAL" },
+            memberCount = 1,
+            level = 1,
+            announcement = "Welcome to $name!"
+        )
+        db.agencyFamilyDao().insertAgency(agency)
+        db.userDao().insertOrUpdate(user.copy(agencyId = newAgencyId, agencyName = agency.name))
+        return newAgencyId
+    }
+
+    // Agency System
+    suspend fun searchAgencyByCode(code: String): Agency? {
+        val all = db.agencyFamilyDao().getAllAgenciesFlow().firstOrNull() ?: emptyList()
+        return all.find { it.agencyCode.equals(code.trim(), ignoreCase = true) || it.id.equals(code.trim(), ignoreCase = true) }
+    }
+
+    suspend fun createAgency(name: String, logoUrl: String, bdId: String): String {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return ""
+        val newAgencyId = "AG_" + Random.nextInt(10000, 99999)
+        val generatedCode = "BISMA_" + Random.nextInt(100, 999)
+        val agency = Agency(
+            id = newAgencyId,
+            name = name.ifBlank { "${user.username}'s Agency" },
+            logoUrl = logoUrl.ifBlank { "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300" },
+            ownerId = user.id,
+            ownerName = user.username,
+            agencyCode = generatedCode,
+            bdId = bdId.ifBlank { "BD_OFFICIAL" },
+            memberCount = 1,
+            level = 1,
+            announcement = "Welcome to $name!"
+        )
+        db.agencyFamilyDao().insertAgency(agency)
+        return newAgencyId
+    }
+
+    suspend fun requestJoinAgency(agencyId: String) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId) ?: return
+        val req = AgencyJoinRequest(
+            id = UUID.randomUUID().toString(),
+            agencyId = agencyId,
+            agencyName = agency.name,
+            userId = user.id,
+            userName = user.username,
+            userAvatar = user.avatarUrl
+        )
+        db.agencyInteractionDao().insertJoinRequest(req)
+    }
+
+    fun getPendingRequestsForAgency(agencyId: String): Flow<List<AgencyJoinRequest>> {
+        return db.agencyInteractionDao().getPendingRequestsForAgencyFlow(agencyId)
+    }
+
+    suspend fun respondToAgencyRequest(requestId: String, agencyId: String, accept: Boolean) {
+        db.agencyInteractionDao().updateRequestStatus(requestId, if (accept) "accepted" else "rejected")
+        if (accept) {
+            val agency = db.agencyFamilyDao().getAgencyById(agencyId)
+            if (agency != null) {
+                db.agencyFamilyDao().insertAgency(agency.copy(memberCount = agency.memberCount + 1))
+            }
+        }
+    }
+
+    suspend fun inviteUserToAgency(agencyId: String, inviteeUserId: String) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId) ?: return
+        val inv = AgencyInvitation(
+            id = UUID.randomUUID().toString(),
+            agencyId = agencyId,
+            agencyName = agency.name,
+            agencyLogo = agency.logoUrl,
+            inviterId = user.id,
+            inviterName = user.username,
+            inviteeId = inviteeUserId
+        )
+        db.agencyInteractionDao().insertInvitation(inv)
+    }
+
+    fun getPendingInvitationsForUser(userId: String): Flow<List<AgencyInvitation>> {
+        return db.agencyInteractionDao().getPendingInvitationsForUserFlow(userId)
+    }
+
+    suspend fun respondToAgencyInvitation(invitationId: String, agencyId: String, accept: Boolean) {
+        db.agencyInteractionDao().updateInvitationStatus(invitationId, if (accept) "accepted" else "rejected")
+        if (accept) {
+            val agency = db.agencyFamilyDao().getAgencyById(agencyId)
+            if (agency != null) {
+                db.agencyFamilyDao().insertAgency(agency.copy(memberCount = agency.memberCount + 1))
+            }
+        }
+    }
+
+    suspend fun removeAgencyMember(agencyId: String) {
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId) ?: return
+        if (agency.memberCount > 1) {
+            db.agencyFamilyDao().insertAgency(agency.copy(memberCount = agency.memberCount - 1))
+        }
+    }
+
+    suspend fun updateAgencyDetails(agencyId: String, name: String, logoUrl: String, announcement: String) {
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId) ?: return
+        db.agencyFamilyDao().insertAgency(
+            agency.copy(
+                name = name.ifBlank { agency.name },
+                logoUrl = logoUrl.ifBlank { agency.logoUrl },
+                announcement = announcement.ifBlank { agency.announcement }
+            )
+        )
+    }
+
+    // Room Host and Admin Management
+    suspend fun lockSeat(roomId: String, seatIndex: Int, isLocked: Boolean) {
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return
+        val seat = seats.find { it.seatIndex == seatIndex } ?: return
+        db.seatDao().updateSeat(seat.copy(isLocked = isLocked))
+    }
+
+    suspend fun moveSeat(roomId: String, fromIndex: Int, toIndex: Int) {
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return
+        val fromSeat = seats.find { it.seatIndex == fromIndex } ?: return
+        val toSeat = seats.find { it.seatIndex == toIndex } ?: return
+
+        db.seatDao().updateSeat(
+            fromSeat.copy(userId = null, username = null, avatarUrl = null, isSpeaking = false)
+        )
+        db.seatDao().updateSeat(
+            toSeat.copy(
+                userId = fromSeat.userId,
+                username = fromSeat.username,
+                avatarUrl = fromSeat.avatarUrl,
+                vipLevel = fromSeat.vipLevel,
+                userLevel = fromSeat.userLevel,
+                frameId = fromSeat.frameId,
+                isMuted = fromSeat.isMuted,
+                isSpeaking = false
+            )
+        )
+    }
+
+    suspend fun kickUserFromRoom(roomId: String, targetUserId: String) {
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        seats.filter { it.userId == targetUserId }.forEach { seat ->
+            db.seatDao().updateSeat(seat.copy(userId = null, username = null, avatarUrl = null))
+        }
+    }
+
+    suspend fun blockUserFromRoom(roomId: String, targetUserId: String) {
+        val room = db.roomDao().getRoomById(roomId) ?: return
+        val blockedList = room.blockedUserIds.split(",").filter { it.isNotBlank() }.toMutableList()
+        if (!blockedList.contains(targetUserId)) {
+            blockedList.add(targetUserId)
+        }
+        db.roomDao().insertOrUpdate(room.copy(blockedUserIds = blockedList.joinToString(",")))
+        kickUserFromRoom(roomId, targetUserId)
+    }
+
+    suspend fun unblockUserFromRoom(roomId: String, targetUserId: String) {
+        val room = db.roomDao().getRoomById(roomId) ?: return
+        val blockedList = room.blockedUserIds.split(",").filter { it.isNotBlank() && it != targetUserId }
+        db.roomDao().insertOrUpdate(room.copy(blockedUserIds = blockedList.joinToString(",")))
+    }
+
+    suspend fun toggleRoomAdmin(roomId: String, targetUserId: String) {
+        val room = db.roomDao().getRoomById(roomId) ?: return
+        val adminList = room.adminUserIds.split(",").filter { it.isNotBlank() }.toMutableList()
+        if (adminList.contains(targetUserId)) {
+            adminList.remove(targetUserId)
+        } else {
+            adminList.add(targetUserId)
+        }
+        db.roomDao().insertOrUpdate(room.copy(adminUserIds = adminList.joinToString(",")))
+    }
+
+    suspend fun toggleRoomSoundMute(roomId: String) {
+        val room = db.roomDao().getRoomById(roomId) ?: return
+        db.roomDao().insertOrUpdate(room.copy(soundMuted = !room.soundMuted))
+    }
+
+    suspend fun toggleRoomMusic(roomId: String, isPlaying: Boolean, track: String) {
+        val room = db.roomDao().getRoomById(roomId) ?: return
+        db.roomDao().insertOrUpdate(room.copy(isMusicPlaying = isPlaying, musicTrackName = track))
+    }
+
+    suspend fun updateRoomSettings(
+        roomId: String,
+        title: String,
+        announcement: String,
+        coverUrl: String,
+        seatCount: Int,
+        bg: String,
+        allowPublicChat: Boolean,
+        heartbeat: Boolean
+    ) {
+        val room = db.roomDao().getRoomById(roomId) ?: return
+        db.roomDao().insertOrUpdate(
+            room.copy(
+                title = title.ifBlank { room.title },
+                announcement = announcement.ifBlank { room.announcement },
+                coverUrl = coverUrl.ifBlank { room.coverUrl },
+                seatCount = seatCount,
+                backgroundRes = bg,
+                allowPublicChat = allowPublicChat,
+                heartbeatValueDisplay = heartbeat
+            )
+        )
+    }
+
+    // VIP Purchase
+    suspend fun purchaseVip(level: Int, costCoins: Long): Boolean {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return false
+        if (user.coins < costCoins) return false
+
+        db.userDao().updateBalance(user.id, -costCoins, 0)
+        db.userDao().updateVip(user.id, level)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Store Purchase",
+                amountCoins = -costCoins,
+                description = "Upgraded to VIP $level"
+            )
+        )
+        return true
+    }
+
+    fun isIncognitoEntryAllowed(vipLevel: Int): Boolean = vipLevel >= 6
+
+    // Feedback
+    suspend fun submitFeedback(category: String, message: String, contact: String) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        db.reportDao().insertReport(
+            ReportEntity(
+                id = UUID.randomUUID().toString(),
+                reporterId = user.id,
+                reporterName = user.username,
+                targetType = "Feedback",
+                targetId = "SYS_FEEDBACK",
+                targetTitleOrName = "User Feedback: $category",
+                reason = category,
+                details = "Message: $message | Contact: $contact"
+            )
+        )
+    }
+
+    // Recharge with Gateway
+    suspend fun rechargeWithGateway(method: String, coins: Long, priceStr: String) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        db.userDao().updateBalance(user.id, coins, 0)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Recharge",
+                amountCoins = coins,
+                description = "Purchased $coins Coins via $method ($priceStr)"
+            )
+        )
     }
 
     // Store & Backpack

@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,9 +11,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,14 +46,9 @@ fun StoreBackpackScreen(
     val backpackItems by repository.backpackItems.collectAsState(initial = emptyList())
 
     var selectedMainTab by remember { mutableIntStateOf(initialTab) }
-    var selectedCategory by remember { mutableStateOf("Frames") }
-    var previewFrameId by remember { mutableStateOf<String?>(currentUser?.equippedFrameId) }
+    var selectedCategory by remember { mutableStateOf("Headwear") }
 
-    val categories = listOf("Frames", "Headwear", "Entry Effects", "Chat Bubbles", "Sound Waves")
-
-    LaunchedEffect(currentUser?.equippedFrameId) {
-        previewFrameId = currentUser?.equippedFrameId
-    }
+    val categories = listOf("Headwear", "Entry Effects", "Chat Bubbles", "Sound Waves")
 
     Box(
         modifier = Modifier
@@ -67,49 +65,32 @@ fun StoreBackpackScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-                }
-                Text(
-                    text = if (selectedMainTab == 0) "Cosmetics Store" else "My Outfit Backpack",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-
-            // Top Avatar Preview Stage (Shows avatar clearly with transparent frame overlay!)
-            GlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("Avatar Live Fitting Preview", color = TextSecondary, fontSize = 11.sp)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    AvatarWithFrame(
-                        avatarUrl = currentUser?.avatarUrl,
-                        size = 80.dp,
-                        frameId = previewFrameId,
-                        vipLevel = currentUser?.vipLevel ?: 0
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
                     Text(
-                        text = currentUser?.username ?: "User",
-                        fontSize = 14.sp,
+                        text = if (selectedMainTab == 0) "Fashion Store ✨" else "My Backpack 🎒",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
+                }
+
+                Surface(
+                    color = Color(0x33FFD700),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0x88FFD700))
+                ) {
                     Text(
-                        text = "Balance: 🪙 ${currentUser?.coins ?: 0} Coins",
-                        fontSize = 12.sp,
+                        text = "🪙 ${currentUser?.coins ?: 0}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                         color = GoldYellow,
-                        fontWeight = FontWeight.Bold
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -119,49 +100,72 @@ fun StoreBackpackScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                FilterChip(
-                    selected = selectedMainTab == 0,
-                    onClick = { selectedMainTab = 0 },
-                    label = { Text("🛍️ Boutique Store") }
-                )
-                FilterChip(
-                    selected = selectedMainTab == 1,
-                    onClick = { selectedMainTab = 1 },
-                    label = { Text("🎒 My Backpack (${backpackItems.size})") }
-                )
+                Surface(
+                    color = if (selectedMainTab == 0) NeonPink else SurfaceCard,
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, if (selectedMainTab == 0) NeonPink else SurfaceCardBorder),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedMainTab = 0 }
+                ) {
+                    Text(
+                        text = "🛍️ Store",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selectedMainTab == 0) Color.White else TextSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
+
+                Surface(
+                    color = if (selectedMainTab == 1) NeonPink else SurfaceCard,
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, if (selectedMainTab == 1) NeonPink else SurfaceCardBorder),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedMainTab = 1 }
+                ) {
+                    Text(
+                        text = "🎒 Backpack (${backpackItems.size})",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selectedMainTab == 1) Color.White else TextSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
             }
 
-            // Category Filter Pills
+            // Category Filter Pills: Headwear, Entry Effects, Chat Bubbles, Sound Waves
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 categories.forEach { cat ->
                     val isSelected = selectedCategory == cat
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) SurfaceCard else Color(0xFF140A22))
-                            .border(1.dp, if (isSelected) NeonPink else SurfaceCardBorder, RoundedCornerShape(12.dp))
-                            .clickable { selectedCategory = cat }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    Surface(
+                        color = if (isSelected) ElectricBlue else SurfaceCard,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, if (isSelected) ElectricBlue else SurfaceCardBorder),
+                        modifier = Modifier.clickable { selectedCategory = cat }
                     ) {
                         Text(
                             text = cat,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else TextSecondary
+                            fontSize = 12.5.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else TextSecondary,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                         )
                     }
                 }
             }
 
-            // Item Grid
             val displayedItems = if (selectedMainTab == 0) {
                 allItems.filter { it.category == selectedCategory }
             } else {
@@ -170,13 +174,16 @@ fun StoreBackpackScreen(
 
             if (displayedItems.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(bottom = 40.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 60.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (selectedMainTab == 0) "No items in this category" else "No owned items in this category yet",
+                        text = if (selectedMainTab == 0) "No items in this category." else "You don't own any $selectedCategory yet.\nCheck the boutique store!",
                         color = TextSecondary,
-                        fontSize = 13.sp
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
             } else {
@@ -184,42 +191,34 @@ fun StoreBackpackScreen(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                    contentPadding = PaddingValues(bottom = 30.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(displayedItems) { item ->
+                    items(displayedItems, key = { it.id }) { item ->
                         StoreItemCard(
                             item = item,
                             isBackpack = selectedMainTab == 1,
-                            onPreview = {
-                                if (item.category == "Frames") {
-                                    previewFrameId = item.id
-                                }
-                            },
                             onBuy = {
                                 coroutineScope.launch {
                                     val success = repository.buyStoreItem(item.id)
                                     if (success) {
-                                        Toast.makeText(context, "Item purchased & stored in Backpack! 🎉", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Purchased ${item.name}! Added to Backpack 🎒", Toast.LENGTH_SHORT).show()
                                     } else {
                                         Toast.makeText(context, "Insufficient Coins! Please recharge.", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },
-                            onEquip = {
+                            onEquipToggle = {
                                 coroutineScope.launch {
-                                    repository.equipItem(item.id, item.category)
-                                    previewFrameId = item.id
-                                    Toast.makeText(context, "Equipped ${item.name}! ✨", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onUnequip = {
-                                coroutineScope.launch {
-                                    repository.unequipItem(item.id, item.category)
-                                    previewFrameId = null
-                                    Toast.makeText(context, "Unequipped item", Toast.LENGTH_SHORT).show()
+                                    if (item.isEquipped) {
+                                        repository.unequipItem(item.id, item.category)
+                                        Toast.makeText(context, "Unequipped ${item.name}", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        repository.equipItem(item.id, item.category)
+                                        Toast.makeText(context, "Equipped ${item.name} ✨", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                         )
@@ -234,92 +233,101 @@ fun StoreBackpackScreen(
 fun StoreItemCard(
     item: StoreItem,
     isBackpack: Boolean,
-    onPreview: () -> Unit,
     onBuy: () -> Unit,
-    onEquip: () -> Unit,
-    onUnequip: () -> Unit
+    onEquipToggle: () -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        color = SurfaceCard,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, if (item.isEquipped) NeonPink else SurfaceCardBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Icon / Emoji Stage
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF25103B))
-                    .clickable { onPreview() },
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .background(Color(item.frameColorHex).copy(alpha = 0.15f))
+                    .border(1.5.dp, Color(item.frameColorHex).copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = item.previewIcon, fontSize = 28.sp)
+                Text(text = item.previewIcon, fontSize = 32.sp)
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = item.name,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 1,
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "🪙 ${item.price} Coins",
-                fontSize = 11.sp,
-                color = GoldYellow,
-                fontWeight = FontWeight.Bold
-            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            Text(
+                text = item.name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+
+            Text(
+                text = item.category,
+                fontSize = 11.sp,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             if (!isBackpack) {
+                // Store Mode: Show price & Buy button
                 if (item.isOwned) {
                     Surface(
-                        color = EmeraldGreen.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = Color(0x3300E676),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "✓ Owned",
-                            color = EmeraldGreen,
-                            fontSize = 11.sp,
+                            text = "Owned ✓",
+                            color = Color(0xFF00E676),
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 } else {
                     Button(
                         onClick = onBuy,
                         colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Buy", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "🪙 ${item.price}",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             } else {
-                if (item.isEquipped) {
-                    OutlinedButton(
-                        onClick = onUnequip,
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Text("Unequip", color = DarkRed, fontSize = 10.sp)
-                    }
-                } else {
-                    Button(
-                        onClick = onEquip,
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Text("Equip", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
+                // Backpack Mode: Equip / Unequip Button
+                Button(
+                    onClick = onEquipToggle,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (item.isEquipped) Color(0xFF333344) else ElectricBlue
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (item.isEquipped) "Unequip" else "Equip ✨",
+                        color = if (item.isEquipped) TextSecondary else Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

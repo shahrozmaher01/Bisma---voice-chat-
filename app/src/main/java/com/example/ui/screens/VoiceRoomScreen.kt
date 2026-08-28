@@ -29,12 +29,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.model.*
 import com.example.data.repository.BismaRepository
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+data class ActiveSeatReaction(
+    val id: Long = System.currentTimeMillis() + (0..99999).random(),
+    val emoji: String,
+    val userId: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +58,7 @@ fun VoiceRoomScreen(
     val seats by repository.currentRoomSeats.collectAsState(initial = emptyList())
     val messages by repository.currentRoomMessages.collectAsState(initial = emptyList())
     val currentUser by repository.currentUser.collectAsState(initial = null)
+    val activeLuckyBags by repository.activeLuckyBags.collectAsState(initial = emptyList())
 
     var chatInputText by remember { mutableStateOf("") }
     var showEmojiSheet by remember { mutableStateOf(false) }
@@ -58,20 +66,43 @@ fun VoiceRoomScreen(
     var showSoundboardSheet by remember { mutableStateOf(false) }
     var showHostToolsSheet by remember { mutableStateOf(false) }
     var showMediaSheet by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
+    var showSeatActionDialog by remember { mutableStateOf<RoomSeat?>(null) }
+    var showSendLuckyBagDialog by remember { mutableStateOf(false) }
+
     var activeGiftBanner by remember { mutableStateOf<ChatMessage?>(null) }
-    val floatingReactions = remember { mutableStateListOf<RoomFloatingReaction>() }
+    var activeRocketAnimation by remember { mutableStateOf<String?>(null) }
+    var luckyWinMessage by remember { mutableStateOf<String?>(null) }
+
+    // Real-time emoji reactions mapped per user
+    val seatReactions = remember { mutableStateListOf<ActiveSeatReaction>() }
 
     val mySeat = seats.find { it.userId == currentUser?.id }
     val isHost = room?.ownerId == currentUser?.id
 
-    // Listen for gift animation events
+    // Collect gift banner events
     LaunchedEffect(Unit) {
         repository.giftBannerEvent.collect { giftMsg ->
             activeGiftBanner = giftMsg
-            delay(3500)
+            if (giftMsg.giftName?.contains("Rocket", ignoreCase = true) == true) {
+                activeRocketAnimation = "${giftMsg.senderName} launched Galaxy Rocket! 🚀"
+            }
+            delay(3800)
             if (activeGiftBanner == giftMsg) {
                 activeGiftBanner = null
             }
+            activeRocketAnimation = null
+        }
+    }
+
+    // Collect real-time emoji reactions
+    LaunchedEffect(Unit) {
+        repository.emojiReactionEvent.collect { event ->
+            val newReaction = ActiveSeatReaction(
+                emoji = event.emoji,
+                userId = event.userId
+            )
+            seatReactions.add(newReaction)
         }
     }
 
@@ -109,10 +140,7 @@ fun VoiceRoomScreen(
             // Room Top Header Bar
             RoomTopBar(
                 room = currentRoom,
-                onCloseRoom = {
-                    repository.leaveRoom()
-                    onCloseRoom()
-                },
+                onCloseRoom = { showExitDialog = true },
                 onHostTools = { showHostToolsSheet = true },
                 onMediaClick = { showMediaSheet = true }
             )
@@ -134,9 +162,51 @@ fun VoiceRoomScreen(
                 }
             )
 
+            // Lucky Bags & Active Event Floating Bar
+            if (activeLuckyBags.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    activeLuckyBags.forEach { bag ->
+                        Surface(
+                            color = Color(0xDDFF4081),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, GoldYellow),
+                            modifier = Modifier.clickable {
+                                coroutineScope.launch {
+                                    val (success, wonCoins) = repository.claimLuckyBag(bag.id)
+                                    if (success) {
+                                        luckyWinMessage = "🎉 You claimed 🪙 $wonCoins Coins from ${bag.senderName}'s Lucky Bag!"
+                                    } else {
+                                        Toast.makeText(context, "Lucky Bag is already empty or expired!", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text("🧧", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Lucky Bag: 🪙 ${bag.remainingCoins} left",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Room Seats Grid (Layout changes according to seatCount: 4, 6, 8, 10, 12, 15, 20)
+            // Room Seats Grid
             val columns = when {
                 currentRoom.seatCount <= 6 -> 3
                 currentRoom.seatCount <= 12 -> 4
@@ -156,21 +226,29 @@ fun VoiceRoomScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(seats) { seat ->
-                        RoomSeatItem(
+                        val userReactions = seatReactions.filter { it.userId == seat.userId }
+
+                        RoomSeatItemWithReactions(
                             seat = seat,
                             isHostSeat = seat.seatIndex == 0,
                             isMySeat = seat.userId == currentUser?.id,
+                            activeReactions = userReactions,
+                            onReactionFinish = { rId ->
+                                seatReactions.removeAll { it.id == rId }
+                            },
                             onSeatClick = {
                                 if (seat.userId == null) {
-                                    coroutineScope.launch {
-                                        repository.takeSeat(currentRoom.id, seat.seatIndex)
+                                    if (seat.isLocked) {
+                                        Toast.makeText(context, "This seat is locked by host", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        coroutineScope.launch {
+                                            repository.takeSeat(currentRoom.id, seat.seatIndex)
+                                        }
                                     }
-                                } else if (seat.userId == currentUser?.id) {
-                                    coroutineScope.launch {
-                                        repository.leaveSeat(currentRoom.id, seat.seatIndex)
-                                    }
+                                } else if (isHost || seat.userId == currentUser?.id) {
+                                    showSeatActionDialog = seat
                                 } else {
-                                    onOpenUserProfile(seat.userId)
+                                    seat.userId?.let { uid -> onOpenUserProfile(uid) }
                                 }
                             }
                         )
@@ -229,24 +307,6 @@ fun VoiceRoomScreen(
             )
         }
 
-        // Floating Animated Emoji Reactions Layer
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 72.dp)
-        ) {
-            floatingReactions.forEach { reaction ->
-                key(reaction.id) {
-                    FloatingReactionBubble(
-                        reaction = reaction,
-                        onFinished = {
-                            floatingReactions.removeAll { it.id == reaction.id }
-                        }
-                    )
-                }
-            }
-        }
-
         // Active Animated Gift Banner Overlay
         AnimatedVisibility(
             visible = activeGiftBanner != null,
@@ -262,28 +322,38 @@ fun VoiceRoomScreen(
             }
         }
 
-        // Emoji & Reactions Picker Bottom Sheet
+        // Rocket Launch Animation Overlay
+        if (activeRocketAnimation != null) {
+            RocketLaunchOverlay(text = activeRocketAnimation!!)
+        }
+
+        // Lucky Bag Claim Win Dialog
+        luckyWinMessage?.let { msg ->
+            AlertDialog(
+                onDismissRequest = { luckyWinMessage = null },
+                containerColor = SurfaceDark,
+                title = { Text("🧧 Lucky Bag Rewards!", color = GoldYellow, fontWeight = FontWeight.Bold) },
+                text = { Text(msg, color = Color.White, fontSize = 14.sp) },
+                confirmButton = {
+                    NeonButton(text = "Awesome! 🎉", onClick = { luckyWinMessage = null })
+                }
+            )
+        }
+
+        // Emoji Reactions Picker Bottom Sheet
         if (showEmojiSheet) {
             EmojiPickerBottomSheet(
                 onEmojiSelected = { emoji ->
-                    // 1. Trigger floating reaction animation
-                    floatingReactions.add(
-                        RoomFloatingReaction(
-                            id = System.currentTimeMillis() + (0..99999).random(),
-                            emoji = emoji,
-                            xOffsetDp = (-70..40).random().toFloat()
-                        )
-                    )
-                    // 2. Broadcast in real chat room
                     coroutineScope.launch {
-                        repository.sendRoomChatMessage(currentRoom.id, emoji)
+                        repository.sendEmojiReaction(currentRoom.id, emoji)
                     }
+                    showEmojiSheet = false
                 },
                 onDismiss = { showEmojiSheet = false }
             )
         }
 
-        // Virtual Gift Bottom Sheet
+        // Virtual & Lucky Gift Bottom Sheet
         if (showGiftSheet) {
             VirtualGiftBottomSheet(
                 repository = repository,
@@ -306,6 +376,10 @@ fun VoiceRoomScreen(
             HostToolsBottomSheet(
                 room = currentRoom,
                 isHost = isHost,
+                onSendLuckyBag = {
+                    showHostToolsSheet = false
+                    showSendLuckyBagDialog = true
+                },
                 onDismiss = { showHostToolsSheet = false }
             )
         }
@@ -316,7 +390,337 @@ fun VoiceRoomScreen(
                 onDismiss = { showMediaSheet = false }
             )
         }
+
+        // Seat Action Dialog (Lock, Mute, Kick, Leave Mic)
+        showSeatActionDialog?.let { seat ->
+            SeatActionDialog(
+                seat = seat,
+                isHost = isHost,
+                isMySeat = seat.userId == currentUser?.id,
+                onDismiss = { showSeatActionDialog = null },
+                onLeaveMic = {
+                    coroutineScope.launch {
+                        repository.leaveSeat(currentRoom.id, seat.seatIndex)
+                        showSeatActionDialog = null
+                    }
+                },
+                onToggleMute = {
+                    coroutineScope.launch {
+                        repository.toggleMic(currentRoom.id, seat.seatIndex, !seat.isMuted)
+                        showSeatActionDialog = null
+                    }
+                },
+                onKick = {
+                    coroutineScope.launch {
+                        repository.kickUserFromRoom(currentRoom.id, seat.userId ?: "")
+                        showSeatActionDialog = null
+                        Toast.makeText(context, "Kicked user from mic", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onBlock = {
+                    coroutineScope.launch {
+                        repository.blockUserFromRoom(currentRoom.id, seat.userId ?: "")
+                        showSeatActionDialog = null
+                        Toast.makeText(context, "User blocked from room", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+
+        // Send Lucky Bag Dialog
+        if (showSendLuckyBagDialog) {
+            SendLuckyBagDialog(
+                repository = repository,
+                roomId = currentRoom.id,
+                onDismiss = { showSendLuckyBagDialog = false }
+            )
+        }
+
+        // Exit Room Dialog (Keep Room Running in Background vs Exit and Close)
+        if (showExitDialog) {
+            ExitRoomChoiceDialog(
+                isHost = isHost,
+                onDismiss = { showExitDialog = false },
+                onKeepRoomRunning = {
+                    showExitDialog = false
+                    onCloseRoom() // Keep room running in background
+                },
+                onLeaveAndClose = {
+                    coroutineScope.launch {
+                        repository.leaveRoom()
+                        showExitDialog = false
+                        onCloseRoom()
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun RoomSeatItemWithReactions(
+    seat: RoomSeat,
+    isHostSeat: Boolean,
+    isMySeat: Boolean,
+    activeReactions: List<ActiveSeatReaction>,
+    onReactionFinish: (Long) -> Unit,
+    onSeatClick: () -> Unit
+) {
+    Box(contentAlignment = Alignment.TopCenter) {
+        RoomSeatItem(
+            seat = seat,
+            isHostSeat = isHostSeat,
+            isMySeat = isMySeat,
+            onSeatClick = onSeatClick
+        )
+
+        // Render animated emoji reactions floating directly above this seat DP!
+        activeReactions.forEach { reaction ->
+            key(reaction.id) {
+                FloatingDpEmojiAnimation(
+                    emoji = reaction.emoji,
+                    onFinished = { onReactionFinish(reaction.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FloatingDpEmojiAnimation(
+    emoji: String,
+    onFinished: () -> Unit
+) {
+    val animProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        animProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 2000, easing = FastOutSlowInEasing)
+        )
+        onFinished()
+    }
+
+    val progress = animProgress.value
+    val yOffset = (-90 * progress).dp
+    val alpha = if (progress < 0.7f) 1f else (1f - (progress - 0.7f) / 0.3f).coerceIn(0f, 1f)
+    val scale = if (progress < 0.2f) (progress / 0.2f) * 1.3f else (1.3f - (progress - 0.2f) * 0.4f)
+
+    Box(
+        modifier = Modifier
+            .offset(y = yOffset)
+            .graphicsLayer {
+                this.alpha = alpha
+                this.scaleX = scale
+                this.scaleY = scale
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = emoji, fontSize = 28.sp)
+    }
+}
+
+@Composable
+fun RocketLaunchOverlay(text: String) {
+    val infiniteTransition = rememberInfiniteTransition(label = "rocket")
+    val yOffset by infiniteTransition.animateFloat(
+        initialValue = 300f,
+        targetValue = -400f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rocket_anim"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.offset(y = yOffset.dp)
+        ) {
+            Text("🚀", fontSize = 64.sp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                color = Color(0xDD8E005B),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.5.dp, GoldYellow)
+            ) {
+                Text(
+                    text = text,
+                    color = GoldYellow,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ExitRoomChoiceDialog(
+    isHost: Boolean,
+    onDismiss: () -> Unit,
+    onKeepRoomRunning: () -> Unit,
+    onLeaveAndClose: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceDark,
+        title = { Text("Exit Voice Room", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Text(
+                text = if (isHost) "Do you want to minimize and keep your room running in the background, or leave and exit the room?"
+                else "Do you want to keep listening in background mode or leave the voice room?",
+                color = TextSecondary,
+                fontSize = 13.sp
+            )
+        },
+        confirmButton = {
+            NeonButton(
+                text = "Keep in Background 🎧",
+                onClick = onKeepRoomRunning
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onLeaveAndClose) {
+                Text("Leave Room", color = DarkRed)
+            }
+        }
+    )
+}
+
+@Composable
+fun SeatActionDialog(
+    seat: RoomSeat,
+    isHost: Boolean,
+    isMySeat: Boolean,
+    onDismiss: () -> Unit,
+    onLeaveMic: () -> Unit,
+    onToggleMute: () -> Unit,
+    onKick: () -> Unit,
+    onBlock: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceDark,
+        title = { Text("Seat ${seat.seatIndex + 1}: ${seat.username ?: "Occupied"}", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (isMySeat) {
+                    NeonButton(
+                        text = "Leave Mic / Seat",
+                        onClick = onLeaveMic,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (isHost || isMySeat) {
+                    OutlinedButton(
+                        onClick = onToggleMute,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text(if (seat.isMuted) "Unmute Mic 🎙️" else "Mute Mic 🔇")
+                    }
+                }
+
+                if (isHost && !isMySeat) {
+                    Button(
+                        onClick = onKick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Kick from Mic", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = onBlock,
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Block from Room", color = Color.White)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) }
+        }
+    )
+}
+
+@Composable
+fun SendLuckyBagDialog(
+    repository: BismaRepository,
+    roomId: String,
+    onDismiss: () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var totalCoins by remember { mutableStateOf("500") }
+    var maxClaimers by remember { mutableStateOf("10") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceDark,
+        title = { Text("Send Lucky Coin Bag 🧧", color = GoldYellow, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = totalCoins,
+                    onValueChange = { totalCoins = it },
+                    label = { Text("Total Coins to Share") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonPink,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                OutlinedTextField(
+                    value = maxClaimers,
+                    onValueChange = { maxClaimers = it },
+                    label = { Text("Number of Lucky Claimers") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonPink,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            NeonButton(
+                text = "Drop Lucky Bag 🧧",
+                onClick = {
+                    val coins = totalCoins.toIntOrNull() ?: 500
+                    val claimers = maxClaimers.toIntOrNull() ?: 10
+                    coroutineScope.launch {
+                        val success = repository.spawnLuckyBag(roomId, coins, claimers)
+                        if (success) {
+                            Toast.makeText(context, "Lucky Bag dropped in room! 🧧", Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        } else {
+                            Toast.makeText(context, "Insufficient Coins!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) }
+        }
+    )
 }
 
 @Composable
@@ -333,7 +737,6 @@ fun RoomTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Room Info (Title, ID, Online)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
@@ -380,7 +783,6 @@ fun RoomTopBar(
             }
         }
 
-        // Action Icons (Media, Host Tools, Close)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -470,7 +872,6 @@ fun RoomAudioActivityBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left: Active Speaker Avatar & Audio Visualizer
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
@@ -534,7 +935,6 @@ fun RoomAudioActivityBanner(
                 }
             }
 
-            // Right: Live Decibel Meter & Quick Mute Badge
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -633,7 +1033,6 @@ fun RoomSeatItem(
                 textAlign = TextAlign.Center
             )
 
-            // Visual Audio Equalizer Indicator (Visible when speaking)
             if (seat.isSpeaking) {
                 AudioActivityEqualizer(
                     isSpeaking = true,
@@ -671,14 +1070,14 @@ fun RoomSeatItem(
                     .size(52.dp)
                     .clip(CircleShape)
                     .background(SurfaceCard.copy(alpha = 0.6f))
-                    .border(1.dp, SurfaceCardBorder, CircleShape),
+                    .border(1.dp, if (seat.isLocked) DarkRed else SurfaceCardBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = if (isHostSeat) Icons.Default.Star else Icons.Default.Mic,
+                        imageVector = if (seat.isLocked) Icons.Default.Lock else if (isHostSeat) Icons.Default.Star else Icons.Default.Mic,
                         contentDescription = "Empty Seat",
-                        tint = if (isHostSeat) GoldYellow else TextMuted,
+                        tint = if (seat.isLocked) DarkRed else if (isHostSeat) GoldYellow else TextMuted,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
@@ -691,7 +1090,7 @@ fun RoomSeatItem(
             }
             Spacer(modifier = Modifier.height(3.dp))
             Text(
-                text = if (isHostSeat) "Host" else "Seat ${seat.seatIndex + 1}",
+                text = if (seat.isLocked) "Locked" else if (isHostSeat) "Host" else "Seat ${seat.seatIndex + 1}",
                 fontSize = 9.sp,
                 color = TextMuted
             )
@@ -705,7 +1104,6 @@ fun RoomChatMessageBubble(
     onUserClick: () -> Unit
 ) {
     if (message.giftName != null) {
-        // Gift announcement message
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -726,7 +1124,6 @@ fun RoomChatMessageBubble(
             }
         }
     } else {
-        // Standard text message
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(vertical = 1.dp)
@@ -775,7 +1172,6 @@ fun RoomBottomControlBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            // Chat Input Field
             OutlinedTextField(
                 value = chatText,
                 onValueChange = onChatTextChange,
@@ -798,7 +1194,7 @@ fun RoomBottomControlBar(
                 )
             )
 
-            // Dedicated Emoji 😊 Button
+            // Dedicated Emoji Button
             IconButton(
                 onClick = onOpenEmoji,
                 modifier = Modifier
@@ -807,11 +1203,7 @@ fun RoomBottomControlBar(
                     .background(SurfaceCard)
                     .border(1.dp, SurfaceCardBorder, CircleShape)
             ) {
-                Text(
-                    text = "😊",
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center
-                )
+                Text(text = "😊", fontSize = 18.sp, textAlign = TextAlign.Center)
             }
 
             // Prominent Mute / Unmute Toggle Button
@@ -866,11 +1258,7 @@ fun GiftAnimationOverlay(giftMessage: ChatMessage) {
             .clip(RoundedCornerShape(20.dp))
             .background(
                 Brush.horizontalGradient(
-                    listOf(
-                        Color(0xFF8E005B),
-                        Color(0xFF37006B),
-                        Color(0xFF003666)
-                    )
+                    listOf(Color(0xFF8E005B), Color(0xFF37006B), Color(0xFF003666))
                 )
             )
             .border(2.dp, GoldYellow, RoundedCornerShape(20.dp))
@@ -881,10 +1269,7 @@ fun GiftAnimationOverlay(giftMessage: ChatMessage) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = giftMessage.giftIcon ?: "🎁",
-                fontSize = 38.sp
-            )
+            Text(text = giftMessage.giftIcon ?: "🎁", fontSize = 38.sp)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
@@ -917,7 +1302,9 @@ fun VirtualGiftBottomSheet(
     val context = LocalContext.current
     val currentUser by repository.currentUser.collectAsState(initial = null)
 
-    val gifts = listOf(
+    var giftTab by remember { mutableIntStateOf(0) } // 0: Standard Gifts, 1: Lucky Gifts
+
+    val standardGifts = listOf(
         VirtualGift("g_rose", "Red Rose", "🌹", 10, 1, "bloom"),
         VirtualGift("g_heart", "Love Heart", "💖", 50, 5, "hearts"),
         VirtualGift("g_car", "Super Sports Car", "🏎️", 500, 50, "drive"),
@@ -926,7 +1313,12 @@ fun VirtualGiftBottomSheet(
         VirtualGift("g_crown", "Imperial Crown", "👑", 10000, 1000, "royalty")
     )
 
-    var selectedGift by remember { mutableStateOf(gifts.first()) }
+    val luckyGifts = listOf(
+        VirtualGift("g_lucky_box", "Lucky Mystery Box (Up to 500x Win)", "🎁", 100, 10, "box"),
+        VirtualGift("g_lucky_wheel", "Lucky Fortune Wheel (Up to 1000x Win)", "🎡", 500, 50, "wheel")
+    )
+
+    var selectedGift by remember { mutableStateOf(standardGifts.first()) }
     val eligibleReceivers = seats.filter { it.userId != null }
     var selectedTargetUserId by remember {
         mutableStateOf(eligibleReceivers.firstOrNull()?.userId ?: "")
@@ -941,32 +1333,50 @@ fun VirtualGiftBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Header with User Coin Balance
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Send Virtual Gift",
+                    text = "Send Virtual Gifts ✨",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🪙 ${currentUser?.coins ?: 0} Coins", color = GoldYellow, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
+                Text(text = "🪙 ${currentUser?.coins ?: 0} Coins", color = GoldYellow, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Select Target Seat / User
-            Text("Select Receiver on Seat:", color = TextSecondary, fontSize = 11.sp)
+            // Gift Tabs: Standard | Lucky Gifts
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = giftTab == 0,
+                    onClick = {
+                        giftTab = 0
+                        selectedGift = standardGifts.first()
+                    },
+                    label = { Text("Standard Gifts 🎁") }
+                )
+                FilterChip(
+                    selected = giftTab == 1,
+                    onClick = {
+                        giftTab = 1
+                        selectedGift = luckyGifts.first()
+                    },
+                    label = { Text("Lucky Gifts 🍀 (Win Multipliers)") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("Select Receiver on Mic:", color = TextSecondary, fontSize = 11.sp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 eligibleReceivers.forEach { s ->
@@ -995,14 +1405,14 @@ fun VirtualGiftBottomSheet(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Gift Grid
+            val displayedGifts = if (giftTab == 0) standardGifts else luckyGifts
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier.fillMaxWidth().height(210.dp),
+                columns = GridCells.Fixed(if (giftTab == 0) 3 else 2),
+                modifier = Modifier.fillMaxWidth().height(190.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(gifts) { gift ->
+                items(displayedGifts) { gift ->
                     val isSelected = selectedGift == gift
                     Box(
                         modifier = Modifier
@@ -1126,6 +1536,7 @@ fun SoundboardBottomSheet(
 fun HostToolsBottomSheet(
     room: VoiceRoom,
     isHost: Boolean,
+    onSendLuckyBag: () -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -1138,7 +1549,7 @@ fun HostToolsBottomSheet(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
-                text = "Host & Room Management Tools",
+                text = "Host & Room Control Tools",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
@@ -1146,20 +1557,20 @@ fun HostToolsBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             val tools = listOf(
-                Pair(Icons.Default.Lock, "Lock All Empty Seats"),
-                Pair(Icons.Default.CleaningServices, "Clean Room Chat Feed"),
-                Pair(Icons.Default.MicOff, "Mute All Speakers"),
-                Pair(Icons.Default.Campaign, "Update Room Announcement"),
-                Pair(Icons.Default.Image, "Change Room Background Wallpaper"),
-                Pair(Icons.Default.Share, "Share Room Invitation Link")
+                Triple(Icons.Default.CardGiftcard, "Drop Lucky Coin Bag 🧧", onSendLuckyBag),
+                Triple(Icons.Default.Lock, "Lock Empty Seats", onDismiss),
+                Triple(Icons.Default.CleaningServices, "Clean Chat Stream", onDismiss),
+                Triple(Icons.Default.MicOff, "Mute All Speakers", onDismiss),
+                Triple(Icons.Default.Campaign, "Update Room Announcement", onDismiss),
+                Triple(Icons.Default.Share, "Share Room Invitation", onDismiss)
             )
 
-            tools.forEach { (icon, name) ->
+            tools.forEach { (icon, name, action) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { onDismiss() }
+                        .clickable { action() }
                         .padding(vertical = 10.dp, horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1188,14 +1599,14 @@ fun RoomMediaBottomSheet(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
-                text = "Room Background Music & YouTube Player",
+                text = "Room Background Music Player 🎶",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Stream authorized background ambient tracks & legal music playlists in your voice room.",
+                text = "Stream ambient background tracks in high-fidelity audio.",
                 color = TextSecondary,
                 fontSize = 12.sp
             )
@@ -1205,7 +1616,7 @@ fun RoomMediaBottomSheet(
                 Pair("Chill Lofi Acoustic Beats", "3:45"),
                 Pair("Desi Ghazal & Soft Harmonium", "5:20"),
                 Pair("Romantic Urdu Poetry Strings", "4:15"),
-                Pair("Bollywood Ambient Instrumental", "3:50")
+                Pair("Ambient Piano & Night Sky", "3:50")
             )
 
             tracks.forEach { (title, duration) ->
@@ -1235,54 +1646,3 @@ fun RoomMediaBottomSheet(
         }
     }
 }
-
-data class RoomFloatingReaction(
-    val id: Long = System.currentTimeMillis() + (0..99999).random(),
-    val emoji: String,
-    val xOffsetDp: Float = (-70..40).random().toFloat()
-)
-
-@Composable
-fun FloatingReactionBubble(
-    reaction: RoomFloatingReaction,
-    onFinished: () -> Unit
-) {
-    val animProgress = remember { Animatable(0f) }
-
-    LaunchedEffect(reaction.id) {
-        animProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 2400, easing = LinearEasing)
-        )
-        onFinished()
-    }
-
-    val progress = animProgress.value
-    val yOffset = (-340 * progress).dp
-    val wobble = (kotlin.math.sin(progress * 4 * Math.PI) * 22).dp + reaction.xOffsetDp.dp
-    val alpha = if (progress < 0.7f) 1f else (1f - (progress - 0.7f) / 0.3f).coerceIn(0f, 1f)
-    val scale = if (progress < 0.15f) {
-        (progress / 0.15f) * 1.35f
-    } else {
-        1.35f - (progress - 0.15f) * 0.4f
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentSize(Alignment.BottomEnd)
-            .padding(end = 50.dp)
-            .offset(x = wobble, y = yOffset)
-            .graphicsLayer {
-                this.alpha = alpha
-                this.scaleX = scale
-                this.scaleY = scale
-            }
-    ) {
-        Text(
-            text = reaction.emoji,
-            fontSize = 32.sp
-        )
-    }
-}
-

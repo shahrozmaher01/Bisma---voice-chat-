@@ -12,6 +12,9 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
     suspend fun getUserById(userId: String): User?
 
+    @Query("SELECT * FROM users WHERE agencyId = :agencyId")
+    fun getAgencyMembersFlow(agencyId: String): Flow<List<User>>
+
     @Query("SELECT * FROM users ORDER BY richLevel DESC, coins DESC LIMIT 20")
     fun getTopWealthUsers(): Flow<List<User>>
 
@@ -353,4 +356,55 @@ interface AuditLogDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAuditLog(log: AuditLogEntity)
+}
+
+@Dao
+interface MomentCommentDao {
+    @Query("SELECT * FROM moment_comments WHERE momentId = :momentId ORDER BY timestamp ASC")
+    fun getCommentsForMomentFlow(momentId: String): Flow<List<MomentComment>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertComment(comment: MomentComment)
+
+    @Query("DELETE FROM moment_comments WHERE id = :commentId")
+    suspend fun deleteComment(commentId: String)
+}
+
+@Dao
+interface AgencyInteractionDao {
+    @Query("SELECT * FROM agency_join_requests WHERE agencyId = :agencyId AND status = 'pending' ORDER BY timestamp DESC")
+    fun getPendingRequestsForAgencyFlow(agencyId: String): Flow<List<AgencyJoinRequest>>
+
+    @Query("SELECT * FROM agency_join_requests WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getRequestsByUserFlow(userId: String): Flow<List<AgencyJoinRequest>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertJoinRequest(request: AgencyJoinRequest)
+
+    @Query("UPDATE agency_join_requests SET status = :status WHERE id = :requestId")
+    suspend fun updateRequestStatus(requestId: String, status: String)
+
+    @Query("SELECT * FROM agency_invitations WHERE inviteeId = :userId AND status = 'pending' ORDER BY timestamp DESC")
+    fun getPendingInvitationsForUserFlow(userId: String): Flow<List<AgencyInvitation>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInvitation(invitation: AgencyInvitation)
+
+    @Query("UPDATE agency_invitations SET status = :status WHERE id = :invitationId")
+    suspend fun updateInvitationStatus(invitationId: String, status: String)
+}
+
+@Dao
+interface CpDao {
+    @Query("SELECT * FROM cp_relationships WHERE user1Id = :userId OR user2Id = :userId LIMIT 1")
+    fun getCpForUserFlow(userId: String): Flow<CpRelationship?>
+
+    @Query("SELECT * FROM cp_relationships ORDER BY intimacyScore DESC LIMIT 20")
+    fun getTopCpListFlow(): Flow<List<CpRelationship>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateCp(cp: CpRelationship)
+
+    @Query("DELETE FROM cp_relationships WHERE user1Id = :userId OR user2Id = :userId")
+    suspend fun dissolveCp(userId: String)
 }

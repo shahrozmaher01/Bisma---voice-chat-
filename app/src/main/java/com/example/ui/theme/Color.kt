@@ -24,6 +24,7 @@ val CharmPink = Color(0xFFFB7185)
 // Status & Emerald Accents
 val EmeraldGreen = Color(0xFF10B981)
 val BrightCyan = Color(0xFF06B6D4)
+val ElectricCyan = Color(0xFF06B6D4)
 val DarkRed = Color(0xFFEF4444)
 
 // Sophisticated Dark Obsidian & Midnight Backgrounds
@@ -33,6 +34,7 @@ val BackgroundGradientBottom = Color(0xFF06040E)
 
 val SurfaceDark = Color(0xFF130E29)
 val SurfaceCard = Color(0xFF1A1438)
+val SurfaceCardBackground = Color(0xFF1A1438)
 val SurfaceCardBorder = Color(0xFF2E245E)
 val SurfaceGlass = Color(0x661A1438)
 val SurfaceGlassBorder = Color(0x40F43F85)
