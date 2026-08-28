@@ -70,7 +70,7 @@ fun AdminPanelScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background Color(0xFF121824)
+                        .background(Color(0xFF1E1E1E))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
