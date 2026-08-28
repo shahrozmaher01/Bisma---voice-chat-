@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -493,6 +495,14 @@ fun EditProfileDialog(
     var country by remember { mutableStateOf(user.country) }
     var language by remember { mutableStateOf(user.language) }
 
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            selectedAvatar = uri.toString()
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SurfaceDark,
@@ -520,9 +530,10 @@ fun EditProfileDialog(
 
                         Box(
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(76.dp)
                                 .clip(CircleShape)
-                                .border(2.dp, NeonPink, CircleShape),
+                                .border(2.dp, NeonPink, CircleShape)
+                                .clickable { galleryLauncher.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
                             AsyncImage(
@@ -531,9 +542,61 @@ fun EditProfileDialog(
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.BottomCenter
+                            ) {
+                                Surface(
+                                    color = NeonPink,
+                                    shape = CircleShape,
+                                    modifier = Modifier.padding(bottom = 2.dp).size(22.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.PhotoCamera,
+                                        contentDescription = "Change Photo",
+                                        tint = Color.White,
+                                        modifier = Modifier.padding(3.dp).fillMaxSize()
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
+
+                        // Button to select from gallery
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, NeonPink),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = NeonPink
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Collections,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = NeonPink
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Choose from Gallery",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Or choose an avatar:",
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Avatar Presets Row
                         LazyRow(

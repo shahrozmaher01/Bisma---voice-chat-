@@ -175,6 +175,12 @@ class AdminWebServer(
                 }
             }
 
+        } catch (e: java.net.SocketTimeoutException) {
+            // Normal keep-alive/idle connection timeout
+            Log.d(TAG, "Client socket read timed out from $clientIp")
+        } catch (e: java.net.SocketException) {
+            // Client closed connection
+            Log.d(TAG, "Client socket closed: ${e.message}")
         } catch (e: Exception) {
             Log.e(TAG, "Exception handling client request", e)
         } finally {
