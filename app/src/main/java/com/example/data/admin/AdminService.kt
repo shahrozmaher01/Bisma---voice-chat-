@@ -56,44 +56,312 @@ class AdminService(
         }
     }
 
+    suspend fun initializeDefaultLinkUsers(adminId: String) = withContext(Dispatchers.IO) {
+        val count = db.adminLinkUserDao().countLinkUsers(adminId)
+        if (count == 0) {
+            val defaults = listOf(
+                AdminLinkUser(
+                    id = "link_${adminId}_usr1",
+                    adminId = adminId,
+                    userId = "usr_78912",
+                    userName = "Ali Raza",
+                    userAvatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                    status = "Active",
+                    assignedWork = "Prime-Time Audio Host (Target 40h/month)",
+                    workStatus = "In Progress",
+                    workCategory = "Voice Hosting",
+                    targetHours = 40.0,
+                    completedHours = 26.5,
+                    targetDiamonds = 50000,
+                    earnedDiamonds = 34200,
+                    activityInfo = "Live 26.5h • 34.2k Diamonds • 98% punctuality",
+                    lastActive = "Today, 16:45",
+                    joinedDate = "2026-08-10",
+                    notes = "Hosting evening music and discussion rooms successfully"
+                ),
+                AdminLinkUser(
+                    id = "link_${adminId}_usr2",
+                    adminId = adminId,
+                    userId = "usr_45623",
+                    userName = "Bisma Noor",
+                    userAvatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+                    status = "Active",
+                    assignedWork = "Singing & Chill Room Lead",
+                    workStatus = "Active Live",
+                    workCategory = "Voice Hosting",
+                    targetHours = 35.0,
+                    completedHours = 38.0,
+                    targetDiamonds = 60000,
+                    earnedDiamonds = 65800,
+                    activityInfo = "Live 38.0h • 65.8k Diamonds • Target Achieved 🎉",
+                    lastActive = "Currently Online 🟢",
+                    joinedDate = "2026-08-05",
+                    notes = "High talent host with top room retention"
+                ),
+                AdminLinkUser(
+                    id = "link_${adminId}_usr3",
+                    adminId = adminId,
+                    userId = "usr_33219",
+                    userName = "Hamza Khan",
+                    userAvatar = "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150",
+                    status = "Active",
+                    assignedWork = "Night Shift Room Moderation (10 PM - 4 AM)",
+                    workStatus = "In Progress",
+                    workCategory = "Moderation",
+                    targetHours = 60.0,
+                    completedHours = 44.0,
+                    targetDiamonds = 20000,
+                    earnedDiamonds = 16800,
+                    activityInfo = "18 night shifts completed • 0 rule violations",
+                    lastActive = "Today, 04:15",
+                    joinedDate = "2026-08-12",
+                    notes = "Maintains room discipline and resolves seat disputes"
+                ),
+                AdminLinkUser(
+                    id = "link_${adminId}_usr4",
+                    adminId = adminId,
+                    userId = "usr_88241",
+                    userName = "Ayesha Malik",
+                    userAvatar = "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150",
+                    status = "Active",
+                    assignedWork = "Host Recruitment & Community Management",
+                    workStatus = "Pending Review",
+                    workCategory = "Agency BD",
+                    targetHours = 30.0,
+                    completedHours = 22.0,
+                    targetDiamonds = 40000,
+                    earnedDiamonds = 29500,
+                    activityInfo = "14 new verified hosts onboarded • Review pending",
+                    lastActive = "Yesterday, 21:30",
+                    joinedDate = "2026-08-18",
+                    notes = "Assisting new creators with setup and audio equipment"
+                )
+            )
+            db.adminLinkUserDao().insertAll(defaults)
+        }
+    }
+
+    suspend fun getLinkUsers(session: AdminSession, query: String = ""): List<JSONObject> = withContext(Dispatchers.IO) {
+        initializeDefaultLinkUsers(session.userId)
+
+        val linkUsers = if (query.isBlank()) {
+            db.adminLinkUserDao().getLinkUsers(session.userId)
+        } else {
+            db.adminLinkUserDao().searchLinkUsers(session.userId, query.trim())
+        }
+
+        linkUsers.map { u ->
+            JSONObject().apply {
+                put("id", u.id)
+                put("adminId", u.adminId)
+                put("userId", u.userId)
+                put("userName", u.userName)
+                put("userAvatar", u.userAvatar)
+                put("status", u.status)
+                put("assignedWork", u.assignedWork)
+                put("workStatus", u.workStatus)
+                put("workCategory", u.workCategory)
+                put("targetHours", u.targetHours)
+                put("completedHours", u.completedHours)
+                put("targetDiamonds", u.targetDiamonds)
+                put("earnedDiamonds", u.earnedDiamonds)
+                put("activityInfo", u.activityInfo)
+                put("lastActive", u.lastActive)
+                put("joinedDate", u.joinedDate)
+                put("notes", u.notes)
+                put("updatedAt", u.updatedAt)
+            }
+        }
+    }
+
+    suspend fun addLinkUser(
+        session: AdminSession,
+        userId: String,
+        userName: String,
+        status: String,
+        assignedWork: String,
+        workStatus: String,
+        workCategory: String,
+        targetHours: Double,
+        completedHours: Double,
+        targetDiamonds: Long,
+        earnedDiamonds: Long,
+        activityInfo: String,
+        notes: String,
+        clientIp: String
+    ): Result<JSONObject> = withContext(Dispatchers.IO) {
+        try {
+            val cleanUserId = userId.trim()
+            val cleanUserName = userName.trim()
+            if (cleanUserId.isBlank() || cleanUserName.isBlank()) {
+                return@withContext Result.failure(Exception("User ID and User Name are required."))
+            }
+
+            val id = "link_${session.userId}_${cleanUserId}"
+            val existing = db.adminLinkUserDao().getLinkUserById(id)
+            val record = AdminLinkUser(
+                id = id,
+                adminId = session.userId,
+                userId = cleanUserId,
+                userName = cleanUserName,
+                userAvatar = existing?.userAvatar ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                status = status.ifBlank { "Active" },
+                assignedWork = assignedWork.ifBlank { "Live Audio Host" },
+                workStatus = workStatus.ifBlank { "In Progress" },
+                workCategory = workCategory.ifBlank { "Voice Hosting" },
+                targetHours = targetHours.coerceAtLeast(0.0),
+                completedHours = completedHours.coerceAtLeast(0.0),
+                targetDiamonds = targetDiamonds.coerceAtLeast(0),
+                earnedDiamonds = earnedDiamonds.coerceAtLeast(0),
+                activityInfo = activityInfo.ifBlank { "Joined via Admin Link • Ready for assignment" },
+                lastActive = "Just added",
+                joinedDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()),
+                notes = notes,
+                updatedAt = System.currentTimeMillis()
+            )
+
+            db.adminLinkUserDao().insertOrUpdate(record)
+
+            securityManager.logAction(
+                session.userId, session.username, session.role.roleName,
+                "ADD_LINK_USER", "AdminLink", cleanUserId, cleanUserName,
+                null, "Assigned: $assignedWork ($workStatus)", true, clientIp
+            )
+
+            val json = JSONObject().apply {
+                put("id", record.id)
+                put("userId", record.userId)
+                put("userName", record.userName)
+                put("status", record.status)
+                put("assignedWork", record.assignedWork)
+                put("workStatus", record.workStatus)
+                put("activityInfo", record.activityInfo)
+            }
+            Result.success(json)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateLinkUserWork(
+        session: AdminSession,
+        id: String,
+        status: String,
+        assignedWork: String,
+        workStatus: String,
+        workCategory: String,
+        targetHours: Double,
+        completedHours: Double,
+        targetDiamonds: Long,
+        earnedDiamonds: Long,
+        activityInfo: String,
+        notes: String,
+        clientIp: String
+    ): Result<JSONObject> = withContext(Dispatchers.IO) {
+        try {
+            val record = db.adminLinkUserDao().getLinkUserById(id)
+                ?: return@withContext Result.failure(Exception("User not found under your link."))
+
+            if (record.adminId != session.userId && session.role != AdminRole.SUPER_ADMIN) {
+                return@withContext Result.failure(Exception("Access Denied: You cannot modify users registered under another admin's link."))
+            }
+
+            val updated = record.copy(
+                status = status.ifBlank { record.status },
+                assignedWork = assignedWork.ifBlank { record.assignedWork },
+                workStatus = workStatus.ifBlank { record.workStatus },
+                workCategory = workCategory.ifBlank { record.workCategory },
+                targetHours = targetHours,
+                completedHours = completedHours,
+                targetDiamonds = targetDiamonds,
+                earnedDiamonds = earnedDiamonds,
+                activityInfo = activityInfo.ifBlank { record.activityInfo },
+                notes = notes,
+                updatedAt = System.currentTimeMillis()
+            )
+
+            db.adminLinkUserDao().insertOrUpdate(updated)
+
+            securityManager.logAction(
+                session.userId, session.username, session.role.roleName,
+                "UPDATE_LINK_USER_WORK", "AdminLink", record.userId, record.userName,
+                "${record.assignedWork} (${record.workStatus})",
+                "${updated.assignedWork} (${updated.workStatus})",
+                true, clientIp
+            )
+
+            val json = JSONObject().apply {
+                put("id", updated.id)
+                put("userId", updated.userId)
+                put("userName", updated.userName)
+                put("status", updated.status)
+                put("assignedWork", updated.assignedWork)
+                put("workStatus", updated.workStatus)
+                put("activityInfo", updated.activityInfo)
+                put("notes", updated.notes)
+            }
+            Result.success(json)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteLinkUser(
+        session: AdminSession,
+        id: String,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val record = db.adminLinkUserDao().getLinkUserById(id)
+                ?: return@withContext Result.failure(Exception("User not found under your link."))
+
+            if (record.adminId != session.userId && session.role != AdminRole.SUPER_ADMIN) {
+                return@withContext Result.failure(Exception("Access Denied: You cannot remove users registered under another admin's link."))
+            }
+
+            db.adminLinkUserDao().deleteLinkUser(id, record.adminId)
+
+            securityManager.logAction(
+                session.userId, session.username, session.role.roleName,
+                "REMOVE_LINK_USER", "AdminLink", record.userId, record.userName,
+                record.assignedWork, "Removed from admin link", true, clientIp
+            )
+
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getDashboardStats(session: AdminSession): JSONObject = withContext(Dispatchers.IO) {
-        val totalUsers = db.userDao().countTotalUsers()
-        val activeUsers = db.userDao().countActiveUsers()
-        val activeRooms = db.roomDao().searchRooms("").size
-        val superAdminsCount = db.userRoleDao().countByRole(AdminRole.SUPER_ADMIN.roleName)
-        val adminsCount = db.userRoleDao().countByRole(AdminRole.ADMIN.roleName)
-        val managersCount = db.userRoleDao().countByRole(AdminRole.MANAGER.roleName)
-        val bdsCount = db.userRoleDao().countByRole(AdminRole.BD.roleName)
-        val agenciesCount = db.userRoleDao().countByRole(AdminRole.AGENCY.roleName)
-        val resellersCount = db.userRoleDao().countByRole(AdminRole.COIN_RESELLER.roleName)
-        val pendingReports = db.reportDao().countPendingReports()
-        val recentLogs = db.auditLogDao().getRecentAuditLogs(15)
+        initializeDefaultLinkUsers(session.userId)
+
+        val totalLinkUsers = db.adminLinkUserDao().countLinkUsers(session.userId)
+        val activeLinkUsers = db.adminLinkUserDao().countActiveLinkUsers(session.userId)
+        val completedWork = db.adminLinkUserDao().countCompletedWork(session.userId)
+        val recentLogs = db.auditLogDao().getLogsByAdmin(session.userId)
 
         val json = JSONObject()
-        json.put("totalUsers", totalUsers)
-        json.put("activeUsers", activeUsers)
-        json.put("activeRooms", activeRooms)
-        json.put("superAdminsCount", superAdminsCount)
-        json.put("adminsCount", adminsCount)
-        json.put("managersCount", managersCount)
-        json.put("bdsCount", bdsCount)
-        json.put("agenciesCount", agenciesCount)
-        json.put("resellersCount", resellersCount)
-        json.put("pendingReports", pendingReports)
+        json.put("panelName", session.panelName)
+        json.put("adminName", session.username)
+        json.put("adminId", session.userId)
+        json.put("adminRole", session.role.roleName)
+        json.put("mobileNumber", session.mobileNumber)
+        json.put("totalLinkUsers", totalLinkUsers)
+        json.put("activeLinkUsers", activeLinkUsers)
+        json.put("completedWork", completedWork)
+        json.put("inProgressWork", (totalLinkUsers - completedWork).coerceAtLeast(0))
+        json.put("linkStatus", "Active & Verified 🛡️")
+        json.put("adminLinkUrl", "https://official1.live/link?admin=${session.userId}")
 
         val logsArray = JSONArray()
-        recentLogs.forEach { log ->
+        recentLogs.take(10).forEach { log ->
             val obj = JSONObject()
             obj.put("id", log.id)
-            obj.put("adminId", log.adminId)
-            obj.put("adminName", log.adminName)
-            obj.put("adminRole", log.adminRole)
             obj.put("action", log.action)
             obj.put("targetType", log.targetType)
-            obj.put("targetId", log.targetId)
             obj.put("targetName", log.targetName)
-            obj.put("previousValue", log.previousValue ?: "")
-            obj.put("newValue", log.newValue ?: "")
+            obj.put("details", log.newValue ?: log.action)
             obj.put("timestamp", log.timestamp)
             obj.put("isSuccess", log.isSuccess)
             logsArray.put(obj)

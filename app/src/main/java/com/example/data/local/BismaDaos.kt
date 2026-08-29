@@ -420,3 +420,39 @@ interface CpDao {
     @Query("DELETE FROM cp_relationships WHERE user1Id = :userId OR user2Id = :userId")
     suspend fun dissolveCp(userId: String)
 }
+
+@Dao
+interface AdminLinkUserDao {
+    @Query("SELECT * FROM admin_link_users WHERE adminId = :adminId ORDER BY updatedAt DESC")
+    fun getLinkUsersFlow(adminId: String): Flow<List<AdminLinkUser>>
+
+    @Query("SELECT * FROM admin_link_users WHERE adminId = :adminId ORDER BY updatedAt DESC")
+    suspend fun getLinkUsers(adminId: String): List<AdminLinkUser>
+
+    @Query("SELECT * FROM admin_link_users WHERE adminId = :adminId AND (userName LIKE '%' || :query || '%' OR userId LIKE '%' || :query || '%' OR assignedWork LIKE '%' || :query || '%') ORDER BY updatedAt DESC")
+    suspend fun searchLinkUsers(adminId: String, query: String): List<AdminLinkUser>
+
+    @Query("SELECT * FROM admin_link_users WHERE id = :id LIMIT 1")
+    suspend fun getLinkUserById(id: String): AdminLinkUser?
+
+    @Query("SELECT * FROM admin_link_users WHERE adminId = :adminId AND userId = :userId LIMIT 1")
+    suspend fun getLinkUserByAdminAndUser(adminId: String, userId: String): AdminLinkUser?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(linkUser: AdminLinkUser)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(linkUsers: List<AdminLinkUser>)
+
+    @Query("DELETE FROM admin_link_users WHERE id = :id AND adminId = :adminId")
+    suspend fun deleteLinkUser(id: String, adminId: String)
+
+    @Query("SELECT COUNT(*) FROM admin_link_users WHERE adminId = :adminId")
+    suspend fun countLinkUsers(adminId: String): Int
+
+    @Query("SELECT COUNT(*) FROM admin_link_users WHERE adminId = :adminId AND (status = 'Active' OR status = 'Online')")
+    suspend fun countActiveLinkUsers(adminId: String): Int
+
+    @Query("SELECT COUNT(*) FROM admin_link_users WHERE adminId = :adminId AND workStatus = 'Completed'")
+    suspend fun countCompletedWork(adminId: String): Int
+}

@@ -262,12 +262,31 @@ class AdminWebServer(
      */
     private suspend fun handleLoginStep1(outputStream: OutputStream, body: String, clientIp: String) {
         val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
-        val idOrUsername = json.optString("idOrUsername", "").ifBlank { json.optString("idOrEmail", "") }
+        val userName = json.optString("userName", "").ifBlank { json.optString("username", "") }
+        val adminId = json.optString("adminId", "").ifBlank { json.optString("idOrUsername", "").ifBlank { json.optString("idOrEmail", "") } }
         val password = json.optString("password", "")
+        val mobileNumber = json.optString("mobileNumber", "").ifBlank { json.optString("phone", "") }
 
-        val res = adminService.securityManager.authenticateStep1(idOrUsername, password, clientIp)
+        val res = adminService.securityManager.authenticateStep1(
+            userName = userName,
+            adminId = adminId,
+            passwordRaw = password,
+            mobileNumber = mobileNumber,
+            clientIp = clientIp
+        )
         if (res.isSuccess) {
             val preAuth = res.getOrThrow()
+            // Auto dispatch WhatsApp OTP for seamless 2-step verification flow
+            val otpRes = adminService.securityManager.sendWhatsAppOtp(preAuth.preAuthToken, preAuth.mobileNumber, clientIp)
+            if (otpRes.isFailure) {
+                val err = JSONObject().apply {
+                    put("success", false)
+                    put("message", otpRes.exceptionOrNull()?.message ?: "Unable to send verification code. Please check the number or try again later.")
+                }
+                sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                return
+            }
+
             val resp = JSONObject().apply {
                 put("success", true)
                 put("step", "OTP_REQUIRED")
@@ -277,13 +296,13 @@ class AdminWebServer(
                 put("adminId", preAuth.userId)
                 put("mobileNumber", preAuth.mobileNumber)
                 put("mobileMasked", AdminSecurityManager.maskPhoneNumber(preAuth.mobileNumber))
-                put("message", "Credentials verified. Please complete WhatsApp 2FA mobile verification.")
+                put("message", "Information verified. WhatsApp verification code has been dispatched to ${AdminSecurityManager.maskPhoneNumber(preAuth.mobileNumber)}.")
             }
             sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
         } else {
             val err = JSONObject().apply {
                 put("success", false)
-                put("message", res.exceptionOrNull()?.message ?: "Invalid Admin credentials")
+                put("message", res.exceptionOrNull()?.message ?: "Invalid Admin Information. Access Denied.")
             }
             sendResponse(outputStream, 401, "Unauthorized", "application/json", err.toString())
         }
@@ -310,7 +329,7 @@ class AdminWebServer(
         } else {
             val err = JSONObject().apply {
                 put("success", false)
-                put("message", res.exceptionOrNull()?.message ?: "Failed to dispatch WhatsApp OTP")
+                put("message", res.exceptionOrNull()?.message ?: "Unable to send verification code. Please check the number or try again later.")
             }
             sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
         }
@@ -444,6 +463,125 @@ class AdminWebServer(
             path == "/api/admin/dashboard" && method == "GET" -> {
                 val stats = adminService.getDashboardStats(session)
                 sendResponse(outputStream, 200, "OK", "application/json", stats.toString())
+            }
+
+            // Link Section - Scoped Users & Assigned Work
+            path == "/api/admin/link/users" && method == "GET" -> {
+                val query = params["query"] ?: ""
+                val users = adminService.getLinkUsers(session, query)
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(users).toString())
+            }
+
+            (path == "/api/admin/link/users" || path == "/api/admin/link/users/add") && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val userId = json.optString("userId", "")
+                val userName = json.optString("userName", "")
+                val status = json.optString("status", "Active")
+                val assignedWork = json.optString("assignedWork", "Live Audio Host")
+                val workStatus = json.optString("workStatus", "In Progress")
+                val workCategory = json.optString("workCategory", "Voice Hosting")
+                val targetHours = json.optDouble("targetHours", 40.0)
+                val completedHours = json.optDouble("completedHours", 0.0)
+                val targetDiamonds = json.optLong("targetDiamonds", 50000L)
+                val earnedDiamonds = json.optLong("earnedDiamonds", 0L)
+                val activityInfo = json.optString("activityInfo", "")
+                val notes = json.optString("notes", "")
+
+                val res = adminService.addLinkUser(
+                    session = session,
+                    userId = userId,
+                    userName = userName,
+                    status = status,
+                    assignedWork = assignedWork,
+                    workStatus = workStatus,
+                    workCategory = workCategory,
+                    targetHours = targetHours,
+                    completedHours = completedHours,
+                    targetDiamonds = targetDiamonds,
+                    earnedDiamonds = earnedDiamonds,
+                    activityInfo = activityInfo,
+                    notes = notes,
+                    clientIp = clientIp
+                )
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "User registered under link successfully")
+                        put("user", res.getOrThrow())
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to add user to link")
+                    }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            (path == "/api/admin/link/users/update" || (path == "/api/admin/link/users" && method == "PUT")) -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val id = json.optString("id", "")
+                val status = json.optString("status", "Active")
+                val assignedWork = json.optString("assignedWork", "")
+                val workStatus = json.optString("workStatus", "In Progress")
+                val workCategory = json.optString("workCategory", "Voice Hosting")
+                val targetHours = json.optDouble("targetHours", 40.0)
+                val completedHours = json.optDouble("completedHours", 0.0)
+                val targetDiamonds = json.optLong("targetDiamonds", 50000L)
+                val earnedDiamonds = json.optLong("earnedDiamonds", 0L)
+                val activityInfo = json.optString("activityInfo", "")
+                val notes = json.optString("notes", "")
+
+                val res = adminService.updateLinkUserWork(
+                    session = session,
+                    id = id,
+                    status = status,
+                    assignedWork = assignedWork,
+                    workStatus = workStatus,
+                    workCategory = workCategory,
+                    targetHours = targetHours,
+                    completedHours = completedHours,
+                    targetDiamonds = targetDiamonds,
+                    earnedDiamonds = earnedDiamonds,
+                    activityInfo = activityInfo,
+                    notes = notes,
+                    clientIp = clientIp
+                )
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "Work assignment updated successfully")
+                        put("user", res.getOrThrow())
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to update work assignment")
+                    }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            (path == "/api/admin/link/users/delete" || (path == "/api/admin/link/users" && method == "DELETE")) -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val id = json.optString("id", "").ifBlank { params["id"] ?: "" }
+
+                val res = adminService.deleteLinkUser(session, id, clientIp)
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "User removed from link")
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to remove user")
+                    }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
             }
 
             // User Management

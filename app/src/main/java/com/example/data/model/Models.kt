@@ -368,3 +368,25 @@ data class AuditLogEntity(
     val isSuccess: Boolean = true,
     val ipAddress: String? = "127.0.0.1"
 )
+
+@Entity(tableName = "admin_link_users")
+data class AdminLinkUser(
+    @PrimaryKey val id: String,
+    val adminId: String,
+    val userId: String,
+    val userName: String,
+    val userAvatar: String = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+    val status: String = "Active", // "Active", "Inactive", "Online", "Banned", "On Leave"
+    val assignedWork: String = "Live Audio Host (Target 40h/mo)",
+    val workStatus: String = "In Progress", // "In Progress", "Completed", "Active Live", "Pending Review", "Under Target"
+    val workCategory: String = "Voice Hosting",
+    val targetHours: Double = 40.0,
+    val completedHours: Double = 18.5,
+    val targetDiamonds: Long = 50000,
+    val earnedDiamonds: Long = 24500,
+    val activityInfo: String = "Live 18.5h • 24.5k Diamonds • 96% punctuality",
+    val lastActive: String = "Today, 15:30",
+    val joinedDate: String = "2026-08-15",
+    val notes: String = "Performing well on prime time voice rooms",
+    val updatedAt: Long = System.currentTimeMillis()
+)
