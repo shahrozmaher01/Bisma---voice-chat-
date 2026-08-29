@@ -27,6 +27,9 @@ interface UserDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(user: User)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUser(user: User)
+
     @Query("UPDATE users SET coins = coins + :deltaCoins, diamonds = diamonds + :deltaDiamonds WHERE id = :userId")
     suspend fun updateBalance(userId: String, deltaCoins: Long, deltaDiamonds: Long)
 
@@ -177,6 +180,9 @@ interface StoreDao {
     @Query("SELECT * FROM store_items")
     fun getAllStoreItemsFlow(): Flow<List<StoreItem>>
 
+    @Query("SELECT * FROM store_items")
+    suspend fun getAllItems(): List<StoreItem>
+
     @Query("SELECT * FROM store_items WHERE isOwned = 1")
     fun getBackpackItemsFlow(): Flow<List<StoreItem>>
 
@@ -197,6 +203,9 @@ interface StoreDao {
 interface AgencyFamilyDao {
     @Query("SELECT * FROM agencies ORDER BY ranking ASC")
     fun getAllAgenciesFlow(): Flow<List<Agency>>
+
+    @Query("SELECT * FROM agencies ORDER BY ranking ASC")
+    suspend fun getAllAgencies(): List<Agency>
 
     @Query("SELECT * FROM agencies WHERE id = :id LIMIT 1")
     suspend fun getAgencyById(id: String): Agency?
@@ -224,6 +233,9 @@ interface AgencyFamilyDao {
 interface WalletTransactionDao {
     @Query("SELECT * FROM wallet_transactions WHERE userId = :userId ORDER BY timestamp DESC")
     fun getTransactionsFlow(userId: String): Flow<List<WalletTransaction>>
+
+    @Query("SELECT * FROM wallet_transactions ORDER BY timestamp DESC")
+    suspend fun getAllTransactions(): List<WalletTransaction>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: WalletTransaction)

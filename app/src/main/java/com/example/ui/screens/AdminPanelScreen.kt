@@ -272,33 +272,38 @@ fun AdminPanelScreen(
 
                     // Authenticated Admin Status Card
                     item {
-                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        GlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, GoldYellow.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                        ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Current Session Identity", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
-                                        Text("${currentUser?.username}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        Text("User ID: ${currentUser?.id}", color = TextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                                    }
-
+                                    Text("🔐 Official 1 — Admin Panel Credentials", color = GoldYellow, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                     Surface(
                                         color = GoldYellow.copy(alpha = 0.2f),
                                         shape = RoundedCornerShape(99.dp),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, GoldYellow.copy(alpha = 0.4f))
                                     ) {
                                         Text(
-                                            (currentUserRole?.role ?: "Super Admin").uppercase(),
+                                            "ROOT SUPER ADMIN",
                                             color = GoldYellow,
                                             fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 11.sp,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
                                 }
+
+                                Text("• Panel Name: Official 1", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("• User Name: Sherry", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("• Admin ID: 565656565666555", color = ElectricCyan, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Text("• Password: bismajan56b@\$56", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                Text("• 2FA Mobile Number: +923254256177", color = EmeraldGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

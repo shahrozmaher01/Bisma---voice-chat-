@@ -448,4 +448,168 @@ class AdminService(
             obj
         }
     }
+
+    suspend fun getAllAgencies(session: AdminSession): List<JSONObject> = withContext(Dispatchers.IO) {
+        val agencies = db.agencyFamilyDao().getAllAgencies()
+        agencies.map { a ->
+            val obj = JSONObject()
+            obj.put("id", a.id)
+            obj.put("name", a.name)
+            obj.put("logoUrl", a.logoUrl)
+            obj.put("ownerId", a.ownerId)
+            obj.put("ownerName", a.ownerName)
+            obj.put("agencyCode", a.agencyCode)
+            obj.put("bdId", a.bdId)
+            obj.put("memberCount", a.memberCount)
+            obj.put("level", a.level)
+            obj.put("totalIncome", a.totalIncome)
+            obj.put("ranking", a.ranking)
+            obj
+        }
+    }
+
+    suspend fun getAllWithdrawals(session: AdminSession): List<JSONObject> = withContext(Dispatchers.IO) {
+        val txs = db.walletTransactionDao().getAllTransactions()
+            .filter { it.type.contains("Withdraw", ignoreCase = true) || it.type.contains("Exchange", ignoreCase = true) || it.description.contains("Cash", ignoreCase = true) }
+        txs.map { tx ->
+            val obj = JSONObject()
+            obj.put("id", tx.id)
+            obj.put("userId", tx.userId)
+            obj.put("type", tx.type)
+            obj.put("amountCoins", tx.amountCoins)
+            obj.put("amountDiamonds", tx.amountDiamonds)
+            obj.put("description", tx.description)
+            obj.put("timestamp", tx.timestamp)
+            obj.put("status", if (tx.description.contains("Approved", ignoreCase = true)) "Approved" else if (tx.description.contains("Rejected", ignoreCase = true)) "Rejected" else "Pending Review")
+            obj
+        }
+    }
+
+    suspend fun handleWithdrawalAction(
+        session: AdminSession,
+        txId: String,
+        action: String, // "APPROVE", "REJECT"
+        notes: String,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        securityManager.logAction(
+            session.userId, session.username, session.role.roleName,
+            "WITHDRAWAL_$action", "Withdrawal", txId, txId,
+            "Pending", "$action: $notes", true, clientIp
+        )
+        Result.success(true)
+    }
+
+    suspend fun getAllStoreItems(session: AdminSession): List<JSONObject> = withContext(Dispatchers.IO) {
+        val items = db.storeDao().getAllItems()
+        items.map { item ->
+            val obj = JSONObject()
+            obj.put("id", item.id)
+            obj.put("name", item.name)
+            obj.put("category", item.category)
+            obj.put("price", item.price)
+            obj.put("previewIcon", item.previewIcon)
+            obj.put("durationDays", item.durationDays)
+            obj.put("isOwned", item.isOwned)
+            obj.put("isEquipped", item.isEquipped)
+            obj.put("description", item.description)
+            obj
+        }
+    }
+
+    suspend fun sendSystemNotification(
+        session: AdminSession,
+        targetUserId: String?,
+        title: String,
+        message: String,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val users = if (targetUserId.isNullOrBlank()) {
+            db.userDao().getAllUsers()
+        } else {
+            listOfNotNull(db.userDao().getUserById(targetUserId))
+        }
+
+        users.forEach { u ->
+            db.notificationDao().insertNotification(
+                NotificationItem(
+                    id = UUID.randomUUID().toString(),
+                    userId = u.id,
+                    type = "system",
+                    title = title,
+                    message = message,
+                    senderName = "Official 1 Support 🛡️",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+
+        securityManager.logAction(
+            session.userId, session.username, session.role.roleName,
+            "BROADCAST_NOTIFICATION", "Notification", targetUserId ?: "ALL_USERS", title,
+            null, message, true, clientIp
+        )
+
+        Result.success(true)
+    }
+
+    suspend fun getAdminProfile(session: AdminSession): JSONObject = withContext(Dispatchers.IO) {
+        val profile = securityManager.getAdminProfile()
+        JSONObject().apply {
+            put("panelName", profile.panelName)
+            put("adminName", profile.adminName)
+            put("adminId", profile.adminId)
+            put("mobileNumber", profile.mobileNumber)
+            put("whatsappApiUrl", profile.whatsappApiUrl)
+            put("whatsappApiKey", profile.whatsappApiKey)
+            put("is2FaEnforced", profile.is2FaEnforced)
+            put("isSetupComplete", profile.isSetupComplete)
+        }
+    }
+
+    suspend fun updateAdminProfile(
+        session: AdminSession,
+        panelName: String,
+        adminName: String,
+        adminId: String,
+        newPasswordRaw: String?,
+        mobileNumber: String,
+        whatsappApiUrl: String?,
+        whatsappApiKey: String?,
+        is2FaEnforced: Boolean,
+        clientIp: String
+    ): Result<JSONObject> = withContext(Dispatchers.IO) {
+        if (session.role != AdminRole.SUPER_ADMIN && !securityManager.hasPermission(session, AdminPermissions.MANAGE_PROFILE)) {
+            return@withContext Result.failure(Exception("Permission Denied: Only Super Admin can update the Official 1 Admin Profile."))
+        }
+
+        val res = securityManager.saveAdminProfile(
+            panelName = panelName,
+            adminName = adminName,
+            adminId = adminId,
+            newPasswordRaw = newPasswordRaw,
+            mobileNumber = mobileNumber,
+            whatsappApiUrl = whatsappApiUrl,
+            whatsappApiKey = whatsappApiKey,
+            is2FaEnforced = is2FaEnforced,
+            actorId = session.userId,
+            actorName = session.username,
+            clientIp = clientIp
+        )
+
+        if (res.isSuccess) {
+            val updated = res.getOrThrow()
+            val obj = JSONObject().apply {
+                put("panelName", updated.panelName)
+                put("adminName", updated.adminName)
+                put("adminId", updated.adminId)
+                put("mobileNumber", updated.mobileNumber)
+                put("whatsappApiUrl", updated.whatsappApiUrl)
+                put("is2FaEnforced", updated.is2FaEnforced)
+            }
+            Result.success(obj)
+        } else {
+            Result.failure(res.exceptionOrNull() ?: Exception("Failed to update profile"))
+        }
+    }
 }
