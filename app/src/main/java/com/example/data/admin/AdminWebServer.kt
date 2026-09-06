@@ -38,6 +38,7 @@ class AdminWebServer(
         serverJob = coroutineScope.launch {
             try {
                 adminService.initializeDefaultConfigs()
+                adminService.initializeDefaultFrameAssignments()
             } catch (e: Exception) {
                 Log.e(TAG, "Error initializing default configs", e)
             }
@@ -154,11 +155,9 @@ class AdminWebServer(
                     val profile = adminService.securityManager.getAdminProfile()
                     val resp = JSONObject().apply {
                         put("success", true)
-                        put("panelName", profile.panelName)
+                        put("panelName", "Official Admin Panel")
                         put("adminName", profile.adminName)
                         put("adminId", profile.adminId)
-                        put("mobileMasked", AdminSecurityManager.maskPhoneNumber(profile.mobileNumber))
-                        put("is2FaEnforced", profile.is2FaEnforced)
                     }
                     sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
                 }
@@ -168,7 +167,7 @@ class AdminWebServer(
                 }
 
                 path == "/api/admin/login" && method == "POST" -> {
-                    handleLoginStep1(outputStream, body, clientIp)
+                    handleLogin(outputStream, body, clientIp)
                 }
 
                 path == "/api/admin/send-whatsapp-otp" && method == "POST" -> {
@@ -222,7 +221,7 @@ class AdminWebServer(
         val panelName = json.optString("panelName", "Official 1").trim().ifBlank { "Official 1" }
         val adminName = json.optString("adminName", "Sherry").trim().ifBlank { "Sherry" }
         val adminId = json.optString("adminId", "565656565666555").trim().ifBlank { "565656565666555" }
-        val password = json.optString("password", "bismajan56b@$56").trim().ifBlank { "bismajan56b@$56" }
+        val password = json.optString("password", "").trim()
         val mobileNumber = json.optString("mobileNumber", "+923254256177").trim().ifBlank { "+923254256177" }
 
         val res = adminService.securityManager.saveAdminProfile(
@@ -257,52 +256,54 @@ class AdminWebServer(
     }
 
     /**
-     * Step 1: Login Credentials Validation.
-     * Generates preAuthToken for Step 2 WhatsApp OTP.
+     * Direct Admin Login (No phone number, OTP, SMS code, or WhatsApp verification):
+     * Validates Username or Admin ID and Password entered manually by the admin.
+     * If valid, opens the Admin Panel immediately.
+     * If invalid, returns "Invalid Username or Password".
      */
-    private suspend fun handleLoginStep1(outputStream: OutputStream, body: String, clientIp: String) {
+    private suspend fun handleLogin(outputStream: OutputStream, body: String, clientIp: String) {
         val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
-        val userName = json.optString("userName", "").ifBlank { json.optString("username", "") }
-        val adminId = json.optString("adminId", "").ifBlank { json.optString("idOrUsername", "").ifBlank { json.optString("idOrEmail", "") } }
+        val usernameOrId = json.optString("usernameOrId", "").ifBlank {
+            json.optString("usernameOrAdminId", "").ifBlank {
+                json.optString("userName", "").ifBlank {
+                    json.optString("username", "").ifBlank {
+                        json.optString("adminId", "").ifBlank {
+                            json.optString("idOrUsername", "")
+                        }
+                    }
+                }
+            }
+        }
         val password = json.optString("password", "")
-        val mobileNumber = json.optString("mobileNumber", "").ifBlank { json.optString("phone", "") }
 
-        val res = adminService.securityManager.authenticateStep1(
-            userName = userName,
-            adminId = adminId,
+        val res = adminService.securityManager.authenticateDirect(
+            usernameOrAdminId = usernameOrId,
             passwordRaw = password,
-            mobileNumber = mobileNumber,
             clientIp = clientIp
         )
         if (res.isSuccess) {
-            val preAuth = res.getOrThrow()
-            // Auto dispatch WhatsApp OTP for seamless 2-step verification flow
-            val otpRes = adminService.securityManager.sendWhatsAppOtp(preAuth.preAuthToken, preAuth.mobileNumber, clientIp)
-            if (otpRes.isFailure) {
-                val err = JSONObject().apply {
-                    put("success", false)
-                    put("message", otpRes.exceptionOrNull()?.message ?: "Unable to send verification code. Please check the number or try again later.")
-                }
-                sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
-                return
+            val session = res.getOrThrow()
+            val sessionJson = JSONObject().apply {
+                put("token", session.token)
+                put("userId", session.userId)
+                put("username", session.username)
+                put("role", session.role.roleName)
+                put("panelName", "Official Admin Panel")
+                put("permissions", org.json.JSONArray(session.permissions))
             }
-
             val resp = JSONObject().apply {
                 put("success", true)
-                put("step", "OTP_REQUIRED")
-                put("preAuthToken", preAuth.preAuthToken)
-                put("panelName", preAuth.panelName)
-                put("adminName", preAuth.username)
-                put("adminId", preAuth.userId)
-                put("mobileNumber", preAuth.mobileNumber)
-                put("mobileMasked", AdminSecurityManager.maskPhoneNumber(preAuth.mobileNumber))
-                put("message", "Information verified. WhatsApp verification code has been dispatched to ${AdminSecurityManager.maskPhoneNumber(preAuth.mobileNumber)}.")
+                put("session", sessionJson)
+                put("panelName", "Official Admin Panel")
+                put("adminName", session.username)
+                put("adminId", session.userId)
+                put("message", "Credentials verified! Welcome to Official Admin Panel.")
             }
             sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
         } else {
             val err = JSONObject().apply {
                 put("success", false)
-                put("message", res.exceptionOrNull()?.message ?: "Invalid Admin Information. Access Denied.")
+                put("message", res.exceptionOrNull()?.message ?: "Invalid Username or Password")
             }
             sendResponse(outputStream, 401, "Unauthorized", "application/json", err.toString())
         }
@@ -690,6 +691,88 @@ class AdminWebServer(
                     sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
                 } else {
                     val err = JSONObject().apply { put("success", false); put("message", res.exceptionOrNull()?.message ?: "Failed to process withdrawal") }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            // Official 1 Frame Management System Endpoints
+            path == "/api/admin/frames/definitions" && method == "GET" -> {
+                val defs = adminService.getOfficialFrameDefinitions()
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(defs).toString())
+            }
+
+            path == "/api/admin/frames/history" && method == "GET" -> {
+                val query = params["query"] ?: ""
+                val history = adminService.getFrameAssignments(session, query)
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(history).toString())
+            }
+
+            path == "/api/admin/frames/check-conflict" && method == "GET" -> {
+                val targetUserId = params["userId"]?.trim() ?: ""
+                adminService.checkAndCleanExpiredFrames()
+                val active = if (targetUserId.isNotBlank()) {
+                    adminService.getFrameAssignments(session).find {
+                        it.optString("userId") == targetUserId && it.optString("status") == "Active"
+                    }
+                } else null
+
+                val resp = JSONObject().apply {
+                    put("hasConflict", active != null)
+                    if (active != null) {
+                        put("conflictingFrame", active)
+                        put("message", "User already has active frame '${active.optString("frameName")}' expiring on ${active.optString("expiryDateFormatted")}")
+                    }
+                }
+                sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+            }
+
+            path == "/api/admin/frames/send" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val frameId = json.optString("frameId", "")
+                val targetUserId = json.optString("userId", "")
+                val days = json.optInt("days", 0)
+
+                val res = adminService.sendFrame(
+                    session = session,
+                    frameId = frameId,
+                    userId = targetUserId,
+                    days = days,
+                    clientIp = clientIp
+                )
+
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "Official frame assigned successfully!")
+                        put("assignment", res.getOrThrow())
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to assign frame")
+                    }
+                    val statusCode = if (err.optString("message").startsWith("Conflict")) 409 else 400
+                    sendResponse(outputStream, statusCode, "Error", "application/json", err.toString())
+                }
+            }
+
+            path == "/api/admin/frames/revoke" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val assignmentId = json.optString("assignmentId", "")
+
+                val res = adminService.revokeFrame(session, assignmentId, clientIp)
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "Official frame revoked successfully")
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to revoke frame")
+                    }
                     sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
                 }
             }

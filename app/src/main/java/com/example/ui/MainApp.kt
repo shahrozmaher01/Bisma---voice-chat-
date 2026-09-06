@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -253,11 +254,11 @@ fun BismaBottomNavigationBar(
     onTabSelected: (BottomTab) -> Unit
 ) {
     Surface(
-        color = SurfaceDark,
+        color = Color(0xF20B061A),
         tonalElevation = 12.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .border(0.5.dp, SurfaceCardBorder, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .border(1.dp, Color(0x33442C73), RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
     ) {
         Row(
             modifier = Modifier
@@ -267,42 +268,155 @@ fun BismaBottomNavigationBar(
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomTab.values().forEach { tab ->
-                val isSelected = selectedTab == tab
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+            // 1. Home
+            BottomNavTabItem(
+                tab = BottomTab.HOME,
+                isSelected = selectedTab == BottomTab.HOME,
+                onClick = { onTabSelected(BottomTab.HOME) }
+            )
+
+            // 2. Moment (with glowing circular camera badge when selected)
+            BottomNavTabItem(
+                tab = BottomTab.MOMENT,
+                isSelected = selectedTab == BottomTab.MOMENT,
+                onClick = { onTabSelected(BottomTab.MOMENT) }
+            )
+
+            // 3. Chat
+            BottomNavTabItem(
+                tab = BottomTab.CHAT,
+                isSelected = selectedTab == BottomTab.CHAT,
+                onClick = { onTabSelected(BottomTab.CHAT) },
+                hasBadge = selectedTab != BottomTab.CHAT
+            )
+
+            // 4. Me
+            BottomNavTabItem(
+                tab = BottomTab.ME,
+                isSelected = selectedTab == BottomTab.ME,
+                onClick = { onTabSelected(BottomTab.ME) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavTabItem(
+    tab: BottomTab,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    hasBadge: Boolean = false,
+    hasCrown: Boolean = false
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (tab == BottomTab.MOMENT && isSelected) {
+                // Moment circular glowing badge
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onTabSelected(tab) }
-                        .padding(horizontal = 14.dp, vertical = 4.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(NeonPink.copy(alpha = 0.15f))
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.sweepGradient(
+                                listOf(
+                                    Color(0xFFFF2A85),
+                                    Color(0xFF7C4DFF),
+                                    Color(0xFF00E5FF),
+                                    Color(0xFFFF2A85)
+                                )
                             )
-                        }
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.title,
-                            tint = if (isSelected) NeonPink else TextMuted,
-                            modifier = Modifier.size(22.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PhotoCamera,
+                        contentDescription = tab.title,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else if (tab == BottomTab.CHAT && isSelected) {
+                // Chat rounded pink badge matching screenshot
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFFFF2A85),
+                                    Color(0xFFE056FD)
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChatBubble,
+                        contentDescription = tab.title,
+                        tint = Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (hasCrown) {
+                        Text(
+                            text = "👑",
+                            fontSize = 9.sp,
+                            lineHeight = 10.sp
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = tab.title,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) NeonPink else TextMuted
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = tab.title,
+                        tint = if (isSelected) Color(0xFFFF2A85) else Color(0xFF8E88A8),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
+
+            // Red notification badge on Chat
+            if (hasBadge) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 3.dp, y = (-2).dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFF2A85))
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = tab.title,
+            fontSize = 11.5.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) Color(0xFFFF2A85) else Color(0xFF8E88A8)
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        // Selected indicator line
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .width(18.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(Color(0xFFFF2A85))
+            )
+        } else {
+            Spacer(modifier = Modifier.height(3.dp))
         }
     }
 }

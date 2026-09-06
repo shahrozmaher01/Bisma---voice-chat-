@@ -390,3 +390,31 @@ data class AdminLinkUser(
     val notes: String = "Performing well on prime time voice rooms",
     val updatedAt: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "official_frame_assignments")
+data class OfficialFrameAssignment(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val userName: String = "",
+    val frameId: String,
+    val frameName: String,
+    val days: Int,
+    val sendDate: Long = System.currentTimeMillis(),
+    val expiryDate: Long = System.currentTimeMillis(),
+    val status: String = "Active", // "Active", "Expired", "Revoked"
+    val adminId: String = "565656565666555",
+    val adminName: String = "Sherry",
+    val sendDateFormatted: String = "",
+    val expiryDateFormatted: String = ""
+)
+
+data class OfficialFrameDef(
+    val id: String,
+    val name: String,
+    val badgeLabel: String,
+    val description: String,
+    val primaryColorHex: String,
+    val secondaryColorHex: String,
+    val iconEmoji: String
+)
+

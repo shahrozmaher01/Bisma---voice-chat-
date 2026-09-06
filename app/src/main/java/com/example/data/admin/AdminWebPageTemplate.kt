@@ -11,7 +11,7 @@ object AdminWebPageTemplate {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Official 1 — Admin Panel</title>
+    <title>Official Admin Panel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -47,15 +47,12 @@ object AdminWebPageTemplate {
         ::-webkit-scrollbar-track { background: var(--bg-base); }
         ::-webkit-scrollbar-thumb { background: #2A364F; border-radius: 4px; }
         .auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: radial-gradient(circle at top, #1E1538 0%, var(--bg-base) 75%); }
-        .auth-box { width: 100%; max-width: 480px; padding: 36px 30px; background: var(--bg-surface); border: 1px solid rgba(255, 42, 133, 0.25); border-radius: var(--radius-lg); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7); text-align: center; animation: fadeIn 0.3s ease; }
+        .auth-box { width: 100%; max-width: 460px; padding: 38px 32px; background: var(--bg-surface); border: 1px solid rgba(255, 42, 133, 0.25); border-radius: var(--radius-lg); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7); text-align: center; animation: fadeIn 0.3s ease; }
         .brand-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 215, 0, 0.12); border: 1px solid rgba(255, 215, 0, 0.35); border-radius: 999px; color: var(--gold); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
-        .form-group { text-align: left; margin-bottom: 14px; }
+        .form-group { text-align: left; margin-bottom: 16px; }
         .form-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .form-input { width: 100%; padding: 11px 14px; background: #151C2C; border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #FFFFFF; font-size: 13.5px; outline: none; transition: all 0.2s ease; }
+        .form-input { width: 100%; padding: 12px 14px; background: #151C2C; border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #FFFFFF; font-size: 14px; outline: none; transition: all 0.2s ease; }
         .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
-        .otp-input-wrap { display: flex; justify-content: center; margin: 18px 0; }
-        .otp-large-input { width: 100%; max-width: 280px; font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 800; letter-spacing: 10px; text-align: center; padding: 12px; color: var(--gold); background: #111827; border: 2px solid var(--border-accent); border-radius: var(--radius-md); outline: none; }
-        .otp-large-input:focus { border-color: var(--gold); box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
         .btn-primary { width: 100%; padding: 13px; background: linear-gradient(135deg, #FF2A85, #FF5E3A); color: white; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 42, 133, 0.35); transition: all 0.2s ease; }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255, 42, 133, 0.5); }
         .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
@@ -120,71 +117,27 @@ object AdminWebPageTemplate {
 """
 
     private const val HTML_BODY_AUTH = """
-    <!-- 1. Step 1: Blank Login Form (Auto-fill removed, user enters own info) -->
+    <!-- Direct Admin Login Screen -->
     <div id="loginScreen" class="auth-screen">
         <div class="auth-box glass-panel">
-            <div class="brand-badge">🛡️ OFFICIAL 1 • SECURE GATEWAY</div>
-            <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;">Admin Verification</h1>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 22px;">Please enter your authorized administrator credentials</p>
-            <div id="loginAlertBox" style="display: none; padding: 10px 14px; background: rgba(255,23,68,0.15); border: 1px solid rgba(255,23,68,0.35); border-radius: var(--radius-sm); color: #FF6B8B; font-size: 12.5px; margin-bottom: 16px; text-align: left;"></div>
+            <div class="brand-badge">🛡️ SECURE GATEWAY</div>
+            <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; letter-spacing: -0.5px;">Official Admin Panel</h1>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">Please enter your credentials to access the admin panel</p>
+            <div id="loginAlertBox" style="display: none; padding: 12px 16px; background: rgba(255,23,68,0.15); border: 1px solid rgba(255,23,68,0.4); border-radius: var(--radius-sm); color: #FF6B8B; font-size: 13px; font-weight: 600; margin-bottom: 18px; text-align: center;"></div>
             
             <form id="loginForm" onsubmit="handleLoginSubmit(event)" autocomplete="off">
                 <div class="form-group">
-                    <label class="form-label">User Name</label>
-                    <input type="text" id="loginUserName" class="form-input" placeholder="Enter User Name" value="" required autocomplete="off">
+                    <label class="form-label" for="loginUsernameOrId">Username or Admin ID</label>
+                    <input type="text" id="loginUsernameOrId" class="form-input" placeholder="Enter Username or Admin ID" value="" required autocomplete="off">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Admin ID</label>
-                    <input type="text" id="loginAdminId" class="form-input" placeholder="Enter Admin ID" value="" required autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Password</label>
+                    <label class="form-label" for="loginPassword">Password</label>
                     <input type="password" id="loginPassword" class="form-input" placeholder="Enter Password" value="" required autocomplete="off">
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Mobile Number</label>
-                    <input type="text" id="loginMobileNumber" class="form-input" placeholder="+92 3XX XXXXXXX" value="" required autocomplete="off">
-                </div>
-                <button type="submit" id="loginBtn" class="btn-primary" style="margin-top: 8px;"><span>🔐 Verify & Send WhatsApp Code</span></button>
+                <button type="submit" id="loginBtn" class="btn-primary" style="margin-top: 10px;"><span>🔐 Sign In</span></button>
             </form>
-            <div style="margin-top: 20px; font-size: 11px; color: var(--text-muted);">
-                Protected by SHA-256 & Authorized WhatsApp 2FA OTP
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. Step 2: WhatsApp OTP Verification Screen -->
-    <div id="verifyScreen" class="auth-screen" style="display: none;">
-        <div class="auth-box glass-panel">
-            <div class="brand-badge" style="background: rgba(0, 230, 118, 0.12); border-color: rgba(0, 230, 118, 0.35); color: var(--emerald);">📲 WhatsApp Verification</div>
-            <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;">Enter OTP Code</h2>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px;">Two-factor authentication code sent via authorized WhatsApp service</p>
-            <div id="verifyAlertBox" style="display: none; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12.5px; margin-bottom: 16px; text-align: left;"></div>
-            
-            <div class="form-group" style="text-align: center;">
-                <label class="form-label">Mobile Number</label>
-                <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--cyan);" id="verifyMaskedMobileDisplay">+92 3XX *** **XX</div>
-            </div>
-
-            <div id="otpInputSection" style="margin-top: 14px;">
-                <label class="form-label" style="text-align: center;">Verification Code</label>
-                <div class="otp-input-wrap">
-                    <input type="text" id="verifyOtpCode" class="otp-large-input" maxlength="6" placeholder="______" autocomplete="off">
-                </div>
-                <div id="cooldownTimerWrap" style="font-size: 12px; color: var(--warning); margin-bottom: 12px;">
-                    ⏳ Resend code available in: <strong id="cooldownTimerText">60s</strong>
-                </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <button type="button" id="resendCodeBtn" onclick="handleResendWhatsAppOtp()" class="btn-secondary" style="flex: 1; font-weight: 700;" disabled>
-                        <span>🔄 Resend Code</span>
-                    </button>
-                    <button type="button" id="verifyOtpBtn" onclick="handleVerifyWhatsAppOtp()" class="btn-primary" style="flex: 2;">
-                        <span>✅ Verify & Open Panel</span>
-                    </button>
-                </div>
-            </div>
-            <div style="margin-top: 18px;">
-                <a href="#" onclick="showLoginView(); return false;" style="font-size: 12px; color: var(--text-muted); text-decoration: none;">← Back to Credentials</a>
+            <div style="margin-top: 22px; font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>🔒</span> Protected by Administrative Security Authentication
             </div>
         </div>
     </div>
@@ -208,6 +161,9 @@ object AdminWebPageTemplate {
                 </a>
                 <a class="menu-item" onclick="switchTab('link')">
                     <span class="menu-item-icon">🔗</span> <strong>LINK</strong>
+                </a>
+                <a class="menu-item" onclick="switchTab('frames')">
+                    <span class="menu-item-icon">👑</span> <strong>Frame Management</strong>
                 </a>
                 <div class="menu-category">Session</div>
                 <a class="menu-item" onclick="handleLogout()" style="color: var(--danger);">
@@ -236,7 +192,7 @@ object AdminWebPageTemplate {
                 </div>
                 <div class="topbar-actions">
                     <button class="btn-secondary" onclick="copyAdminLink()" style="border-color: var(--gold); color: var(--gold); font-weight: 700;">📋 Copy My Link</button>
-                    <div id="topbarStatusBadge" class="badge-role role-super-admin">2FA VERIFIED 🛡️</div>
+                    <div id="topbarStatusBadge" class="badge-role role-super-admin">ADMIN VERIFIED 🛡️</div>
                     <button class="btn-secondary" onclick="refreshCurrentTab()" title="Refresh Data">🔄 Refresh</button>
                 </div>
             </header>
@@ -333,6 +289,157 @@ object AdminWebPageTemplate {
                                 <tr><td colspan="7" style="text-align: center;">Loading users under your link...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </section>
+
+                <!-- 3. FRAME MANAGEMENT SECTION -->
+                <section id="tab-frames" class="tab-content">
+                    <!-- Send Frame Panel -->
+                    <div class="glass-card" style="padding: 26px; margin-bottom: 24px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h3 style="font-size: 20px; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 8px;">
+                                    <span>👑</span> Frame Management
+                                </h3>
+                                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                                    Official 1 Frame Sending System. Assign important official frames to a specific User ID with automated duration and expiration.
+                                </p>
+                            </div>
+                            <div class="badge-role role-super-admin" style="font-size: 11px; padding: 6px 12px;">
+                                ⭐ OFFICIAL 1 EXCLUSIVE
+                            </div>
+                        </div>
+
+                        <!-- Section Heading: Send Frame -->
+                        <div style="margin-bottom: 16px;">
+                            <h4 style="font-size: 15px; font-weight: 700; color: var(--gold); display: flex; align-items: center; gap: 6px;">
+                                <span>✨</span> Send Frame
+                            </h4>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                                Select an official frame, specify the target User ID number, and define the validity duration.
+                            </p>
+                        </div>
+
+                        <form id="sendFrameForm" onsubmit="handleSendOfficialFrame(event)" autocomplete="off">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 18px;">
+                                <!-- 1. Select Frame -->
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-weight: 700; display: flex; justify-content: space-between;">
+                                        <span>1. Select Frame *</span>
+                                        <span style="font-size: 10.5px; color: var(--cyan);">Important Official Frames</span>
+                                    </label>
+                                    <select id="selectFrameInput" class="form-input" required onchange="onOfficialFrameChanged()">
+                                        <option value="" disabled selected>-- [ Select Frame ▼ ] --</option>
+                                        <option value="frame_official">Official</option>
+                                        <option value="frame_manager">Manager</option>
+                                        <option value="frame_super_admin">Super Admin</option>
+                                        <option value="frame_admin">Admin</option>
+                                        <option value="frame_admin_leader">Admin Leader</option>
+                                        <option value="frame_bd">BD</option>
+                                        <option value="frame_bd_leader">BD Leader</option>
+                                        <option value="frame_agency">Agency</option>
+                                        <option value="frame_agency_leader">Agency Leader</option>
+                                        <option value="frame_host">Host</option>
+                                        <option value="frame_coin_reseller">Coin Reseller</option>
+                                        <option value="frame_super_coin_reseller">Super Coin Reseller</option>
+                                        <option value="frame_cs">C's</option>
+                                        <option value="frame_cs_leader">C's Leader</option>
+                                    </select>
+                                </div>
+
+                                <!-- 2. Enter User ID -->
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-weight: 700;">2. Enter User ID Number *</label>
+                                    <input type="text" id="targetUserIdInput" class="form-input" placeholder="[ Enter User ID ]" required oninput="checkFrameConflictDebounced()">
+                                    <div id="frameConflictNotice" style="display: none; font-size: 11px; margin-top: 6px; padding: 6px 10px; border-radius: 6px; line-height: 1.4;"></div>
+                                </div>
+
+                                <!-- 3. Select Days -->
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-weight: 700;">3. Select Number of Days *</label>
+                                    <select id="selectDaysInput" class="form-input" required>
+                                        <option value="" disabled selected>-- [ Select Days ▼ ] --</option>
+                                        <option value="1">1 Day</option>
+                                        <option value="3">3 Days</option>
+                                        <option value="7">7 Days (1 Week)</option>
+                                        <option value="15">15 Days</option>
+                                        <option value="30">30 Days (1 Month)</option>
+                                        <option value="60">60 Days (2 Months)</option>
+                                        <option value="90">90 Days (3 Months)</option>
+                                        <option value="180">180 Days (Half Year)</option>
+                                        <option value="365">365 Days (1 Year)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Live Frame Visual Preview Card -->
+                            <div id="framePreviewDisplay" style="background: rgba(0,0,0,0.38); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                                <div style="display: flex; align-items: center; gap: 16px;">
+                                    <div id="previewBadgeOrb" style="width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 2px solid #FFD700; background: radial-gradient(circle, rgba(255,215,0,0.25) 0%, rgba(0,0,0,0.7) 100%); box-shadow: 0 0 14px rgba(255,215,0,0.35);">
+                                        🛡️
+                                    </div>
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span id="previewFrameTitle" style="font-size: 15px; font-weight: 800; color: #FFFFFF;">Select an Official Frame</span>
+                                            <span id="previewBadgeTag" class="badge-role" style="font-size: 10px; padding: 2px 8px; background: rgba(255,215,0,0.2); color: #FFD700; border: 1px solid #FFD700;">OFFICIAL</span>
+                                        </div>
+                                        <div id="previewFrameDescription" style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                                            Important official frames can only be assigned by authorized Official 1 administrators.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                    <span style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase;">System Safety Rule</span>
+                                    <span style="font-size: 11.5px; font-weight: 700; color: var(--emerald);">✓ Conflict Prevention & Auto-Expiry Active</span>
+                                </div>
+                            </div>
+
+                            <!-- 4. Send Frame Button -->
+                            <div style="display: flex; justify-content: flex-end;">
+                                <button type="submit" id="btnSendOfficialFrame" class="btn-primary" style="padding: 13px 34px; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; width: auto; min-width: 190px;">
+                                    <span>👑 SEND FRAME</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Below this section: Frame Sending History -->
+                    <div class="glass-card" style="padding: 26px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h3 style="font-size: 18px; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 8px;">
+                                    <span>📜</span> Frame Sending History
+                                </h3>
+                                <p style="font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">
+                                    Real-time audit log of dispatched official frames, active validity, and auto-removal tracking
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="text" id="frameHistorySearch" class="form-input" style="max-width: 220px; font-size: 12px; padding: 7px 12px;" placeholder="Search User ID or Frame..." oninput="debounceFrameHistorySearch()">
+                                <button class="btn-secondary" onclick="loadFrameHistory()" style="font-size: 12px; padding: 7px 14px; font-weight: 700;">
+                                    🔄 Refresh History
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>User ID</th>
+                                        <th>Frame Name</th>
+                                        <th>Days</th>
+                                        <th>Send Date</th>
+                                        <th>Expiry Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="frameHistoryTableBody">
+                                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading frame sending history...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -490,20 +597,12 @@ object AdminWebPageTemplate {
     private const val JS_AUTH = """
     <script>
         let currentAdminSession = null;
-        let currentPreAuthToken = '';
-        let currentPreAuthMobile = '';
-        let cooldownInterval = null;
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Ensure inputs are clean on page load
-            const userNameInput = document.getElementById('loginUserName');
-            const adminIdInput = document.getElementById('loginAdminId');
-            const passwordInput = document.getElementById('loginPassword');
-            const mobileInput = document.getElementById('loginMobileNumber');
-            if (userNameInput) userNameInput.value = '';
-            if (adminIdInput) adminIdInput.value = '';
-            if (passwordInput) passwordInput.value = '';
-            if (mobileInput) mobileInput.value = '';
+            const userInput = document.getElementById('loginUsernameOrId');
+            const pwdInput = document.getElementById('loginPassword');
+            if (userInput) userInput.value = '';
+            if (pwdInput) pwdInput.value = '';
 
             const savedToken = sessionStorage.getItem('adminToken');
             if (savedToken) {
@@ -515,6 +614,7 @@ object AdminWebPageTemplate {
 
         function showToast(msg, type = 'info') {
             const container = document.getElementById('toastContainer');
+            if (!container) return;
             const toast = document.createElement('div');
             toast.className = 'toast toast-' + type;
             toast.innerHTML = (type === 'success' ? '✅ ' : (type === 'error' ? '❌ ' : 'ℹ️ ')) + msg;
@@ -524,26 +624,13 @@ object AdminWebPageTemplate {
 
         function showLoginView() {
             document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('verifyScreen').style.display = 'none';
             document.getElementById('adminApp').style.display = 'none';
-        }
-
-        function showVerifyView(maskedMobile) {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('verifyScreen').style.display = 'flex';
-            document.getElementById('adminApp').style.display = 'none';
-            document.getElementById('verifyMaskedMobileDisplay').innerText = maskedMobile || currentPreAuthMobile || '+92 3XX *** **XX';
-            const codeInput = document.getElementById('verifyOtpCode');
-            if (codeInput) {
-                codeInput.value = '';
-                codeInput.focus();
-            }
-            startCooldownTimer(60);
+            const alertBox = document.getElementById('loginAlertBox');
+            if (alertBox) alertBox.style.display = 'none';
         }
 
         function showAdminDashboard() {
             document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('verifyScreen').style.display = 'none';
             document.getElementById('adminApp').style.display = 'flex';
             switchTab('dashboard');
         }
@@ -559,11 +646,10 @@ object AdminWebPageTemplate {
                         token: token,
                         userId: data.adminId,
                         username: data.adminName,
-                        panelName: data.panelName || 'Official 1',
-                        role: data.adminRole || 'Super Admin',
-                        mobileNumber: data.mobileNumber
+                        panelName: data.panelName || 'Official Admin Panel',
+                        role: data.adminRole || 'Super Admin'
                     };
-                    document.getElementById('sidebarPanelTitle').innerText = (data.panelName || 'OFFICIAL 1').toUpperCase();
+                    document.getElementById('sidebarPanelTitle').innerText = (data.panelName || 'OFFICIAL ADMIN PANEL').toUpperCase();
                     document.getElementById('sidebarAdminName').innerText = data.adminName;
                     document.getElementById('sidebarAdminId').innerText = data.adminId;
                     showAdminDashboard();
@@ -578,15 +664,13 @@ object AdminWebPageTemplate {
 
         async function handleLoginSubmit(e) {
             e.preventDefault();
-            const userName = document.getElementById('loginUserName').value.trim();
-            const adminId = document.getElementById('loginAdminId').value.trim();
+            const usernameOrId = document.getElementById('loginUsernameOrId').value.trim();
             const password = document.getElementById('loginPassword').value.trim();
-            const mobileNumber = document.getElementById('loginMobileNumber').value.trim();
             const alertBox = document.getElementById('loginAlertBox');
             const btn = document.getElementById('loginBtn');
 
-            if (!userName || !adminId || !password || !mobileNumber) {
-                alertBox.innerText = 'Please enter User Name, Admin ID, Password, and Mobile Number.';
+            if (!usernameOrId || !password) {
+                alertBox.innerText = 'Invalid Username or Password';
                 alertBox.style.display = 'block';
                 return;
             }
@@ -599,18 +683,21 @@ object AdminWebPageTemplate {
                 const res = await fetch('/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userName, adminId, password, mobileNumber })
+                    body: JSON.stringify({ usernameOrId: usernameOrId, password: password })
                 });
                 const data = await res.json();
-                if (data.success && data.step === 'OTP_REQUIRED') {
-                    currentPreAuthToken = data.preAuthToken;
-                    currentPreAuthMobile = data.mobileNumber;
-                    showToast('Information verified! WhatsApp OTP code dispatched.', 'success');
-                    showVerifyView(data.mobileMasked);
+                if (data.success && data.session) {
+                    currentAdminSession = data.session;
+                    sessionStorage.setItem('adminToken', currentAdminSession.token);
+                    document.getElementById('sidebarPanelTitle').innerText = (currentAdminSession.panelName || 'OFFICIAL ADMIN PANEL').toUpperCase();
+                    document.getElementById('sidebarAdminName').innerText = currentAdminSession.username;
+                    document.getElementById('sidebarAdminId').innerText = currentAdminSession.userId;
+                    showToast('Welcome to Official Admin Panel!', 'success');
+                    showAdminDashboard();
                 } else {
-                    alertBox.innerText = data.message || 'Invalid Admin Information. Access Denied.';
+                    alertBox.innerText = data.message || 'Invalid Username or Password';
                     alertBox.style.display = 'block';
-                    showToast(data.message || 'Login failed', 'error');
+                    showToast(data.message || 'Invalid Username or Password', 'error');
                 }
             } catch (err) {
                 alertBox.innerText = 'Network error connecting to Admin Server.';
@@ -618,107 +705,7 @@ object AdminWebPageTemplate {
                 showToast('Connection failed', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>🔐 Verify & Send WhatsApp Code</span>';
-            }
-        }
-
-        async function handleResendWhatsAppOtp() {
-            if (!currentPreAuthToken) {
-                showToast('Session expired. Please login again.', 'error');
-                showLoginView();
-                return;
-            }
-            const resendBtn = document.getElementById('resendCodeBtn');
-            resendBtn.disabled = true;
-
-            try {
-                const res = await fetch('/api/admin/send-whatsapp-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ preAuthToken: currentPreAuthToken, mobileNumber: currentPreAuthMobile })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast('WhatsApp OTP resent successfully!', 'success');
-                    startCooldownTimer(data.cooldownSeconds || 60);
-                } else {
-                    const errMsg = data.message || 'Unable to send verification code. Please check the number or try again later.';
-                    showToast(errMsg, 'error');
-                    resendBtn.disabled = false;
-                }
-            } catch (err) {
-                showToast('Network error requesting code', 'error');
-                resendBtn.disabled = false;
-            }
-        }
-
-        function startCooldownTimer(seconds) {
-            clearInterval(cooldownInterval);
-            const wrap = document.getElementById('cooldownTimerWrap');
-            const text = document.getElementById('cooldownTimerText');
-            const resendBtn = document.getElementById('resendCodeBtn');
-            wrap.style.display = 'block';
-            resendBtn.disabled = true;
-            let remaining = seconds;
-            text.innerText = remaining + 's';
-
-            cooldownInterval = setInterval(() => {
-                remaining--;
-                if (remaining <= 0) {
-                    clearInterval(cooldownInterval);
-                    wrap.style.display = 'none';
-                    resendBtn.disabled = false;
-                } else {
-                    text.innerText = remaining + 's';
-                }
-            }, 1000);
-        }
-
-        async function handleVerifyWhatsAppOtp() {
-            if (!currentPreAuthToken) {
-                showToast('Verification session expired. Please login again.', 'error');
-                showLoginView();
-                return;
-            }
-            const code = document.getElementById('verifyOtpCode').value.trim();
-            const alertBox = document.getElementById('verifyAlertBox');
-            const verifyBtn = document.getElementById('verifyOtpBtn');
-
-            if (!code || code.length !== 6) {
-                showToast('Please enter the 6-digit WhatsApp verification code.', 'warning');
-                return;
-            }
-            verifyBtn.disabled = true;
-            verifyBtn.innerHTML = '<span>⏳ Verifying Code...</span>';
-
-            try {
-                const res = await fetch('/api/admin/verify-whatsapp-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ preAuthToken: currentPreAuthToken, code })
-                });
-                const data = await res.json();
-                if (data.success && data.session) {
-                    currentAdminSession = data.session;
-                    sessionStorage.setItem('adminToken', currentAdminSession.token);
-                    document.getElementById('sidebarPanelTitle').innerText = (currentAdminSession.panelName || 'OFFICIAL 1').toUpperCase();
-                    document.getElementById('sidebarAdminName').innerText = currentAdminSession.username;
-                    document.getElementById('sidebarAdminId').innerText = currentAdminSession.userId;
-                    showToast('WhatsApp 2FA Verified! Official 1 Panel Open.', 'success');
-                    showAdminDashboard();
-                } else {
-                    alertBox.style.display = 'block';
-                    alertBox.style.background = 'rgba(255, 23, 68, 0.15)';
-                    alertBox.style.borderColor = 'rgba(255, 23, 68, 0.35)';
-                    alertBox.style.color = '#FF6B8B';
-                    alertBox.innerText = '❌ ' + (data.message || 'Incorrect verification code.');
-                    showToast(data.message || 'Verification failed', 'error');
-                }
-            } catch (err) {
-                showToast('Network error during verification', 'error');
-            } finally {
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = '<span>✅ Verify & Open Panel</span>';
+                btn.innerHTML = '<span>🔐 Sign In</span>';
             }
         }
 
@@ -736,7 +723,6 @@ object AdminWebPageTemplate {
                 } catch (e) {}
             }
             currentAdminSession = null;
-            currentPreAuthToken = '';
             sessionStorage.removeItem('adminToken');
             showToast('Logged out securely', 'info');
             showLoginView();
@@ -758,7 +744,8 @@ object AdminWebPageTemplate {
 
             const titleMap = {
                 dashboard: ['Dashboard', 'Real-time overview of users registered under your link'],
-                link: ['🔗 LINK Management', 'Users registered under your unique admin link & their assigned work']
+                link: ['🔗 LINK Management', 'Users registered under your unique admin link & their assigned work'],
+                frames: ['👑 Frame Management', 'Exclusive Official 1 Frame Distribution System & Audit History']
             };
 
             const info = titleMap[tabId] || ['Official 1', 'Admin Control Panel'];
@@ -777,6 +764,7 @@ object AdminWebPageTemplate {
             if (!currentAdminSession) return;
             if (tabId === 'dashboard') loadDashboardStats();
             if (tabId === 'link') loadLinkUsers();
+            if (tabId === 'frames') loadFrameHistory();
         }
 
         async function loadDashboardStats() {
@@ -1037,6 +1025,231 @@ object AdminWebPageTemplate {
                 }
             } catch (err) {
                 showToast('Network error removing user', 'error');
+            }
+        }
+
+        // ==========================================
+        // OFFICIAL 1 FRAME MANAGEMENT LOGIC
+        // ==========================================
+        const OFFICIAL_FRAME_INFO = {
+            'frame_official': { title: 'Official', badge: 'OFFICIAL', icon: '🛡️', color: '#FFD700', desc: 'Authoritative Official Staff Identity Frame' },
+            'frame_manager': { title: 'Manager', badge: 'MANAGER', icon: '👑', color: '#BA68C8', desc: 'Platform Operations & Managerial Authority Frame' },
+            'frame_super_admin': { title: 'Super Admin', badge: 'SUPER ADMIN', icon: '🔥', color: '#FF5252', desc: 'Supreme Administrative Authority & Executive Crest' },
+            'frame_admin': { title: 'Admin', badge: 'ADMIN', icon: '⚔️', color: '#00E5FF', desc: 'Official Platform Administrator Crest' },
+            'frame_admin_leader': { title: 'Admin Leader', badge: 'ADMIN LEADER', icon: '🌟', color: '#FFB300', desc: 'Administrative Command Leadership Laurel' },
+            'frame_bd': { title: 'BD', badge: 'BD', icon: '🐉', color: '#00E676', desc: 'Business Development Officer Official Frame' },
+            'frame_bd_leader': { title: 'BD Leader', badge: 'BD LEADER', icon: '🏆', color: '#69F0AE', desc: 'Director of Business Development Frame' },
+            'frame_agency': { title: 'Agency', badge: 'AGENCY', icon: '🏢', color: '#7C4DFF', desc: 'Official Certified Host Talent Agency Frame' },
+            'frame_agency_leader': { title: 'Agency Leader', badge: 'AGENCY LEADER', icon: '💎', color: '#B388FF', desc: 'Agency Guild Master & Managing Director Frame' },
+            'frame_host': { title: 'Host', badge: 'HOST', icon: '🎙️', color: '#FF4081', desc: 'Certified Star Audio Room Host Frame' },
+            'frame_coin_reseller': { title: 'Coin Reseller', badge: 'COIN RESELLER', icon: '🪙', color: '#FFD54F', desc: 'Authorized Official Coin Reseller Merchant Frame' },
+            'frame_super_coin_reseller': { title: 'Super Coin Reseller', badge: 'SUPER COIN RESELLER', icon: '💰', color: '#FFE082', desc: 'Premier Super Coin Merchant Master Frame' },
+            'frame_cs': { title: 'C\'s', badge: 'C\'S', icon: '⚡', color: '#40C4FF', desc: 'Customer Support Official Representative Frame' },
+            'frame_cs_leader': { title: 'C\'s Leader', badge: 'C\'S LEADER', icon: '💠', color: '#82B1FF', desc: 'Head of Customer Services & Support Operations Frame' }
+        };
+
+        function onOfficialFrameChanged() {
+            const frameId = document.getElementById('selectFrameInput').value;
+            const meta = OFFICIAL_FRAME_INFO[frameId] || { title: 'Select a Frame', badge: 'OFFICIAL', icon: '🛡️', color: '#FFD700', desc: 'Important official frames only' };
+
+            const orb = document.getElementById('previewBadgeOrb');
+            const titleEl = document.getElementById('previewFrameTitle');
+            const badgeEl = document.getElementById('previewBadgeTag');
+            const descEl = document.getElementById('previewFrameDescription');
+
+            if (orb) {
+                orb.innerText = meta.icon;
+                orb.style.borderColor = meta.color;
+                orb.style.background = `radial-gradient(circle, ${'$'}{meta.color}33 0%, rgba(0,0,0,0.7) 100%)`;
+                orb.style.boxShadow = `0 0 14px ${'$'}{meta.color}55`;
+            }
+            if (titleEl) titleEl.innerText = meta.title;
+            if (badgeEl) {
+                badgeEl.innerText = meta.badge;
+                badgeEl.style.color = meta.color;
+                badgeEl.style.borderColor = meta.color;
+                badgeEl.style.background = `${'$'}{meta.color}22`;
+            }
+            if (descEl) descEl.innerText = meta.desc;
+        }
+
+        let frameConflictTimeout = null;
+        function checkFrameConflictDebounced() {
+            clearTimeout(frameConflictTimeout);
+            frameConflictTimeout = setTimeout(checkFrameConflict, 350);
+        }
+
+        async function checkFrameConflict() {
+            const userId = document.getElementById('targetUserIdInput')?.value?.trim() || '';
+            const noticeEl = document.getElementById('frameConflictNotice');
+            const sendBtn = document.getElementById('btnSendOfficialFrame');
+            if (!userId) {
+                if (noticeEl) noticeEl.style.display = 'none';
+                if (sendBtn) sendBtn.disabled = false;
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/frames/check-conflict?userId=' + encodeURIComponent(userId), { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.hasConflict) {
+                    if (noticeEl) {
+                        noticeEl.style.display = 'block';
+                        noticeEl.style.background = 'rgba(255, 42, 133, 0.15)';
+                        noticeEl.style.border = '1px solid #FF2A85';
+                        noticeEl.style.color = '#FF80AB';
+                        noticeEl.innerHTML = `⚠️ <strong>Conflict Notice:</strong> ${'$'}{data.message}. A user can only equip one active official frame at a time.`;
+                    }
+                } else {
+                    if (noticeEl) {
+                        noticeEl.style.display = 'block';
+                        noticeEl.style.background = 'rgba(0, 230, 118, 0.1)';
+                        noticeEl.style.border = '1px solid #00E676';
+                        noticeEl.style.color = '#B9F6CA';
+                        noticeEl.innerHTML = `✓ User ID verified. No conflicting active official frame found.`;
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function handleSendOfficialFrame(e) {
+            e.preventDefault();
+            const frameId = document.getElementById('selectFrameInput').value;
+            const userId = document.getElementById('targetUserIdInput').value.trim();
+            const days = parseInt(document.getElementById('selectDaysInput').value, 10);
+            const btn = document.getElementById('btnSendOfficialFrame');
+
+            if (!frameId) {
+                showToast('Please select an official frame', 'error');
+                return;
+            }
+            if (!userId) {
+                showToast('Please enter target User ID number', 'error');
+                return;
+            }
+            if (!days || days <= 0) {
+                showToast('Please select validity days', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Sending Frame...</span>';
+
+            try {
+                const res = await fetch('/api/admin/frames/send', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ frameId, userId, days })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || 'Official frame sent successfully!', 'success');
+                    document.getElementById('targetUserIdInput').value = '';
+                    const noticeEl = document.getElementById('frameConflictNotice');
+                    if (noticeEl) noticeEl.style.display = 'none';
+                    loadFrameHistory();
+                } else {
+                    showToast(data.message || 'Failed to send frame', 'error');
+                }
+            } catch (err) {
+                showToast('Network error sending official frame', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>👑 SEND FRAME</span>';
+            }
+        }
+
+        let frameHistoryTimeout = null;
+        function debounceFrameHistorySearch() {
+            clearTimeout(frameHistoryTimeout);
+            frameHistoryTimeout = setTimeout(loadFrameHistory, 300);
+        }
+
+        async function loadFrameHistory() {
+            const tableBody = document.getElementById('frameHistoryTableBody');
+            if (!tableBody) return;
+            const query = document.getElementById('frameHistorySearch')?.value?.trim() || '';
+
+            try {
+                const res = await fetch('/api/admin/frames/history?query=' + encodeURIComponent(query), { headers: getAuthHeaders() });
+                const list = await res.json();
+
+                if (!list || list.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No official frame assignments found.</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = list.map(item => {
+                    const meta = OFFICIAL_FRAME_INFO[item.frameId] || { icon: '🛡️', color: '#FFD700' };
+                    let statusBadge = '';
+                    let actionBtn = '';
+
+                    if (item.status === 'Active') {
+                        statusBadge = `<span class="badge-role" style="background: rgba(0,230,118,0.15); color: #00E676; border: 1px solid #00E676;">🟢 Active (${'$'}{item.remainingDays}d left)</span>`;
+                        actionBtn = `<button class="btn-danger" style="padding: 4px 10px; font-size: 11px;" onclick="handleRevokeFrame('${'$'}{item.id}', '${'$'}{item.userId}', '${'$'}{item.frameName}')">Revoke</button>`;
+                    } else if (item.status === 'Expired') {
+                        statusBadge = `<span class="badge-role" style="background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid var(--border-color);">⏳ Expired</span>`;
+                        actionBtn = `<span style="font-size: 11px; color: var(--text-muted);">Auto-Removed</span>`;
+                    } else {
+                        statusBadge = `<span class="badge-role" style="background: rgba(255,42,133,0.15); color: #FF2A85; border: 1px solid #FF2A85;">🚫 Revoked</span>`;
+                        actionBtn = `<span style="font-size: 11px; color: var(--text-muted);">Revoked</span>`;
+                    }
+
+                    return `
+                        <tr>
+                            <td>
+                                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--cyan); background: rgba(0,229,255,0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(0,229,255,0.2);">
+                                    ${'$'}{item.userId}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">${'$'}{meta.icon}</span>
+                                    <strong style="color: #FFF;">${'$'}{item.frameName}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-weight: 700; color: var(--gold);">${'$'}{item.days} Days</span>
+                            </td>
+                            <td>
+                                <span style="font-size: 12px; color: var(--text-secondary);">${'$'}{item.sendDateFormatted || item.assignedAt}</span>
+                            </td>
+                            <td>
+                                <span style="font-size: 12px; color: var(--text-secondary);">${'$'}{item.expiryDateFormatted || item.expiresAt}</span>
+                            </td>
+                            <td>${'$'}{statusBadge}</td>
+                            <td>${'$'}{actionBtn}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load frame history.</td></tr>';
+            }
+        }
+
+        async function handleRevokeFrame(assignmentId, userId, frameName) {
+            if (!confirm(`Are you sure you want to revoke official frame "${'$'}{frameName}" from User ID ${'$'}{userId}? The frame will be immediately removed from the user's account.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/frames/revoke', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ assignmentId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Official frame revoked and removed from user', 'success');
+                    loadFrameHistory();
+                } else {
+                    showToast(data.message || 'Failed to revoke frame', 'error');
+                }
+            } catch (err) {
+                showToast('Network error revoking frame', 'error');
             }
         }
 

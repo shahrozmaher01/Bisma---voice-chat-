@@ -3,9 +3,11 @@ package com.example.ui.screens
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,10 +26,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.model.CpRelationship
 import com.example.data.model.MomentComment
 import com.example.data.model.MomentPost
@@ -57,102 +62,215 @@ fun MomentsScreen(
     val friendsList by repository.getFriends().collectAsState(initial = emptyList())
 
     var selectedTab by remember { mutableStateOf(MomentsTab.WORLD) }
+    var selectedFilter by remember { mutableStateOf("All") }
     var showCreateDialog by remember { mutableStateOf(false) }
     var activeCommentMoment by remember { mutableStateOf<MomentPost?>(null) }
     var activeShareMoment by remember { mutableStateOf<MomentPost?>(null) }
     var showCpProposeDialog by remember { mutableStateOf(false) }
 
+    val filterOptions = listOf(
+        Triple("All", "🔥", "All"),
+        Triple("Trending", "👑", "Trending"),
+        Triple("Friends", "👥", "Friends"),
+        Triple("Nearby", "📍", "Nearby"),
+        Triple("Hot", "🔥", "Hot")
+    )
+
+    val displayedMoments = remember(allMoments, selectedFilter, friendsList) {
+        when (selectedFilter) {
+            "Trending" -> allMoments.sortedByDescending { it.likesCount + it.commentsCount }
+            "Friends" -> allMoments.filter { post -> friendsList.any { it.friendId == post.authorId || it.userId == post.authorId } }
+            "Hot" -> allMoments.filter { it.likesCount > 0 }.sortedByDescending { it.likesCount }
+            else -> allMoments
+        }
+    }
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkBackgroundGradient)
+        modifier = Modifier.fillMaxSize()
     ) {
+        // Full Atmospheric Night Lake Background matching screenshot
+        Image(
+            painter = painterResource(id = R.drawable.home_night_bg),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Subtle gradient overlay for contrast
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x33060212),
+                            Color(0x550A041E),
+                            Color(0xAA08031A),
+                            Color(0xEE070216)
+                        )
+                    )
+                )
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Header with Tabs
+            // Top Navigation Bar: Following | World 🌍 | CP Space 💖 | (+)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // 3 Top Tabs: Following | World | CP Space
+                // Following Pill Tab
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (selectedTab == MomentsTab.FOLLOWING) Color(0x66231345) else Color(0x44140C29),
+                    border = BorderStroke(1.dp, if (selectedTab == MomentsTab.FOLLOWING) Color(0x66FF4081) else Color(0x22442C73)),
+                    modifier = Modifier.clickable { selectedTab = MomentsTab.FOLLOWING }
+                ) {
+                    Text(
+                        text = "Following",
+                        fontSize = 16.sp,
+                        fontWeight = if (selectedTab == MomentsTab.FOLLOWING) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == MomentsTab.FOLLOWING) Color.White else Color(0xFFC7BFD9),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+                    )
+                }
+
+                // World 🌍 Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { selectedTab = MomentsTab.WORLD }
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = "World 🌍",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (selectedTab == MomentsTab.WORLD) Color.White else Color(0xFFC7BFD9)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    if (selectedTab == MomentsTab.WORLD) {
+                        Box(
+                            modifier = Modifier
+                                .width(38.dp)
+                                .height(3.5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
+                                    )
+                                )
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(3.5.dp))
+                    }
+                }
+
+                // CP Space 💖 Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { selectedTab = MomentsTab.CP_SPACE }
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = "CP Space",
+                        fontSize = 16.sp,
+                        fontWeight = if (selectedTab == MomentsTab.CP_SPACE) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == MomentsTab.CP_SPACE) Color.White else Color(0xFFC7BFD9)
+                    )
+                    Text(
+                        text = "💖",
+                        fontSize = 11.sp,
+                        lineHeight = 12.sp
+                    )
+                }
+
+                // Circular Gradient (+) Post Button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFFF2A85), Color(0xFF8B5CF6))
+                            )
+                        )
+                        .clickable { showCreateDialog = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Post Moment",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            // Filter Pills Row (All, Trending, Friends, Nearby, Hot)
+            if (selectedTab != MomentsTab.CP_SPACE) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val tabs = listOf(
-                        MomentsTab.FOLLOWING to "Following",
-                        MomentsTab.WORLD to "World 🌍",
-                        MomentsTab.CP_SPACE to "CP Space 💖"
-                    )
-                    tabs.forEach { (tab, title) ->
-                        val isSelected = selectedTab == tab
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                    filterOptions.forEach { (key, icon, label) ->
+                        val isFilterSelected = selectedFilter == key
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isFilterSelected) Color.Transparent else Color(0x66180E2E),
+                            border = if (isFilterSelected) null else BorderStroke(1.dp, Color(0x334E357E)),
                             modifier = Modifier
-                                .clickable { selectedTab = tab }
-                                .padding(vertical = 4.dp)
+                                .then(
+                                    if (isFilterSelected) {
+                                        Modifier.background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFFFF2A85), Color(0xFF7C4DFF))
+                                            ),
+                                            RoundedCornerShape(20.dp)
+                                        )
+                                    } else Modifier
+                                )
+                                .clickable { selectedFilter = key }
                         ) {
-                            Text(
-                                text = title,
-                                fontSize = if (isSelected) 17.sp else 14.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else TextSecondary
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(22.dp)
-                                        .height(3.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(PrimaryGradient)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            ) {
+                                Text(text = icon, fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = label,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = if (isFilterSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = Color.White
                                 )
                             }
                         }
                     }
                 }
-
-                if (selectedTab != MomentsTab.CP_SPACE) {
-                    IconButton(
-                        onClick = { showCreateDialog = true },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(PrimaryGradient)
-                    ) {
-                        Icon(
-                            Icons.Default.AddPhotoAlternate,
-                            contentDescription = "Post",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
             }
 
+            // Main Content Body based on selected tab
             when (selectedTab) {
                 MomentsTab.FOLLOWING -> {
                     if (followingMoments.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No moments from creators you follow yet.\nExplore the World tab to follow creators!",
-                                color = TextSecondary,
-                                fontSize = 14.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
+                        EmptyMomentsState(onPostClick = { showCreateDialog = true })
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp),
                             contentPadding = PaddingValues(top = 8.dp, bottom = 90.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -181,20 +299,17 @@ fun MomentsScreen(
                 }
 
                 MomentsTab.WORLD -> {
-                    if (allMoments.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No moments posted yet. Be the first to share!", color = TextSecondary, fontSize = 14.sp)
-                        }
+                    if (displayedMoments.isEmpty()) {
+                        EmptyMomentsState(onPostClick = { showCreateDialog = true })
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp),
                             contentPadding = PaddingValues(top = 8.dp, bottom = 90.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(allMoments, key = { it.id }) { post ->
+                            items(displayedMoments, key = { it.id }) { post ->
                                 MomentCardItem(
                                     post = post,
                                     isAuthor = post.authorId == currentUser?.id,
@@ -288,6 +403,116 @@ fun MomentsScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun EmptyMomentsState(
+    onPostClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 60.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        ) {
+            // Glowing 3D Neon Camera Illustration on cyber pedestal
+            Image(
+                painter = painterResource(id = R.drawable.moment_camera_empty),
+                contentDescription = "No moments",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .size(240.dp)
+                    .clip(RoundedCornerShape(20.dp))
+            )
+
+            // Heart divider line: ─── ♥ ───
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(1.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color(0x88FF4081))
+                            )
+                        )
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "♥",
+                    color = Color(0xFFFF4081),
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(1.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0x88FF4081), Color.Transparent)
+                            )
+                        )
+                )
+            }
+
+            // Description text
+            Text(
+                text = "No moments posted yet. Be the first to share!",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Vibrant gradient Post Moment button
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.Transparent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
+                        )
+                    )
+                    .clickable { onPostClick() }
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 30.dp, vertical = 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Post Moment",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

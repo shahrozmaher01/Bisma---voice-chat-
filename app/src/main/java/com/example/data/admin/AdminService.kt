@@ -6,6 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class AdminService(
@@ -880,4 +883,353 @@ class AdminService(
             Result.failure(res.exceptionOrNull() ?: Exception("Failed to update profile"))
         }
     }
+
+    // ==========================================
+    // OFFICIAL 1 FRAME MANAGEMENT SYSTEM
+    // ==========================================
+
+    companion object {
+        val OFFICIAL_FRAMES = listOf(
+            OfficialFrameDef("frame_official", "Official", "OFFICIAL", "Official Staff Identity Frame", "#FFD700", "#1A237E", "🛡️"),
+            OfficialFrameDef("frame_manager", "Manager", "MANAGER", "Platform Management Authority Frame", "#9C27B0", "#00E676", "👑"),
+            OfficialFrameDef("frame_super_admin", "Super Admin", "SUPER ADMIN", "Supreme Administrative Crest Frame", "#FF1744", "#FFD700", "🔥"),
+            OfficialFrameDef("frame_admin", "Admin", "ADMIN", "Official Administrator Frame", "#00E5FF", "#FFD700", "⚔️"),
+            OfficialFrameDef("frame_admin_leader", "Admin Leader", "ADMIN LEADER", "Admin Leadership Laurel Frame", "#FF9100", "#FFD700", "🌟"),
+            OfficialFrameDef("frame_bd", "BD", "BD", "Business Development Executive Frame", "#00C853", "#FFD700", "🐉"),
+            OfficialFrameDef("frame_bd_leader", "BD Leader", "BD LEADER", "Head of Business Development Frame", "#00E676", "#FFEA00", "🏆"),
+            OfficialFrameDef("frame_agency", "Agency", "AGENCY", "Official Certified Agency Frame", "#7C4DFF", "#FF4081", "🏢"),
+            OfficialFrameDef("frame_agency_leader", "Agency Leader", "AGENCY LEADER", "Premier Agency Director Frame", "#B388FF", "#FFD700", "💎"),
+            OfficialFrameDef("frame_host", "Host", "HOST", "Official Star Audio Host Frame", "#FF2A85", "#FF80AB", "🎙️"),
+            OfficialFrameDef("frame_coin_reseller", "Coin Reseller", "COIN RESELLER", "Certified Coin Merchant Frame", "#FFC107", "#FF9800", "🪙"),
+            OfficialFrameDef("frame_super_coin_reseller", "Super Coin Reseller", "SUPER COIN RESELLER", "Master Gold Distributor Frame", "#FFD700", "#00E5FF", "💰"),
+            OfficialFrameDef("frame_cs", "C's", "C'S", "Customer Support Official Frame", "#00B0FF", "#651FFF", "⚡"),
+            OfficialFrameDef("frame_cs_leader", "C's Leader", "C'S LEADER", "Customer Support Leadership Frame", "#2979FF", "#00E5FF", "💠")
+        )
+
+        private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    }
+
+    suspend fun getOfficialFrameDefinitions(): List<JSONObject> = withContext(Dispatchers.IO) {
+        OFFICIAL_FRAMES.map { def ->
+            JSONObject().apply {
+                put("id", def.id)
+                put("name", def.name)
+                put("badgeLabel", def.badgeLabel)
+                put("description", def.description)
+                put("primaryColor", def.primaryColorHex)
+                put("secondaryColor", def.secondaryColorHex)
+                put("iconEmoji", def.iconEmoji)
+                put("isImportantOfficial", true)
+            }
+        }
+    }
+
+    suspend fun initializeDefaultFrameAssignments() = withContext(Dispatchers.IO) {
+        val count = db.officialFrameDao().getAllAssignments().size
+        if (count == 0) {
+            val now = System.currentTimeMillis()
+            val dayMillis = 86400000L
+            val defaults = listOf(
+                OfficialFrameAssignment(
+                    id = "frame_assign_seed_1",
+                    userId = "usr_78912",
+                    userName = "Ali Raza",
+                    frameId = "frame_host",
+                    frameName = "Host",
+                    days = 30,
+                    sendDate = now - (3 * dayMillis),
+                    expiryDate = now + (27 * dayMillis),
+                    status = "Active",
+                    adminId = "565656565666555",
+                    adminName = "Sherry",
+                    sendDateFormatted = DATE_FORMAT.format(Date(now - (3 * dayMillis))),
+                    expiryDateFormatted = DATE_FORMAT.format(Date(now + (27 * dayMillis)))
+                ),
+                OfficialFrameAssignment(
+                    id = "frame_assign_seed_2",
+                    userId = "usr_45623",
+                    userName = "Bisma Noor",
+                    frameId = "frame_agency_leader",
+                    frameName = "Agency Leader",
+                    days = 15,
+                    sendDate = now - (1 * dayMillis),
+                    expiryDate = now + (14 * dayMillis),
+                    status = "Active",
+                    adminId = "565656565666555",
+                    adminName = "Sherry",
+                    sendDateFormatted = DATE_FORMAT.format(Date(now - (1 * dayMillis))),
+                    expiryDateFormatted = DATE_FORMAT.format(Date(now + (14 * dayMillis)))
+                )
+            )
+            db.officialFrameDao().insertAll(defaults)
+            // Equip frames to those users
+            defaults.forEach { assign ->
+                val user = db.userDao().getUserById(assign.userId)
+                if (user != null) {
+                    db.userDao().insertOrUpdate(user.copy(equippedFrameId = assign.frameId))
+                }
+            }
+        }
+    }
+
+    suspend fun checkAndCleanExpiredFrames() = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val activeAssignments = db.officialFrameDao().getAllActiveAssignments()
+        for (assignment in activeAssignments) {
+            if (assignment.expiryDate <= now) {
+                // Mark as Expired
+                db.officialFrameDao().markExpired(assignment.id)
+                // If user currently has this frame equipped, remove it
+                val user = db.userDao().getUserById(assignment.userId)
+                if (user != null && user.equippedFrameId == assignment.frameId) {
+                    db.userDao().insertOrUpdate(user.copy(equippedFrameId = null))
+                }
+                // Also create system notification
+                try {
+                    db.notificationDao().insertNotification(
+                        NotificationItem(
+                            id = UUID.randomUUID().toString(),
+                            userId = assignment.userId,
+                            title = "Official Frame Expired",
+                            message = "Your Official Frame '${assignment.frameName}' duration has expired and has been unequipped.",
+                            timestamp = now,
+                            type = "system"
+                        )
+                    )
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    suspend fun getFrameAssignments(session: AdminSession, query: String = ""): List<JSONObject> = withContext(Dispatchers.IO) {
+        checkAndCleanExpiredFrames()
+        val all = db.officialFrameDao().getAllAssignments()
+        val q = query.trim().lowercase()
+        val filtered = if (q.isBlank()) {
+            all
+        } else {
+            all.filter {
+                it.userId.lowercase().contains(q) ||
+                it.userName.lowercase().contains(q) ||
+                it.frameName.lowercase().contains(q) ||
+                it.status.lowercase().contains(q)
+            }
+        }
+
+        filtered.map { assign ->
+            JSONObject().apply {
+                put("id", assign.id)
+                put("userId", assign.userId)
+                put("userName", assign.userName)
+                put("frameId", assign.frameId)
+                put("frameName", assign.frameName)
+                put("days", assign.days)
+                put("sendDate", assign.sendDate)
+                put("expiryDate", assign.expiryDate)
+                put("status", assign.status)
+                put("adminId", assign.adminId)
+                put("adminName", assign.adminName)
+                put("sendDateFormatted", assign.sendDateFormatted)
+                put("expiryDateFormatted", assign.expiryDateFormatted)
+                // Calculate remaining days
+                val remainingMillis = assign.expiryDate - System.currentTimeMillis()
+                val remainingDays = if (assign.status == "Active" && remainingMillis > 0) {
+                    (remainingMillis / 86400000L) + 1
+                } else {
+                    0
+                }
+                put("remainingDays", remainingDays)
+            }
+        }
+    }
+
+    suspend fun sendFrame(
+        session: AdminSession,
+        frameId: String,
+        userId: String,
+        days: Int,
+        clientIp: String
+    ): Result<JSONObject> = withContext(Dispatchers.IO) {
+        // Rule: Only authorized Official 1 administrators can send important frames
+        if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
+            return@withContext Result.failure(Exception("Access Denied: Only authorized Official 1 administrators can send official frames."))
+        }
+
+        val trimmedUserId = userId.trim()
+        if (trimmedUserId.isBlank()) {
+            return@withContext Result.failure(Exception("User ID Number is required."))
+        }
+
+        if (days <= 0) {
+            return@withContext Result.failure(Exception("Duration must be at least 1 day."))
+        }
+
+        val frameDef = OFFICIAL_FRAMES.find { it.id == frameId }
+            ?: return@withContext Result.failure(Exception("Selected frame is not an authorized official frame."))
+
+        // Run expiration check first to ensure up-to-date state
+        checkAndCleanExpiredFrames()
+
+        // Rule: The system should prevent sending multiple conflicting frames to the same user at the same time
+        val activeAssignment = db.officialFrameDao().getActiveAssignmentForUser(trimmedUserId)
+        if (activeAssignment != null && activeAssignment.expiryDate > System.currentTimeMillis()) {
+            return@withContext Result.failure(
+                Exception("Conflict Prevention: User ID '$trimmedUserId' already has an active important frame '${activeAssignment.frameName}' valid until ${activeAssignment.expiryDateFormatted}. The system prevents sending multiple conflicting frames at the same time. Please revoke the existing frame first.")
+            )
+        }
+
+        // Rule: The frame must be sent only to the specific User ID entered by the admin
+        var targetUser = db.userDao().getUserById(trimmedUserId)
+        if (targetUser == null) {
+            // Check if user exists in admin link table
+            val linkUser = db.adminLinkUserDao().getLinkUsers(session.userId).find { it.userId == trimmedUserId }
+            val resolvedName = linkUser?.userName ?: "User $trimmedUserId"
+            val resolvedAvatar = linkUser?.userAvatar ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
+            // Register or link user record to guarantee existence
+            val newUser = User(
+                id = trimmedUserId,
+                username = resolvedName,
+                avatarUrl = resolvedAvatar,
+                gender = "Not specified",
+                dateOfBirth = "2000-01-01",
+                passwordHash = "HASH",
+                email = "$trimmedUserId@bismalive.com",
+                bio = "Official Member",
+                country = "🇵🇰 Pakistan",
+                userLevel = 1,
+                richLevel = 0,
+                charmLevel = 0,
+                vipLevel = 1,
+                coins = 0,
+                diamonds = 0,
+                followersCount = 0,
+                followingCount = 0,
+                friendsCount = 0,
+                equippedFrameId = frameId
+            )
+            db.userDao().insertOrUpdate(newUser)
+            targetUser = newUser
+        } else {
+            // Equip the frame immediately to the user's account
+            db.userDao().insertOrUpdate(targetUser.copy(equippedFrameId = frameId))
+        }
+
+        val now = System.currentTimeMillis()
+        val expiry = now + (days.toLong() * 86400000L)
+        val sendDateFmt = DATE_FORMAT.format(Date(now))
+        val expiryDateFmt = DATE_FORMAT.format(Date(expiry))
+
+        val assignment = OfficialFrameAssignment(
+            id = "frame_assign_${UUID.randomUUID()}",
+            userId = trimmedUserId,
+            userName = targetUser.username,
+            frameId = frameId,
+            frameName = frameDef.name,
+            days = days,
+            sendDate = now,
+            expiryDate = expiry,
+            status = "Active",
+            adminId = session.userId,
+            adminName = session.username,
+            sendDateFormatted = sendDateFmt,
+            expiryDateFormatted = expiryDateFmt
+        )
+
+        db.officialFrameDao().insertAssignment(assignment)
+
+        // Audit Logging
+        try {
+            db.auditLogDao().insertAuditLog(
+                AuditLogEntity(
+                    id = UUID.randomUUID().toString(),
+                    adminId = session.userId,
+                    adminName = session.username,
+                    adminRole = session.role.roleName,
+                    action = "SEND_OFFICIAL_FRAME",
+                    targetId = trimmedUserId,
+                    targetType = "USER_FRAME",
+                    targetName = targetUser.username,
+                    newValue = "Sent official frame '${frameDef.name}' to User '$trimmedUserId' for $days days (Expires: $expiryDateFmt)",
+                    timestamp = now,
+                    isSuccess = true,
+                    ipAddress = clientIp
+                )
+            )
+        } catch (_: Exception) {}
+
+        // User Notification
+        try {
+            db.notificationDao().insertNotification(
+                NotificationItem(
+                    id = UUID.randomUUID().toString(),
+                    userId = trimmedUserId,
+                    title = "Official Frame Granted 👑",
+                    message = "Official 1 Administration has assigned you the '${frameDef.name}' frame for $days days! It has been equipped to your profile.",
+                    timestamp = now,
+                    type = "system"
+                )
+            )
+        } catch (_: Exception) {}
+
+        val resultJson = JSONObject().apply {
+            put("id", assignment.id)
+            put("userId", assignment.userId)
+            put("userName", assignment.userName)
+            put("frameId", assignment.frameId)
+            put("frameName", assignment.frameName)
+            put("days", assignment.days)
+            put("sendDate", assignment.sendDate)
+            put("expiryDate", assignment.expiryDate)
+            put("status", assignment.status)
+            put("sendDateFormatted", assignment.sendDateFormatted)
+            put("expiryDateFormatted", assignment.expiryDateFormatted)
+            put("remainingDays", days)
+        }
+
+        Result.success(resultJson)
+    }
+
+    suspend fun revokeFrame(
+        session: AdminSession,
+        assignmentId: String,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
+            return@withContext Result.failure(Exception("Access Denied: Only authorized Official 1 administrators can revoke frames."))
+        }
+
+        val assignment = db.officialFrameDao().getAssignmentById(assignmentId)
+            ?: return@withContext Result.failure(Exception("Assignment record not found."))
+
+        db.officialFrameDao().updateStatus(assignmentId, "Revoked")
+
+        // Unequip from user
+        val user = db.userDao().getUserById(assignment.userId)
+        if (user != null && user.equippedFrameId == assignment.frameId) {
+            db.userDao().insertOrUpdate(user.copy(equippedFrameId = null))
+        }
+
+        // Audit Logging
+        try {
+            db.auditLogDao().insertAuditLog(
+                AuditLogEntity(
+                    id = UUID.randomUUID().toString(),
+                    adminId = session.userId,
+                    adminName = session.username,
+                    adminRole = session.role.roleName,
+                    action = "REVOKE_OFFICIAL_FRAME",
+                    targetId = assignment.userId,
+                    targetType = "USER_FRAME",
+                    targetName = assignment.userName,
+                    newValue = "Revoked official frame '${assignment.frameName}' from User '${assignment.userId}'",
+                    timestamp = System.currentTimeMillis(),
+                    isSuccess = true,
+                    ipAddress = clientIp
+                )
+            )
+        } catch (_: Exception) {}
+
+        Result.success(true)
+    }
 }
+

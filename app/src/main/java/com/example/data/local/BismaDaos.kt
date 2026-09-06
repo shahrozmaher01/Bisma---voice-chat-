@@ -45,6 +45,9 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
 
+    @Query("SELECT * FROM users WHERE username = :username LIMIT 1")
+    suspend fun getUserByUsername(username: String): User?
+
     @Query("SELECT COUNT(*) FROM users WHERE id = :id")
     suspend fun countUserById(id: String): Int
 
@@ -456,3 +459,37 @@ interface AdminLinkUserDao {
     @Query("SELECT COUNT(*) FROM admin_link_users WHERE adminId = :adminId AND workStatus = 'Completed'")
     suspend fun countCompletedWork(adminId: String): Int
 }
+
+@Dao
+interface OfficialFrameDao {
+    @Query("SELECT * FROM official_frame_assignments ORDER BY sendDate DESC")
+    fun getAllAssignmentsFlow(): kotlinx.coroutines.flow.Flow<List<OfficialFrameAssignment>>
+
+    @Query("SELECT * FROM official_frame_assignments ORDER BY sendDate DESC")
+    suspend fun getAllAssignments(): List<OfficialFrameAssignment>
+
+    @Query("SELECT * FROM official_frame_assignments WHERE id = :id LIMIT 1")
+    suspend fun getAssignmentById(id: String): OfficialFrameAssignment?
+
+    @Query("SELECT * FROM official_frame_assignments WHERE userId = :userId ORDER BY sendDate DESC")
+    suspend fun getAssignmentsForUser(userId: String): List<OfficialFrameAssignment>
+
+    @Query("SELECT * FROM official_frame_assignments WHERE userId = :userId AND status = 'Active' LIMIT 1")
+    suspend fun getActiveAssignmentForUser(userId: String): OfficialFrameAssignment?
+
+    @Query("SELECT * FROM official_frame_assignments WHERE status = 'Active'")
+    suspend fun getAllActiveAssignments(): List<OfficialFrameAssignment>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAssignment(assignment: OfficialFrameAssignment)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(assignments: List<OfficialFrameAssignment>)
+
+    @Query("UPDATE official_frame_assignments SET status = :status WHERE id = :id")
+    suspend fun updateStatus(id: String, status: String)
+
+    @Query("UPDATE official_frame_assignments SET status = 'Expired' WHERE id = :id")
+    suspend fun markExpired(id: String)
+}
+

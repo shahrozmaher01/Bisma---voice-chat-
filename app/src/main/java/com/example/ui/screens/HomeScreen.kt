@@ -42,7 +42,8 @@ import kotlinx.coroutines.launch
 enum class HomeMainTab {
     PARTY,
     MINE,
-    RANKINGS
+    RANKINGS,
+    CP_SPACE
 }
 
 enum class MineSubTab {
@@ -63,6 +64,8 @@ fun HomeScreen(
     val allRooms by repository.activeRooms.collectAsState(initial = emptyList())
     val currentUser by repository.currentUser.collectAsState(initial = null)
     val followingList by repository.getFriends().collectAsState(initial = emptyList())
+    val topWealthUsers by repository.topWealthUsers.collectAsState(initial = emptyList())
+    val topCharmUsers by repository.topCharmUsers.collectAsState(initial = emptyList())
 
     var currentTab by remember { mutableStateOf(HomeMainTab.PARTY) }
     var currentMineSubTab by remember { mutableStateOf(MineSubTab.FOLLOWING) }
@@ -72,12 +75,12 @@ fun HomeScreen(
     var showSearchDialog by remember { mutableStateOf(false) }
     var showCreateRoomDialog by remember { mutableStateOf(false) }
 
-    val countries = listOf("🔥 All", "🇵🇰 Pakistan", "🇮🇳 India", "🇧🇩 Bangladesh", "🇳🇵 Nepal", "🇸🇦 Saudi", "🇦🇪 UAE", "🌐 Global")
+    val countries = listOf("🔥 All", "🇵🇰 Pakistan", "🇮🇳 India", "🌐 Global", "🪐 AI")
 
     // Filter rooms based on rule: Active rooms must have onlineCount > 0
     val displayedPartyRooms = remember(allRooms, selectedCountry) {
         var list = allRooms.filter { it.onlineCount > 0 }
-        if (selectedCountry != "🔥 All" && selectedCountry != "🌐 Global") {
+        if (selectedCountry != "🔥 All" && selectedCountry != "🌐 Global" && selectedCountry != "🪐 AI") {
             val countryKey = selectedCountry.replace(Regex("[^A-Za-z]"), "").trim()
             list = list.filter { it.country.contains(countryKey, ignoreCase = true) || it.country == selectedCountry }
         }
@@ -100,14 +103,39 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackgroundGradient)
+            .background(Color(0xFF090514))
     ) {
+        // Mystical night lake lantern atmospheric background matching screenshot
+        Image(
+            painter = painterResource(id = R.drawable.home_night_bg),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.55f
+        )
+
+        // Subtle gradient overlay for rich contrast and vibrant scene visibility
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0x22060212),
+                            Color(0x5509041E),
+                            Color(0x9908031A),
+                            Color(0xDD070216)
+                        )
+                    )
+                )
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Stylish Compact Header (Logo + "Bisma", Live Counter Badge, Search, Notifications, + Room)
+            // Stylish Header (Logo + "Bisma" with Green Dot, "Voice Chat", Search, Notifications with Red Dot, + Room)
             BismaCompactHeader(
                 totalListeners = totalActiveListeners,
                 onSearchClick = { showSearchDialog = true },
@@ -115,19 +143,7 @@ fun HomeScreen(
                 onCreateRoomClick = { showCreateRoomDialog = true }
             )
 
-            // Primary Navigation Tabs: Party | Mine | Rankings
-            BismaMainNavigationTabs(
-                selectedTab = currentTab,
-                onTabSelected = { tab ->
-                    if (tab == HomeMainTab.RANKINGS) {
-                        onOpenRankings(0)
-                    } else {
-                        currentTab = tab
-                    }
-                }
-            )
-
-            // Pull to refresh wrapper
+            // Pull to refresh wrapper matching the screenshot's unified layout
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = {
@@ -146,23 +162,84 @@ fun HomeScreen(
                             countries = countries,
                             selectedCountry = selectedCountry,
                             onCountrySelected = { selectedCountry = it },
+                            selectedSubTab = currentTab,
+                            onSubTabSelected = { tab ->
+                                if (tab == HomeMainTab.RANKINGS) {
+                                    onOpenRankings(0)
+                                } else {
+                                    currentTab = tab
+                                }
+                            },
                             rooms = displayedPartyRooms,
+                            topWealth = topWealthUsers,
+                            topCharm = topCharmUsers,
+                            allRooms = allRooms,
+                            onOpenRankings = onOpenRankings,
                             onOpenRoom = onOpenRoom,
                             onCreateRoomClick = { showCreateRoomDialog = true }
                         )
                     }
                     HomeMainTab.MINE -> {
-                        MineTabContent(
-                            subTab = currentMineSubTab,
-                            onSubTabSelected = { currentMineSubTab = it },
-                            followingRooms = followingRooms,
-                            myRooms = myRooms,
-                            onOpenRoom = onOpenRoom,
-                            onCreateRoomClick = { showCreateRoomDialog = true }
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp)
+                        ) {
+                            HomeWelcomeBanner()
+                            Spacer(modifier = Modifier.height(4.dp))
+                            CountrySelectorRow(
+                                countries = countries,
+                                selectedCountry = selectedCountry,
+                                onCountrySelected = { selectedCountry = it }
+                            )
+                            HomeSubTabsCapsule(
+                                selectedTab = currentTab,
+                                onTabSelected = { tab ->
+                                    if (tab == HomeMainTab.RANKINGS) {
+                                        onOpenRankings(0)
+                                    } else {
+                                        currentTab = tab
+                                    }
+                                }
+                            )
+                            MineTabContent(
+                                subTab = currentMineSubTab,
+                                onSubTabSelected = { currentMineSubTab = it },
+                                followingRooms = followingRooms,
+                                myRooms = myRooms,
+                                onOpenRoom = onOpenRoom,
+                                onCreateRoomClick = { showCreateRoomDialog = true }
+                            )
+                        }
+                    }
+                    HomeMainTab.CP_SPACE -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp)
+                        ) {
+                            HomeWelcomeBanner()
+                            Spacer(modifier = Modifier.height(4.dp))
+                            CountrySelectorRow(
+                                countries = countries,
+                                selectedCountry = selectedCountry,
+                                onCountrySelected = { selectedCountry = it }
+                            )
+                            HomeSubTabsCapsule(
+                                selectedTab = currentTab,
+                                onTabSelected = { tab ->
+                                    if (tab == HomeMainTab.RANKINGS) {
+                                        onOpenRankings(0)
+                                    } else {
+                                        currentTab = tab
+                                    }
+                                }
+                            )
+                            CpSpaceTabContent(onCreateRoomClick = { showCreateRoomDialog = true })
+                        }
                     }
                     HomeMainTab.RANKINGS -> {
-                        // Handled via navigation
+                        // Handled via onOpenRankings
                     }
                 }
             }
@@ -208,166 +285,400 @@ fun BismaCompactHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Combined App Icon + "Bisma" Title
+        // Combined App Icon + "Bisma 🟢" Title + "Voice Chat"
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.Transparent,
-                border = BorderStroke(1.5.dp, Brush.linearGradient(listOf(NeonPink, ElectricBlue)))
+                shape = RoundedCornerShape(13.dp),
+                color = Color(0xFF1E1038),
+                border = BorderStroke(
+                    1.5.dp,
+                    Brush.linearGradient(listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF)))
+                ),
+                modifier = Modifier.size(42.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.bisma_logo),
-                    contentDescription = "Bisma Logo",
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = "Bisma",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                letterSpacing = 0.5.sp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            // Live indicator
-            Surface(
-                color = Color(0x2200E676),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0x5500E676))
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
+                    // Microphone with neon crown
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "👑",
+                            fontSize = 9.sp,
+                            lineHeight = 10.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Bisma Voice",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Bisma",
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        letterSpacing = 0.3.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    // Online green dot
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(7.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF00E676))
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "$totalListeners",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00E676)
-                    )
                 }
+                Text(
+                    text = "Voice Chat",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFB5ACCC)
+                )
             }
         }
 
-        // Header Actions: Search, Notifications, + Room
+        // Header Actions: Search, Notifications (with red dot), + Room
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Search Button
             IconButton(
                 onClick = onSearchClick,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color(0x33FFFFFF))
+                    .background(Color(0x332E1D52))
+                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(19.dp)
                 )
             }
 
-            IconButton(
-                onClick = onNotificationClick,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x33FFFFFF))
+            // Notifications Button with unread red badge
+            Box(
+                modifier = Modifier.size(38.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                IconButton(
+                    onClick = onNotificationClick,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(Color(0x332E1D52))
+                        .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notifications",
+                        tint = Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+
+                // Unread red dot in top-right corner
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 1.dp, y = (-1).dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFF2A85))
                 )
             }
 
+            // + Room Button (Gradient pill button matching screenshot)
             Button(
                 onClick = onCreateRoomClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                shape = RoundedCornerShape(18.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                shape = RoundedCornerShape(19.dp),
                 modifier = Modifier
-                    .height(36.dp)
-                    .background(PrimaryGradient, RoundedCornerShape(18.dp))
+                    .height(38.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF))
+                        ),
+                        RoundedCornerShape(19.dp)
+                    )
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Create",
+                    contentDescription = "Create Room",
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(17.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = "Room", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = "Room",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
 }
 
 @Composable
-fun BismaMainNavigationTabs(
+fun HomeWelcomeBanner() {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF100826),
+        border = BorderStroke(
+            1.2.dp,
+            Brush.horizontalGradient(
+                listOf(
+                    Color(0xFFFF2A85),
+                    Color(0xFF7C4DFF),
+                    Color(0xFF00E5FF)
+                )
+            )
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(126.dp)
+            .clip(RoundedCornerShape(18.dp))
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.home_welcome_banner),
+            contentDescription = "Welcome to Bisma Voice Chat",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+@Composable
+fun CountrySelectorRow(
+    countries: List<String>,
+    selectedCountry: String,
+    onCountrySelected: (String) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(countries) { country ->
+            val isSelected = selectedCountry == country
+            Surface(
+                color = if (isSelected) Color.Transparent else Color(0x55160A2D),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(
+                    1.dp,
+                    if (isSelected) Color.Transparent else Color(0x334E357E)
+                ),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .then(
+                        if (isSelected) {
+                            Modifier.background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFFFF2A85), Color(0xFFE056FD))
+                                )
+                            )
+                        } else Modifier
+                    )
+                    .clickable { onCountrySelected(country) }
+            ) {
+                Text(
+                    text = country,
+                    fontSize = 12.5.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeSubTabsCapsule(
     selectedTab: HomeMainTab,
     onTabSelected: (HomeMainTab) -> Unit
 ) {
-    Row(
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0x66160A2D),
+        border = BorderStroke(1.dp, Color(0x334E357E)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp)
+            .padding(vertical = 4.dp)
     ) {
-        val tabs = listOf(
-            HomeMainTab.PARTY to "Party",
-            HomeMainTab.MINE to "Mine",
-            HomeMainTab.RANKINGS to "Rankings 🏆"
-        )
-
-        tabs.forEach { (tab, label) ->
-            val isSelected = selectedTab == tab
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 1. Party
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .clickable { onTabSelected(tab) }
-                    .padding(bottom = 6.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTabSelected(HomeMainTab.PARTY) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Text(
-                    text = label,
-                    fontSize = if (isSelected) 17.sp else 15.sp,
-                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                    color = if (isSelected) Color.White else TextSecondary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                if (isSelected) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🎉", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Party",
+                        fontSize = 13.5.sp,
+                        fontWeight = if (selectedTab == HomeMainTab.PARTY) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == HomeMainTab.PARTY) Color.White else Color(0xFF9E97B6)
+                    )
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                if (selectedTab == HomeMainTab.PARTY) {
                     Box(
                         modifier = Modifier
-                            .width(24.dp)
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(PrimaryGradient)
+                            .width(32.dp)
+                            .height(2.5.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
+                                )
+                            )
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.5.dp))
+                }
+            }
+
+            // 2. Mine
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTabSelected(HomeMainTab.MINE) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "💎", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Mine",
+                        fontSize = 13.5.sp,
+                        fontWeight = if (selectedTab == HomeMainTab.MINE) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == HomeMainTab.MINE) Color.White else Color(0xFF9E97B6)
+                    )
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                if (selectedTab == HomeMainTab.MINE) {
+                    Box(
+                        modifier = Modifier
+                            .width(28.dp)
+                            .height(2.5.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
+                                )
+                            )
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(2.5.dp))
+                }
+            }
+
+            // 3. Rankings
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTabSelected(HomeMainTab.RANKINGS) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🏆", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Rankings",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF9E97B6)
+                    )
+                }
+                Spacer(modifier = Modifier.height(5.5.dp))
+            }
+
+            // 4. CP Space
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTabSelected(HomeMainTab.CP_SPACE) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🖤", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "CP Space",
+                        fontSize = 13.5.sp,
+                        fontWeight = if (selectedTab == HomeMainTab.CP_SPACE) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == HomeMainTab.CP_SPACE) Color.White else Color(0xFF9E97B6)
+                    )
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                if (selectedTab == HomeMainTab.CP_SPACE) {
+                    Box(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(2.5.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
+                                )
+                            )
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(2.5.dp))
                 }
             }
         }
     }
+}
+
+@Composable
+fun CpSpaceTabContent(
+    onCreateRoomClick: () -> Unit
+) {
+    EmptyRoomsCard(
+        message = "No active CP Space rooms\nonline right now in CP Space.",
+        selectedCountry = "🖤 CP Space",
+        onCreateRoomClick = onCreateRoomClick
+    )
 }
 
 @Composable
@@ -375,7 +686,13 @@ fun PartyTabContent(
     countries: List<String>,
     selectedCountry: String,
     onCountrySelected: (String) -> Unit,
+    selectedSubTab: HomeMainTab,
+    onSubTabSelected: (HomeMainTab) -> Unit,
     rooms: List<VoiceRoom>,
+    topWealth: List<User>,
+    topCharm: List<User>,
+    allRooms: List<VoiceRoom>,
+    onOpenRankings: (Int) -> Unit,
     onOpenRoom: (String) -> Unit,
     onCreateRoomClick: () -> Unit
 ) {
@@ -384,42 +701,47 @@ fun PartyTabContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 14.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(top = 2.dp, bottom = 88.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // Country Selector Pills
+        // 1. Welcome to Bisma Banner
         item(span = { GridItemSpan(2) }) {
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(countries) { country ->
-                    val isSelected = selectedCountry == country
-                    Surface(
-                        color = if (isSelected) NeonPink else SurfaceCard,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, if (isSelected) NeonPink else SurfaceCardBorder),
-                        modifier = Modifier.clickable { onCountrySelected(country) }
-                    ) {
-                        Text(
-                            text = country,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else TextSecondary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
+            HomeWelcomeBanner()
         }
 
+        // 2. Country Selector Pills
+        item(span = { GridItemSpan(2) }) {
+            CountrySelectorRow(
+                countries = countries,
+                selectedCountry = selectedCountry,
+                onCountrySelected = onCountrySelected
+            )
+        }
+
+        // 3. Sub-Tabs Capsule Bar
+        item(span = { GridItemSpan(2) }) {
+            HomeSubTabsCapsule(
+                selectedTab = selectedSubTab,
+                onTabSelected = onSubTabSelected
+            )
+        }
+
+        // 4. Rankings Hero Showcase Card (Top Wealth, Top Charm, Top Room)
+        item(span = { GridItemSpan(2) }) {
+            HomeRankingsShowcaseCard(
+                topWealth = topWealth,
+                topCharm = topCharm,
+                allRooms = allRooms,
+                onOpenRankings = onOpenRankings
+            )
+        }
+
+        // 5. Voice Rooms or Empty Scenic Card
         if (rooms.isEmpty()) {
             item(span = { GridItemSpan(2) }) {
                 EmptyRoomsCard(
-                    message = "No active voice rooms online right now in $selectedCountry.",
+                    selectedCountry = selectedCountry,
                     onCreateRoomClick = onCreateRoomClick
                 )
             }
@@ -430,6 +752,300 @@ fun PartyTabContent(
                     onClick = { onOpenRoom(room.id) }
                 )
             }
+        }
+    }
+}
+
+/**
+ * Rankings Hero Showcase Card matching the exact visual design in the user's screenshot.
+ * Displays Top Wealth, Top Charm, and Top Room with crowns, glowing badges, and view buttons.
+ */
+@Composable
+fun HomeRankingsShowcaseCard(
+    topWealth: List<User>,
+    topCharm: List<User>,
+    allRooms: List<VoiceRoom>,
+    onOpenRankings: (Int) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xF2100826),
+        border = BorderStroke(1.2.dp, Color(0x554E327E)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            // Header Row: Crown + "Rankings" + laurel + "View All >"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "👑",
+                        fontSize = 22.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Rankings",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "🌿",
+                        fontSize = 16.sp
+                    )
+                }
+
+                // View All > button
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0x331E1038),
+                    border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+                    modifier = Modifier.clickable { onOpenRankings(0) }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "View All",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "View All",
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 3 Column Showcase Cards: Top Wealth, Top Charm, Top Room
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Card 1: Top Wealth
+                RankingsMiniCard(
+                    modifier = Modifier.weight(1f),
+                    themeColor = Color(0xFFFFB300),
+                    crownEmoji = "👑",
+                    title = "Top Wealth",
+                    subtitle = "Richest Users",
+                    graphicType = "wealth",
+                    onClick = { onOpenRankings(0) }
+                )
+
+                // Card 2: Top Charm
+                RankingsMiniCard(
+                    modifier = Modifier.weight(1f),
+                    themeColor = Color(0xFFFF2A85),
+                    crownEmoji = "👑",
+                    title = "Top Charm",
+                    subtitle = "Most Attractive Users",
+                    graphicType = "charm",
+                    onClick = { onOpenRankings(1) }
+                )
+
+                // Card 3: Top Room
+                RankingsMiniCard(
+                    modifier = Modifier.weight(1f),
+                    themeColor = Color(0xFF00E5FF),
+                    crownEmoji = "👑",
+                    title = "Top Room",
+                    subtitle = "Most Popular Rooms",
+                    graphicType = "room",
+                    onClick = { onOpenRankings(2) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Individual Mini Card within the Rankings Showcase matching the screenshot:
+ * Crown, Title, Subtitle, Glowing custom illustration badge, and Chevron > arrow.
+ */
+@Composable
+fun RankingsMiniCard(
+    modifier: Modifier = Modifier,
+    themeColor: Color,
+    crownEmoji: String,
+    title: String,
+    subtitle: String,
+    graphicType: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0x66160A2D),
+        border = BorderStroke(1.2.dp, themeColor.copy(alpha = 0.85f)),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Crown emoji
+            Text(
+                text = crownEmoji,
+                fontSize = 14.sp
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = title,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = subtitle,
+                fontSize = 7.8.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFFD4CAE8),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Glowing Badge Graphic matching the screenshot with chevron >
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when (graphicType) {
+                    "wealth" -> WealthChestGraphic(themeColor)
+                    "charm" -> CharmHeartGraphic(themeColor)
+                    "room" -> RoomPortalGraphic(themeColor)
+                }
+
+                // Chevron arrow on bottom right
+                Text(
+                    text = ">",
+                    color = themeColor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 4.dp, bottom = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WealthChestGraphic(themeColor: Color) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Glowing gold radial aura
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0x55FFB300), Color(0x22FF8F00), Color.Transparent)
+                    )
+                )
+        )
+        // Golden treasure chest overflowing with gold coins
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = "✨", fontSize = 9.sp)
+            Text(text = "🎁", fontSize = 21.sp)
+            Text(text = "🪙 🪙", fontSize = 8.sp)
+        }
+    }
+}
+
+@Composable
+fun CharmHeartGraphic(themeColor: Color) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Glowing pink radial aura
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0x55FF2A85), Color(0x22E056FD), Color.Transparent)
+                    )
+                )
+        )
+        // Glowing pink neon heart with sparkle rings
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = "✨", fontSize = 9.sp)
+            Text(text = "💖", fontSize = 21.sp)
+            Text(text = "💫", fontSize = 8.sp)
+        }
+    }
+}
+
+@Composable
+fun RoomPortalGraphic(themeColor: Color) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Glowing cyan radial aura
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0x5500E5FF), Color(0x2200B0FF), Color.Transparent)
+                    )
+                )
+        )
+        // Glowing voice portal / stage with soundwaves
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = "🎶", fontSize = 9.sp)
+            Text(text = "🎙️", fontSize = 21.sp)
+            Text(text = "✨", fontSize = 8.sp)
         }
     }
 }
@@ -650,40 +1266,148 @@ fun SquareRoomCard(
 
 @Composable
 fun EmptyRoomsCard(
-    message: String,
+    message: String? = null,
+    selectedCountry: String = "🔥 All",
     onCreateRoomClick: () -> Unit
 ) {
-    GlassCard(
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF100826),
+        border = BorderStroke(
+            1.2.dp,
+            Brush.linearGradient(
+                listOf(Color(0xFFFF2A85), Color(0xFF7C4DFF), Color(0xFF00E5FF))
+            )
+        ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp)
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(20.dp))
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .height(185.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.MicOff,
+            // Scenic atmospheric night background
+            Image(
+                painter = painterResource(id = R.drawable.home_night_bg),
                 contentDescription = null,
-                tint = TextMuted,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.45f
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = message,
-                color = TextSecondary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
+
+            // Deep gradient overlay for contrast
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xCC0E0720),
+                                Color(0xEE0B051A),
+                                Color(0xF7090416)
+                            )
+                        )
+                    )
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            NeonButton(
-                text = "+ Launch Voice Room",
-                onClick = onCreateRoomClick,
-                modifier = Modifier.fillMaxWidth(0.75f)
-            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Waveform bars on left, circular MicOff icon, waveform bars on right
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // Left wave bars
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.width(3.dp).height(10.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
+                        Box(modifier = Modifier.width(3.dp).height(16.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFFFF2A85)))
+                        Box(modifier = Modifier.width(3.dp).height(22.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF00E5FF)))
+                        Box(modifier = Modifier.width(3.dp).height(14.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // Circular icon container
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0x401F153D),
+                        border = BorderStroke(1.dp, Color(0x557C4DFF)),
+                        modifier = Modifier.size(50.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MicOff,
+                                contentDescription = null,
+                                tint = Color(0xFFE2DCF0),
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // Right wave bars
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.width(3.dp).height(14.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
+                        Box(modifier = Modifier.width(3.dp).height(22.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF00E5FF)))
+                        Box(modifier = Modifier.width(3.dp).height(16.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFFFF2A85)))
+                        Box(modifier = Modifier.width(3.dp).height(10.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = message ?: "No active voice rooms\nonline right now in $selectedCountry.",
+                    color = Color(0xFFE2DCF0),
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Launch Voice Room Button
+                Button(
+                    onClick = onCreateRoomClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .height(38.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFFFF2A85), Color(0xFF7C4DFF), Color(0xFF00E5FF))
+                            ),
+                            RoundedCornerShape(20.dp)
+                        )
+                ) {
+                    Text(
+                        text = "+ Launch Voice Room",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
         }
     }
 }
