@@ -30,6 +30,12 @@ class AdminWebServer(
     private val _serverUrl = MutableStateFlow("http://localhost:8080/admin")
     val serverUrl = _serverUrl.asStateFlow()
 
+    private val _official1Url = MutableStateFlow("http://localhost:8080/admin")
+    val official1Url = _official1Url.asStateFlow()
+
+    private val _official2Url = MutableStateFlow("http://localhost:8080/admin2")
+    val official2Url = _official2Url.asStateFlow()
+
     private var activePort = preferredPort
 
     fun start() {
@@ -65,8 +71,11 @@ class AdminWebServer(
             }
 
             _serverUrl.value = "http://localhost:$activePort/admin"
+            _official1Url.value = "http://localhost:$activePort/admin"
+            _official2Url.value = "http://localhost:$activePort/admin2"
             _isRunning.value = true
-            Log.i(TAG, "Official 1 Admin Web Server running at http://localhost:$activePort/admin")
+            Log.i(TAG, "Official 1 Panel running at http://localhost:$activePort/admin")
+            Log.i(TAG, "Official Panel 2 running at http://localhost:$activePort/admin2")
 
             while (isActive && serverSocket?.isClosed == false) {
                 try {
@@ -146,9 +155,18 @@ class AdminWebServer(
 
             // Public & Auth Routes
             when {
-                path == "/" || path == "/admin" || path == "/index.html" -> {
+                path == "/" || path == "/admin" || path == "/official1" || path == "/index.html" -> {
                     val html = AdminWebPageTemplate.getHtml()
                     sendResponse(outputStream, 200, "OK", "text/html; charset=UTF-8", html)
+                }
+
+                path == "/admin2" || path == "/official2" || path == "/panel2" -> {
+                    val html = OfficialPanel2WebPageTemplate.getHtml()
+                    sendResponse(outputStream, 200, "OK", "text/html; charset=UTF-8", html)
+                }
+
+                path == "/api/admin2/login" && method == "POST" -> {
+                    handleOfficialPanel2Login(outputStream, body, clientIp)
                 }
 
                 path == "/api/admin/info" && method == "GET" -> {
@@ -178,7 +196,24 @@ class AdminWebServer(
                     handleVerifyWhatsAppOtp(outputStream, body, clientIp)
                 }
 
-                // Protected Routes (Require Bearer Token)
+                // Official Panel 2 Protected Routes
+                path.startsWith("/api/admin2/") -> {
+                    val authHeader = headers["authorization"] ?: ""
+                    val token = authHeader.removePrefix("Bearer ").trim()
+                    val session = adminService.securityManager.validateOfficialPanel2Session(token)
+
+                    if (session == null) {
+                        val err = JSONObject().apply {
+                            put("success", false)
+                            put("message", "Session expired or unauthorized for Official Panel 2. Access restricted to authorized administrator Maz.")
+                        }
+                        sendResponse(outputStream, 401, "Unauthorized", "application/json", err.toString())
+                    } else {
+                        handleOfficialPanel2ProtectedApi(path, method, queryParams, body, session, outputStream, clientIp)
+                    }
+                }
+
+                // Official Panel 1 Protected Routes (Require Bearer Token)
                 path.startsWith("/api/admin/") -> {
                     val authHeader = headers["authorization"] ?: ""
                     val token = authHeader.removePrefix("Bearer ").trim()
@@ -304,6 +339,53 @@ class AdminWebServer(
             val err = JSONObject().apply {
                 put("success", false)
                 put("message", res.exceptionOrNull()?.message ?: "Invalid Username or Password")
+            }
+            sendResponse(outputStream, 401, "Unauthorized", "application/json", err.toString())
+        }
+    }
+
+    /**
+     * Official Panel 2 Direct Authentication
+     * Credentials strictly:
+     * Username: Maz
+     * ID: 41387
+     * Password: 30484
+     */
+    private suspend fun handleOfficialPanel2Login(outputStream: OutputStream, body: String, clientIp: String) {
+        val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+        val username = json.optString("username", "").ifBlank {
+            json.optString("userName", "").ifBlank {
+                json.optString("usernameOrId", "")
+            }
+        }
+        val id = json.optString("id", "").ifBlank {
+            json.optString("adminId", "")
+        }
+        val password = json.optString("password", "")
+
+        val res = adminService.securityManager.authenticateOfficialPanel2(
+            usernameInput = username,
+            idInput = id,
+            passwordRaw = password,
+            clientIp = clientIp
+        )
+
+        if (res.isSuccess) {
+            val session = res.getOrThrow()
+            val resp = JSONObject().apply {
+                put("success", true)
+                put("token", session.token)
+                put("panelName", "Official Panel 2")
+                put("adminName", session.username)
+                put("adminId", session.userId)
+                put("role", session.role.roleName)
+                put("message", "Official Panel 2 authentication successful!")
+            }
+            sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+        } else {
+            val err = JSONObject().apply {
+                put("success", false)
+                put("message", res.exceptionOrNull()?.message ?: "Invalid Username, ID, or Password.")
             }
             sendResponse(outputStream, 401, "Unauthorized", "application/json", err.toString())
         }
@@ -850,6 +932,135 @@ class AdminWebServer(
                 val limit = params["limit"]?.toIntOrNull() ?: 100
                 val logs = adminService.getAuditLogs(session, limit)
                 sendResponse(outputStream, 200, "OK", "application/json", JSONArray(logs).toString())
+            }
+
+            else -> {
+                sendResponse(outputStream, 404, "Not Found", "text/plain", "404 Not Found")
+            }
+        }
+    }
+
+    private suspend fun handleOfficialPanel2ProtectedApi(
+        path: String,
+        method: String,
+        params: Map<String, String>,
+        body: String,
+        session: AdminSession,
+        outputStream: OutputStream,
+        clientIp: String
+    ) {
+        when {
+            path == "/api/admin2/info" && method == "GET" -> {
+                val resp = JSONObject().apply {
+                    put("success", true)
+                    put("panelName", "Official Panel 2")
+                    put("adminName", session.username)
+                    put("adminId", session.userId)
+                    put("role", session.role.roleName)
+                }
+                sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+            }
+
+            // Official Panel 2 Frame Management System Endpoints
+            path == "/api/admin2/frames/definitions" && method == "GET" -> {
+                val defs = adminService.getOfficialFrameDefinitions()
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(defs).toString())
+            }
+
+            path == "/api/admin2/frames/history" && method == "GET" -> {
+                val query = params["query"] ?: ""
+                val history = adminService.getFrameAssignments(session, query)
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(history).toString())
+            }
+
+            path == "/api/admin2/frames/check-conflict" && method == "GET" -> {
+                val targetUserId = params["userId"]?.trim() ?: ""
+                adminService.checkAndCleanExpiredFrames()
+                val active = if (targetUserId.isNotBlank()) {
+                    adminService.getFrameAssignments(session).find {
+                        it.optString("userId") == targetUserId && it.optString("status") == "Active"
+                    }
+                } else null
+
+                val resp = JSONObject().apply {
+                    put("hasConflict", active != null)
+                    if (active != null) {
+                        put("conflictingFrame", active)
+                        put("message", "User already has active frame '${active.optString("frameName")}' expiring on ${active.optString("expiryDateFormatted")}")
+                    }
+                }
+                sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+            }
+
+            path == "/api/admin2/frames/send" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val frameId = json.optString("frameId", "")
+                val targetUserId = json.optString("userId", "")
+                val days = json.optInt("days", 0)
+
+                val res = adminService.sendFrame(
+                    session = session,
+                    frameId = frameId,
+                    userId = targetUserId,
+                    days = days,
+                    clientIp = clientIp
+                )
+
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "Official frame assigned successfully!")
+                        put("assignment", res.getOrThrow())
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to assign frame")
+                    }
+                    val statusCode = if (err.optString("message").startsWith("Conflict")) 409 else 400
+                    sendResponse(outputStream, statusCode, "Error", "application/json", err.toString())
+                }
+            }
+
+            path == "/api/admin2/frames/revoke" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val assignmentId = json.optString("assignmentId", "")
+
+                val res = adminService.revokeFrame(session, assignmentId, clientIp)
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply {
+                        put("success", true)
+                        put("message", "Official frame revoked successfully")
+                    }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply {
+                        put("success", false)
+                        put("message", res.exceptionOrNull()?.message ?: "Failed to revoke frame")
+                    }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            path == "/api/admin2/dashboard" && method == "GET" -> {
+                val dashboard = adminService.getDashboardStats(session)
+                sendResponse(outputStream, 200, "OK", "application/json", dashboard.toString())
+            }
+
+            path == "/api/admin2/audit-logs" && method == "GET" -> {
+                val limit = params["limit"]?.toIntOrNull() ?: 50
+                val logs = adminService.getAuditLogs(session, limit)
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(logs).toString())
+            }
+
+            path == "/api/admin2/logout" && method == "POST" -> {
+                adminService.securityManager.invalidateSession(session.token)
+                val resp = JSONObject().apply {
+                    put("success", true)
+                    put("message", "Official Panel 2 session terminated.")
+                }
+                sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
             }
 
             else -> {

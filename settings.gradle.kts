@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Bisma Voice Chat"
+rootProject.name = "AURA Live"
 
 include(":app")

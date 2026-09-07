@@ -37,6 +37,7 @@ fun RankingsScreen(
     val activeRooms by repository.activeRooms.collectAsState(initial = emptyList())
 
     var selectedTab by remember { mutableIntStateOf(initialTab) }
+    var selectedPeriod by remember { mutableStateOf("Daily") } // "Daily", "Weekly", "Monthly"
 
     Box(
         modifier = Modifier
@@ -59,18 +60,41 @@ fun RankingsScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
                 Text(
-                    text = "Bisma Leaderboards 👑",
+                    text = "AURA Live Leaderboards 👑",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
 
+            // Period Selector (Daily, Weekly, Monthly)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("Daily", "Weekly", "Monthly").forEach { period ->
+                    val isSelected = selectedPeriod == period
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedPeriod = period },
+                        label = { Text(period, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NeonPink,
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0x3322153E),
+                            labelColor = TextSecondary
+                        )
+                    )
+                }
+            }
+
             // Tabs (Top Wealth, Top Charm, Top Room)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(

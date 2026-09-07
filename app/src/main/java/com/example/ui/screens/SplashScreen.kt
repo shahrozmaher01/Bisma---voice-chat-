@@ -79,31 +79,31 @@ fun SplashScreen(
             // Bisma Voice Chat Logo
             Box(
                 modifier = Modifier
-                    .size(170.dp)
-                    .clip(RoundedCornerShape(32.dp))
+                    .size(140.dp)
+                    .clip(RoundedCornerShape(28.dp))
                     .border(
                         BorderStroke(
                             2.dp,
                             Brush.sweepGradient(listOf(NeonPink, ElectricBlue, NeonPurple, NeonPink))
                         ),
-                        RoundedCornerShape(32.dp)
+                        RoundedCornerShape(28.dp)
                     )
-                    .shadow(16.dp, RoundedCornerShape(32.dp), spotColor = NeonPink),
+                    .shadow(16.dp, RoundedCornerShape(28.dp), spotColor = NeonPink),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.bisma_logo),
-                    contentDescription = "Bisma Voice Chat Logo",
+                    painter = painterResource(id = R.drawable.ic_aura_logo),
+                    contentDescription = "AURA Live Logo",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // App Branding Typography
             Text(
-                text = "BISMA VOICE CHAT",
+                text = "AURA LIVE",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp,
@@ -114,7 +114,7 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Connect • Sing • Live Voice Community",
+                text = "Live Voice Chat & Social Community",
                 fontSize = 13.sp,
                 color = TextSecondary,
                 fontWeight = FontWeight.Medium,

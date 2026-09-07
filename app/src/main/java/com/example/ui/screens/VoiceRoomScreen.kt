@@ -277,6 +277,16 @@ fun VoiceRoomScreen(
                 }
             }
 
+            // Quick Live Reaction Bar (Heart, Fire, Clap, Laugh, Party, Star, Rose, Like)
+            QuickEmojiReactionsBar(
+                onReactionClick = { emoji ->
+                    coroutineScope.launch {
+                        repository.sendEmojiReaction(currentRoom.id, emoji)
+                    }
+                },
+                onMoreClick = { showEmojiSheet = true }
+            )
+
             // Bottom In-Room Controller Bar
             RoomBottomControlBar(
                 chatText = chatInputText,
@@ -325,6 +335,17 @@ fun VoiceRoomScreen(
         // Rocket Launch Animation Overlay
         if (activeRocketAnimation != null) {
             RocketLaunchOverlay(text = activeRocketAnimation!!)
+        }
+
+        // Floating live reactions from listeners or overall room vibe
+        val unseatedReactions = seatReactions.filter { reaction -> seats.none { it.userId == reaction.userId } }
+        unseatedReactions.forEach { reaction ->
+            key(reaction.id) {
+                FloatingCanvasReactionAnimation(
+                    emoji = reaction.emoji,
+                    onFinished = { seatReactions.removeAll { it.id == reaction.id } }
+                )
+            }
         }
 
         // Lucky Bag Claim Win Dialog
@@ -916,22 +937,15 @@ fun RoomAudioActivityBanner(
                         imageVector = Icons.Default.GraphicEq,
                         contentDescription = null,
                         tint = TextMuted,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = "Audio Stage • Ready to talk",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextSecondary
-                        )
-                        Text(
-                            text = "Tap any open seat to join the conversation",
-                            fontSize = 9.sp,
-                            color = TextMuted
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Live Audio Stream • 48kHz HD",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextMuted
+                    )
                 }
             }
 
@@ -1644,5 +1658,83 @@ fun RoomMediaBottomSheet(
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+fun QuickEmojiReactionsBar(
+    onReactionClick: (String) -> Unit,
+    onMoreClick: () -> Unit
+) {
+    val quickEmojis = listOf("❤️", "🔥", "👏", "😂", "🎉", "⭐", "🌹", "👍")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        quickEmojis.forEach { emoji ->
+            Surface(
+                shape = CircleShape,
+                color = Color(0x77160A2E),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                modifier = Modifier
+                    .size(34.dp)
+                    .clickable { onReactionClick(emoji) }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(text = emoji, fontSize = 17.sp)
+                }
+            }
+        }
+        Surface(
+            shape = CircleShape,
+            color = Color(0xFF7C4DFF).copy(alpha = 0.35f),
+            border = BorderStroke(1.dp, Color(0xFF7C4DFF).copy(alpha = 0.5f)),
+            modifier = Modifier
+                .size(34.dp)
+                .clickable { onMoreClick() }
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(text = "➕", fontSize = 13.sp, color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun FloatingCanvasReactionAnimation(
+    emoji: String,
+    onFinished: () -> Unit
+) {
+    val animProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        animProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 2200, easing = FastOutSlowInEasing)
+        )
+        onFinished()
+    }
+
+    val progress = animProgress.value
+    val yOffset = (-140 * progress).dp
+    val alpha = if (progress < 0.7f) 1f else (1f - (progress - 0.7f) / 0.3f).coerceIn(0f, 1f)
+    val scale = if (progress < 0.2f) (progress / 0.2f) * 1.4f else (1.4f - (progress - 0.2f) * 0.4f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 120.dp)
+            .offset(y = yOffset)
+            .graphicsLayer {
+                this.alpha = alpha
+                this.scaleX = scale
+                this.scaleY = scale
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = emoji, fontSize = 34.sp)
     }
 }

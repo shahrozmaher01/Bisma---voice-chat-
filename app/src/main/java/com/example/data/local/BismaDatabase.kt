@@ -30,9 +30,10 @@ import com.example.data.model.*
         ReportEntity::class,
         AuditLogEntity::class,
         AdminLinkUser::class,
-        OfficialFrameAssignment::class
+        OfficialFrameAssignment::class,
+        FeedbackItem::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class BismaDatabase : RoomDatabase() {
@@ -56,6 +57,7 @@ abstract class BismaDatabase : RoomDatabase() {
     abstract fun auditLogDao(): AuditLogDao
     abstract fun adminLinkUserDao(): AdminLinkUserDao
     abstract fun officialFrameDao(): OfficialFrameDao
+    abstract fun feedbackDao(): FeedbackDao
 
     companion object {
         @Volatile

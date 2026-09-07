@@ -605,6 +605,124 @@ class AdminSecurityManager(private val db: BismaDatabase) {
     }
 
     /**
+     * Official Panel 2 Direct Authentication:
+     * Credentials required:
+     * - Username: Maz
+     * - ID: 41387
+     * - Password: 30484
+     * Only authorized users of Official Panel 2 can access this panel.
+     */
+    suspend fun authenticateOfficialPanel2(
+        usernameInput: String?,
+        idInput: String?,
+        passwordRaw: String,
+        clientIp: String = "127.0.0.1"
+    ): Result<AdminSession> = withContext(Dispatchers.IO) {
+        val u = usernameInput?.trim() ?: ""
+        val id = idInput?.trim() ?: ""
+        val pwd = passwordRaw.trim()
+
+        if (pwd.isBlank() || (u.isBlank() && id.isBlank())) {
+            return@withContext Result.failure(Exception("Username, ID, and Password are required."))
+        }
+
+        // Must match Username: Maz, ID: 41387, Password: 30484
+        val isUsernameValid = u.isBlank() || u.equals("Maz", ignoreCase = true)
+        val isIdValid = id.isBlank() || id == "41387"
+        val hasCorrectIdentifier = (u.equals("Maz", ignoreCase = true) || id == "41387") && isUsernameValid && isIdValid
+        val isPwdValid = pwd == "30484"
+
+        if (!hasCorrectIdentifier || !isPwdValid) {
+            logAction(
+                adminId = if (id.isNotBlank()) id else "41387",
+                adminName = if (u.isNotBlank()) u else "Maz",
+                adminRole = "OFFICIAL_PANEL_2",
+                action = "OFFICIAL_PANEL_2_LOGIN_FAILED",
+                targetType = "Auth",
+                targetId = id,
+                targetName = u,
+                previousValue = null,
+                newValue = "Failed login attempt to Official Panel 2 with username='$u', id='$id'",
+                isSuccess = false,
+                ipAddress = clientIp
+            )
+            return@withContext Result.failure(Exception("Invalid Username, ID, or Password. Access denied."))
+        }
+
+        // Ensure user "41387" (Maz) exists in database as an authorized official administrator
+        var user = db.userDao().getUserById("41387")
+        if (user == null) {
+            user = com.example.data.model.User(
+                id = "41387",
+                username = "Maz",
+                avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+                gender = "Male",
+                dateOfBirth = "1998-05-15",
+                passwordHash = hashPassword("30484"),
+                email = "maz.41387@bismalive.com",
+                bio = "Official Panel 2 Super Administrator",
+                country = "🇵🇰 Pakistan",
+                userLevel = 99,
+                richLevel = 10,
+                charmLevel = 10,
+                vipLevel = 9,
+                coins = 1000000,
+                diamonds = 500000,
+                followersCount = 1000,
+                followingCount = 10,
+                friendsCount = 50,
+                equippedFrameId = "frame_super_admin"
+            )
+            db.userDao().insertOrUpdate(user)
+        }
+
+        val tokenBytes = ByteArray(32)
+        secureRandom.nextBytes(tokenBytes)
+        val sessionToken = tokenBytes.joinToString("") { "%02x".format(it) }
+
+        val session = AdminSession(
+            token = sessionToken,
+            userId = "41387",
+            username = "Maz",
+            role = AdminRole.SUPER_ADMIN,
+            permissions = AdminPermissions.DEFAULT_ROLE_PERMISSIONS[AdminRole.SUPER_ADMIN] ?: emptyList(),
+            panelName = "Official Panel 2",
+            mobileNumber = "",
+            createdAt = System.currentTimeMillis(),
+            expiresAt = System.currentTimeMillis() + (24 * 60 * 60 * 1000)
+        )
+
+        activeSessions[sessionToken] = session
+
+        logAction(
+            adminId = "41387",
+            adminName = "Maz",
+            adminRole = "SUPER_ADMIN",
+            action = "OFFICIAL_PANEL_2_LOGIN_SUCCESS",
+            targetType = "AdminSession",
+            targetId = sessionToken.take(8),
+            targetName = "Maz",
+            previousValue = null,
+            newValue = "Official Panel 2 Authentication Successful -> Session Opened",
+            isSuccess = true,
+            ipAddress = clientIp
+        )
+
+        Result.success(session)
+    }
+
+    /**
+     * Validates that a session exists and specifically belongs to Official Panel 2.
+     */
+    fun validateOfficialPanel2Session(token: String?): AdminSession? {
+        val session = validateSession(token) ?: return null
+        if (session.panelName != "Official Panel 2" || session.userId != "41387") {
+            return null
+        }
+        return session
+    }
+
+    /**
      * Sends WhatsApp OTP code to the verified mobile number:
      * - Validates international E.164 mobile number.
      * - Enforces 60s cooldown against duplicate requests.

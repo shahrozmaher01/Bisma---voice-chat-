@@ -116,10 +116,10 @@ fun SettingsScreen(
                             }
                             Divider(color = SurfaceCardBorder)
                             SettingLinkItem(icon = Icons.Default.Feedback, title = "Feedback & Customer Support", value = "24/7 Live") {
-                                Toast.makeText(context, "Support ticket created: support@bisma.app", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Support ticket created: support@auralive.app", Toast.LENGTH_SHORT).show()
                             }
                             Divider(color = SurfaceCardBorder)
-                            SettingLinkItem(icon = Icons.Default.Info, title = "About Bisma Voice Chat", value = "v1.0.0 (Build 2026)") { }
+                            SettingLinkItem(icon = Icons.Default.Info, title = "About AURA Live", value = "v1.0.0 (Build 2026)") { }
                         }
                     }
                 }
@@ -143,7 +143,7 @@ fun SettingsScreen(
                 onDismissRequest = { showLogoutDialog = false },
                 containerColor = SurfaceDark,
                 title = { Text("Confirm Log Out", color = TextPrimary, fontWeight = FontWeight.Bold) },
-                text = { Text("Are you sure you want to log out of Bisma Voice Chat?", color = TextSecondary) },
+                text = { Text("Are you sure you want to log out of AURA Live?", color = TextSecondary) },
                 confirmButton = {
                     TextButton(onClick = {
                         showLogoutDialog = false

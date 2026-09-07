@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -767,6 +770,15 @@ fun CreateMomentDialog(
     var content by remember { mutableStateOf("") }
     var imageUrl by remember { mutableStateOf("") }
 
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                imageUrl = uri.toString()
+            }
+        }
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SurfaceDark,
@@ -779,7 +791,7 @@ fun CreateMomentDialog(
                     value = content,
                     onValueChange = { content = it },
                     label = { Text("What's on your mind?", color = TextSecondary) },
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonPink,
                         unfocusedBorderColor = SurfaceCardBorder,
@@ -788,19 +800,52 @@ fun CreateMomentDialog(
                     )
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = { imageUrl = it },
-                    label = { Text("Image URL (Optional)", color = TextSecondary) },
+
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
-                    singleLine = true
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonPink),
+                        border = BorderStroke(1.dp, NeonPink),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Pick Image", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Gallery Photo", fontSize = 12.sp)
+                    }
+
+                    if (imageUrl.isNotBlank()) {
+                        TextButton(onClick = { imageUrl = "" }) {
+                            Text("Clear", color = DarkRed, fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                if (imageUrl.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(8.dp))
+                    ) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = "Selected Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
             }
         },
         confirmButton = {

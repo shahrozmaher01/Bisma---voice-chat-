@@ -418,3 +418,31 @@ data class OfficialFrameDef(
     val iconEmoji: String
 )
 
+@Entity(tableName = "feedbacks")
+data class FeedbackItem(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val userName: String,
+    val category: String, // "Problem", "Bug", "Suggestion", "Technical Issue"
+    val subject: String,
+    val message: String,
+    val status: String = "Open", // "Open", "Under Review", "Replied", "Resolved"
+    val officialReply: String? = null,
+    val repliedBy: String? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val repliedAt: Long? = null
+)
+
+data class AuraTask(
+    val id: String,
+    val title: String,
+    val description: String,
+    val rewardCoins: Long,
+    val rewardDiamonds: Long,
+    val targetCount: Int,
+    val currentCount: Int,
+    val isCompleted: Boolean,
+    val isClaimed: Boolean,
+    val iconEmoji: String
+)
+

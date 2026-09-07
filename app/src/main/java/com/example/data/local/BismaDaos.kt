@@ -75,8 +75,14 @@ interface UserDao {
 
 @Dao
 interface RoomDao {
-    @Query("SELECT * FROM rooms WHERE isActive = 1 ORDER BY onlineCount DESC, createdAt DESC")
+    @Query("SELECT * FROM rooms WHERE isActive = 1 ORDER BY (CASE WHEN onlineCount > 0 THEN 1 ELSE 0 END) DESC, onlineCount DESC, createdAt DESC")
     fun getAllActiveRoomsFlow(): Flow<List<VoiceRoom>>
+
+    @Query("SELECT * FROM rooms WHERE isActive = 1 AND onlineCount > 0 ORDER BY onlineCount DESC, createdAt DESC")
+    fun getLiveActiveRoomsFlow(): Flow<List<VoiceRoom>>
+
+    @Query("SELECT * FROM rooms WHERE ownerId = :ownerId LIMIT 1")
+    fun getOwnerRoomFlow(ownerId: String): Flow<VoiceRoom?>
 
     @Query("SELECT * FROM rooms WHERE id = :roomId LIMIT 1")
     fun getRoomByIdFlow(roomId: String): Flow<VoiceRoom?>
@@ -84,7 +90,7 @@ interface RoomDao {
     @Query("SELECT * FROM rooms WHERE id = :roomId LIMIT 1")
     suspend fun getRoomById(roomId: String): VoiceRoom?
 
-    @Query("SELECT * FROM rooms WHERE ownerId = :ownerId AND isActive = 1 LIMIT 1")
+    @Query("SELECT * FROM rooms WHERE ownerId = :ownerId LIMIT 1")
     suspend fun getRoomByOwnerId(ownerId: String): VoiceRoom?
 
     @Query("SELECT * FROM rooms WHERE isActive = 1 AND (title LIKE '%' || :query || '%' OR id = :query)")
@@ -137,6 +143,9 @@ interface ChatDao {
 interface MomentDao {
     @Query("SELECT * FROM moments ORDER BY timestamp DESC")
     fun getAllMomentsFlow(): Flow<List<MomentPost>>
+
+    @Query("SELECT * FROM moments WHERE authorId = :authorId ORDER BY timestamp DESC")
+    fun getUserMomentsFlow(authorId: String): Flow<List<MomentPost>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMoment(moment: MomentPost)
@@ -491,5 +500,20 @@ interface OfficialFrameDao {
 
     @Query("UPDATE official_frame_assignments SET status = 'Expired' WHERE id = :id")
     suspend fun markExpired(id: String)
+}
+
+@Dao
+interface FeedbackDao {
+    @Query("SELECT * FROM feedbacks WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getUserFeedbacksFlow(userId: String): kotlinx.coroutines.flow.Flow<List<FeedbackItem>>
+
+    @Query("SELECT * FROM feedbacks ORDER BY timestamp DESC")
+    fun getAllFeedbacksFlow(): kotlinx.coroutines.flow.Flow<List<FeedbackItem>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFeedback(item: FeedbackItem)
+
+    @Query("UPDATE feedbacks SET status = :status, officialReply = :reply, repliedBy = :repliedBy, repliedAt = :repliedAt WHERE id = :id")
+    suspend fun updateFeedbackReply(id: String, status: String, reply: String, repliedBy: String, repliedAt: Long)
 }
 

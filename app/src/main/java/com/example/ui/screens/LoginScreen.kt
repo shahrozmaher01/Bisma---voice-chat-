@@ -111,27 +111,27 @@ fun LoginScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(22.dp))
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(20.dp))
                             .border(
                                 BorderStroke(1.5.dp, Brush.sweepGradient(listOf(NeonPink, ElectricBlue, NeonPink))),
-                                RoundedCornerShape(22.dp)
+                                RoundedCornerShape(20.dp)
                             )
-                            .shadow(12.dp, RoundedCornerShape(22.dp), spotColor = NeonPink),
+                            .shadow(12.dp, RoundedCornerShape(20.dp), spotColor = NeonPink),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.bisma_logo),
-                            contentDescription = "Bisma Logo",
+                            painter = painterResource(id = R.drawable.ic_aura_logo),
+                            contentDescription = "AURA Live Logo",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "BISMA VOICE CHAT",
+                        text = "AURA LIVE",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
@@ -320,7 +320,7 @@ fun LoginScreen(
 
                             // Login Button
                             NeonButton(
-                                text = if (isLoading) "Logging In..." else "Login to Bisma",
+                                text = if (isLoading) "Logging In..." else "Login to AURA Live",
                                 onClick = {
                                     if (loginId.isBlank()) {
                                         Toast.makeText(context, "Please enter your ID Number", Toast.LENGTH_SHORT).show()

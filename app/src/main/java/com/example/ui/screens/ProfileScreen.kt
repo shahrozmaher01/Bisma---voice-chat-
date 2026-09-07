@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -73,6 +75,9 @@ fun ProfileScreen(
     var showInvitationRewardDialog by remember { mutableStateOf(false) }
     var showOfficialTasksDialog by remember { mutableStateOf(false) }
     var showBdCenterDialog by remember { mutableStateOf(false) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
+
+    val currentUserRole by repository.currentUserRole.collectAsState(initial = null)
 
     if (currentUser == null) {
         Box(
@@ -139,21 +144,26 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Admin Panel button (for official management)
-                    Surface(
-                        onClick = onOpenAdminPanel,
-                        shape = CircleShape,
-                        color = Color(0x33000000),
-                        border = BorderStroke(1.dp, GoldYellow.copy(alpha = 0.5f)),
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.AdminPanelSettings,
-                                contentDescription = "Admin",
-                                tint = GoldYellow,
-                                modifier = Modifier.size(17.dp)
-                            )
+                    val role = currentUserRole?.role?.uppercase() ?: ""
+                    val isAuthorizedAdmin = role in listOf("SUPER_ADMIN", "ADMIN", "ADMIN_LEADER", "MANAGER", "OFFICIAL") || user.id in listOf("41387", "10001", "88888")
+
+                    // Admin Panel button (only for authorized official management)
+                    if (isAuthorizedAdmin) {
+                        Surface(
+                            onClick = onOpenAdminPanel,
+                            shape = CircleShape,
+                            color = Color(0x33000000),
+                            border = BorderStroke(1.dp, GoldYellow.copy(alpha = 0.5f)),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.AdminPanelSettings,
+                                    contentDescription = "Admin",
+                                    tint = GoldYellow,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            }
                         }
                     }
 
@@ -813,7 +823,7 @@ fun ProfileScreen(
                             )
                             MeMenuDivider()
 
-                            // 6. Ezzo Task
+                            // 6. AURA Task
                             MeMenuItemWithBadge(
                                 badgeBgColor = Color(0x2610B981),
                                 badgeBorderColor = Color(0x6634D399),
@@ -825,28 +835,50 @@ fun ProfileScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
-                                title = "Ezzo Task",
-                                subtitle = "Complete tasks and get rewards",
+                                title = "AURA Task",
+                                subtitle = "Complete daily tasks & earn rewards",
                                 onClick = { showOfficialTasksDialog = true }
                             )
                             MeMenuDivider()
 
-                            // 7. BD Center
+                            // 7. Feedback & Support
                             MeMenuItemWithBadge(
-                                badgeBgColor = Color(0x337C3AED),
-                                badgeBorderColor = Color(0x668B5CF6),
+                                badgeBgColor = Color(0x2638BDF8),
+                                badgeBorderColor = Color(0x6638BDF8),
                                 iconContent = {
-                                    Text(
-                                        text = "BD",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color(0xFFDDD6FE)
+                                    Icon(
+                                        Icons.Default.Feedback,
+                                        contentDescription = null,
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 },
-                                title = "BD Center",
-                                subtitle = "BD information and management",
-                                onClick = { showBdCenterDialog = true }
+                                title = "Feedback & Support",
+                                subtitle = "Share suggestions or submit an issue",
+                                onClick = { showFeedbackDialog = true }
                             )
+
+                            // 8. BD Center (only for authorized BD / management)
+                            val userRoleUpper = currentUserRole?.role?.uppercase() ?: ""
+                            val isAuthorizedBd = userRoleUpper in listOf("BD", "BD_LEADER", "SUPER_ADMIN", "ADMIN", "MANAGER") || user.id in listOf("41387", "10001")
+                            if (isAuthorizedBd) {
+                                MeMenuDivider()
+                                MeMenuItemWithBadge(
+                                    badgeBgColor = Color(0x337C3AED),
+                                    badgeBorderColor = Color(0x668B5CF6),
+                                    iconContent = {
+                                        Text(
+                                            text = "BD",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFFDDD6FE)
+                                        )
+                                    },
+                                    title = "BD Center",
+                                    subtitle = "BD information and management",
+                                    onClick = { showBdCenterDialog = true }
+                                )
+                            }
                         }
                     }
                 }
@@ -923,18 +955,23 @@ fun ProfileScreen(
             )
         }
 
-        // 6. Official Task Dialog
+        // 6. AURA Task Dialog
         if (showOfficialTasksDialog) {
-            OfficialTasksDialog(
-                user = user,
-                onDismiss = { showOfficialTasksDialog = false },
-                onClaimTask = { rewardText ->
-                    Toast.makeText(context, "Task Reward Claimed: $rewardText ✨", Toast.LENGTH_SHORT).show()
-                }
+            AuraTasksDialog(
+                repository = repository,
+                onDismiss = { showOfficialTasksDialog = false }
             )
         }
 
-        // 7. BD Center Dialog
+        // 7. Feedback & Support Dialog
+        if (showFeedbackDialog) {
+            AuraFeedbackDialog(
+                repository = repository,
+                onDismiss = { showFeedbackDialog = false }
+            )
+        }
+
+        // 8. BD Center Dialog
         if (showBdCenterDialog) {
             BdCenterDialog(
                 user = user,
@@ -942,7 +979,7 @@ fun ProfileScreen(
             )
         }
 
-        // 8. Edit Profile Dialog
+        // 9. Edit Profile Dialog
         if (showEditProfileDialog) {
             EditProfileDialog(
                 user = user,
@@ -957,13 +994,13 @@ fun ProfileScreen(
             )
         }
 
-        // 9. Logout Confirmation Dialog
+        // 10. Logout Confirmation Dialog
         if (showLogoutConfirmDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutConfirmDialog = false },
                 containerColor = Color(0xFF161026),
                 title = { Text("Log Out Confirmation", color = Color.White, fontWeight = FontWeight.Bold) },
-                text = { Text("Are you sure you want to log out of your Official 1 account?", color = TextSecondary) },
+                text = { Text("Are you sure you want to log out of your account?", color = TextSecondary) },
                 confirmButton = {
                     TextButton(onClick = {
                         showLogoutConfirmDialog = false
@@ -1559,49 +1596,83 @@ fun AgencyInvitationRewardDialog(
 }
 
 @Composable
-fun OfficialTasksDialog(
-    user: User,
-    onDismiss: () -> Unit,
-    onClaimTask: (String) -> Unit
+fun AuraTasksDialog(
+    repository: BismaRepository,
+    onDismiss: () -> Unit
 ) {
-    val tasks = listOf(
-        Pair("Daily Check-in Login", "100 Gold Coins"),
-        Pair("Spend 15 mins in Voice Room", "300 Gold Coins"),
-        Pair("Send 5 Lucky Gifts", "50 Diamonds"),
-        Pair("Follow 3 new friends", "150 Gold Coins")
-    )
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var tasks by remember { mutableStateOf<List<com.example.data.model.AuraTask>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        tasks = repository.getAuraTasks()
+        isLoading = false
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF17102A),
         title = {
-            Text("🎁 Official Daily Tasks", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("✨ ", fontSize = 18.sp)
+                Text("AURA Daily Tasks", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                tasks.forEach { (taskName, reward) ->
-                    Surface(
-                        color = Color(0x22FFFFFF),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = NeonPink, modifier = Modifier.size(28.dp))
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    tasks.forEach { task ->
+                        Surface(
+                            color = Color(0x22FFFFFF),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (task.isCompleted && !task.isClaimed) NeonPink.copy(alpha = 0.5f) else Color(0x18FFFFFF)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column {
-                                Text(taskName, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Reward: $reward", color = GoldYellow, fontSize = 10.sp)
-                            }
-                            Button(
-                                onClick = { onClaimTask(reward) },
-                                shape = RoundedCornerShape(6.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                modifier = Modifier.height(26.dp)
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Claim", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(task.iconEmoji, fontSize = 20.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(task.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(task.description, color = TextSecondary, fontSize = 10.sp, maxLines = 1)
+                                        Text("+${task.rewardCoins} Coins • +${task.rewardDiamonds} Diamonds", color = GoldYellow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                if (task.isClaimed) {
+                                    Text("Claimed", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                } else if (task.isCompleted) {
+                                    Button(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                val res = repository.claimAuraTaskReward(task.id)
+                                                res.onSuccess { msg ->
+                                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                                    tasks = repository.getAuraTasks()
+                                                }.onFailure { err ->
+                                                    Toast.makeText(context, err.message ?: "Failed", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(6.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(26.dp)
+                                    ) {
+                                        Text("Claim", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Text("${task.currentCount}/${task.targetCount}", color = TextSecondary, fontSize = 11.sp)
+                                }
                             }
                         }
                     }
@@ -1611,6 +1682,120 @@ fun OfficialTasksDialog(
         confirmButton = {
             Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = Color(0x44FFFFFF))) {
                 Text("Done", color = Color.White)
+            }
+        }
+    )
+}
+
+@Composable
+fun AuraFeedbackDialog(
+    repository: BismaRepository,
+    onDismiss: () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var selectedCategory by remember { mutableStateOf("Audio & Voice") }
+    var subject by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    val categories = listOf("Audio & Voice", "Gifts & Coins", "Account & Login", "Bug Report", "Suggestion", "Other")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF17102A),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("💌 ", fontSize = 18.sp)
+                Text("AURA Feedback & Support", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "We are dedicated to making AURA Live the best voice chat app. Tell us what we can improve or report any issue:",
+                    color = TextSecondary,
+                    fontSize = 11.5.sp
+                )
+
+                Text("Category", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(categories) { cat ->
+                        FilterChip(
+                            selected = selectedCategory == cat,
+                            onClick = { selectedCategory = cat },
+                            label = { Text(cat, fontSize = 10.5.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonPink,
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0x22FFFFFF),
+                                labelColor = TextSecondary
+                            )
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = subject,
+                    onValueChange = { subject = it },
+                    label = { Text("Subject", color = TextSecondary, fontSize = 11.sp) },
+                    placeholder = { Text("Brief issue summary", color = TextMuted, fontSize = 11.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonPink,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    label = { Text("Details", color = TextSecondary, fontSize = 11.sp) },
+                    placeholder = { Text("Describe what happened or suggestions...", color = TextMuted, fontSize = 11.sp) },
+                    modifier = Modifier.fillMaxWidth().height(90.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonPink,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (subject.isBlank() || message.isBlank()) {
+                        Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    isSubmitting = true
+                    coroutineScope.launch {
+                        val result = repository.submitAuraFeedback(selectedCategory, subject, message)
+                        isSubmitting = false
+                        result.onSuccess {
+                            Toast.makeText(context, "Feedback received! Ticket #${it.id.take(6)} submitted 🚀", Toast.LENGTH_LONG).show()
+                            onDismiss()
+                        }.onFailure { err ->
+                            Toast.makeText(context, err.message ?: "Failed to submit", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                enabled = !isSubmitting
+            ) {
+                Text(if (isSubmitting) "Submitting..." else "Submit Feedback", color = Color.White, fontSize = 12.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextSecondary)
             }
         }
     )

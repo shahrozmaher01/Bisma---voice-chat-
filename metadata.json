@@ -1,6 +1,6 @@
 {
-  "name": "Bisma Voice Chat",
-  "description": "Premium real-time voice chat rooms, social moments, VIP levels, virtual gifts, agency and family social community.",
+  "name": "AURA Live",
+  "description": "AURA Live - The premier compact and professional real-time voice chat rooms, rankings, moments, and social live streaming platform.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

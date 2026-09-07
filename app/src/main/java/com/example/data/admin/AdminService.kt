@@ -902,8 +902,8 @@ class AdminService(
             OfficialFrameDef("frame_host", "Host", "HOST", "Official Star Audio Host Frame", "#FF2A85", "#FF80AB", "🎙️"),
             OfficialFrameDef("frame_coin_reseller", "Coin Reseller", "COIN RESELLER", "Certified Coin Merchant Frame", "#FFC107", "#FF9800", "🪙"),
             OfficialFrameDef("frame_super_coin_reseller", "Super Coin Reseller", "SUPER COIN RESELLER", "Master Gold Distributor Frame", "#FFD700", "#00E5FF", "💰"),
-            OfficialFrameDef("frame_cs", "C's", "C'S", "Customer Support Official Frame", "#00B0FF", "#651FFF", "⚡"),
-            OfficialFrameDef("frame_cs_leader", "C's Leader", "C'S LEADER", "Customer Support Leadership Frame", "#2979FF", "#00E5FF", "💠")
+            OfficialFrameDef("frame_cs", "CS", "CS", "Customer Support Official Frame", "#00B0FF", "#651FFF", "⚡"),
+            OfficialFrameDef("frame_cs_leader", "CS Leader", "CS LEADER", "Customer Support Leadership Frame", "#2979FF", "#00E5FF", "💠")
         )
 
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
@@ -1050,9 +1050,9 @@ class AdminService(
         days: Int,
         clientIp: String
     ): Result<JSONObject> = withContext(Dispatchers.IO) {
-        // Rule: Only authorized Official 1 administrators can send important frames
+        // Rule: Only authorized administrators can send important frames
         if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
-            return@withContext Result.failure(Exception("Access Denied: Only authorized Official 1 administrators can send official frames."))
+            return@withContext Result.failure(Exception("Access Denied: Only authorized administrators can send official frames."))
         }
 
         val trimmedUserId = userId.trim()
@@ -1130,7 +1130,7 @@ class AdminService(
             expiryDate = expiry,
             status = "Active",
             adminId = session.userId,
-            adminName = session.username,
+            adminName = if (session.panelName == "Official Panel 2") "Maz (Official Panel 2)" else session.username,
             sendDateFormatted = sendDateFmt,
             expiryDateFormatted = expiryDateFmt
         )
@@ -1164,7 +1164,7 @@ class AdminService(
                     id = UUID.randomUUID().toString(),
                     userId = trimmedUserId,
                     title = "Official Frame Granted 👑",
-                    message = "Official 1 Administration has assigned you the '${frameDef.name}' frame for $days days! It has been equipped to your profile.",
+                    message = "${session.panelName} Administration has assigned you the '${frameDef.name}' frame for $days days! It has been equipped to your profile.",
                     timestamp = now,
                     type = "system"
                 )
@@ -1195,7 +1195,7 @@ class AdminService(
         clientIp: String
     ): Result<Boolean> = withContext(Dispatchers.IO) {
         if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
-            return@withContext Result.failure(Exception("Access Denied: Only authorized Official 1 administrators can revoke frames."))
+            return@withContext Result.failure(Exception("Access Denied: Only authorized administrators can revoke frames."))
         }
 
         val assignment = db.officialFrameDao().getAssignmentById(assignmentId)

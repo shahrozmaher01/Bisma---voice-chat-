@@ -231,12 +231,44 @@ class BismaRepository(private val context: Context) {
         isLocked: Boolean,
         password: String
     ): String {
+        return createOrGetRoom(title, description, coverUrl, seatCount, country, category, isLocked, password)
+    }
+
+    suspend fun createOrGetRoom(
+        title: String,
+        description: String,
+        coverUrl: String,
+        seatCount: Int,
+        country: String,
+        category: String,
+        isLocked: Boolean,
+        password: String
+    ): String {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return ""
+        val existingRoom = db.roomDao().getRoomByOwnerId(user.id)
+        if (existingRoom != null) {
+            val updated = existingRoom.copy(
+                title = title.ifBlank { existingRoom.title },
+                description = description.ifBlank { existingRoom.description },
+                coverUrl = coverUrl.ifBlank { existingRoom.coverUrl },
+                seatCount = seatCount,
+                country = country,
+                category = category,
+                isLocked = isLocked,
+                password = password,
+                isActive = true,
+                onlineCount = 1
+            )
+            db.roomDao().insertOrUpdate(updated)
+            _activeRoomId.value = updated.id
+            return updated.id
+        }
+
         val newRoomId = (Random.nextInt(100000, 999999)).toString()
         val room = VoiceRoom(
             id = newRoomId,
-            title = title.ifBlank { "${user.username}'s Party Room" },
-            description = description.ifBlank { "Welcome to our live voice chat!" },
+            title = title.ifBlank { "${user.username}'s Voice Room" },
+            description = description.ifBlank { "Welcome to AURA Live voice chat!" },
             coverUrl = coverUrl.ifBlank { "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400" },
             ownerId = user.id,
             ownerName = user.username,
@@ -255,6 +287,10 @@ class BismaRepository(private val context: Context) {
         return newRoomId
     }
 
+    fun getMyCreatedRoomFlow(): Flow<VoiceRoom?> = _currentUserId.flatMapLatest { uid ->
+        db.roomDao().getOwnerRoomFlow(uid)
+    }
+
     fun getSeatsForRoom(roomId: String): Flow<List<RoomSeat>> {
         return db.seatDao().getSeatsForRoomFlow(roomId)
     }
@@ -269,7 +305,7 @@ class BismaRepository(private val context: Context) {
         rooms.forEach { room ->
             val seats = db.seatDao().getSeatsForRoomFlow(room.id).firstOrNull() ?: emptyList()
             val activeOccupants = seats.count { it.userId != null }
-            val realCount = if (activeOccupants > 0) activeOccupants else 1
+            val realCount = if (activeOccupants > 0) activeOccupants else 0
             db.roomDao().updateOnlineCount(room.id, realCount)
         }
     }
@@ -322,6 +358,19 @@ class BismaRepository(private val context: Context) {
 
     suspend fun takeSeat(roomId: String, seatIndex: Int) {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return
+        val currentSeats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+
+        // Strict 1 Seat per user rule: Clear any other seat occupied by this user in this room
+        currentSeats.filter { it.userId == user.id && it.seatIndex != seatIndex }.forEach { oldSeat ->
+            db.seatDao().updateSeat(oldSeat.copy(userId = null, username = null, avatarUrl = null, isSpeaking = false))
+        }
+
+        val targetSeat = currentSeats.find { it.seatIndex == seatIndex }
+        if (targetSeat != null && targetSeat.userId != null && targetSeat.userId != user.id) {
+            // Seat is already occupied by someone else
+            return
+        }
+
         val updatedSeat = RoomSeat(
             roomId = roomId,
             seatIndex = seatIndex,
@@ -335,6 +384,11 @@ class BismaRepository(private val context: Context) {
             isSpeaking = false
         )
         db.seatDao().updateSeat(updatedSeat)
+
+        // Sync room online user count
+        val refreshedSeats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        val count = refreshedSeats.count { it.userId != null }.coerceAtLeast(1)
+        db.roomDao().updateOnlineCount(roomId, count)
     }
 
     suspend fun leaveSeat(roomId: String, seatIndex: Int) {
@@ -343,9 +397,113 @@ class BismaRepository(private val context: Context) {
             seatIndex = seatIndex,
             userId = null,
             username = null,
-            avatarUrl = null
+            avatarUrl = null,
+            isSpeaking = false
         )
         db.seatDao().updateSeat(seat)
+    }
+
+    // Feedback Management
+    fun getUserFeedbacksFlow(userId: String): Flow<List<FeedbackItem>> = db.feedbackDao().getUserFeedbacksFlow(userId)
+
+    suspend fun submitAuraFeedback(category: String, subject: String, message: String): Result<FeedbackItem> = withContext(Dispatchers.IO) {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return@withContext Result.failure(Exception("Not logged in"))
+        val feedback = FeedbackItem(
+            id = UUID.randomUUID().toString(),
+            userId = user.id,
+            userName = user.username,
+            category = category,
+            subject = subject.trim(),
+            message = message.trim(),
+            status = "Open",
+            officialReply = null,
+            timestamp = System.currentTimeMillis()
+        )
+        db.feedbackDao().insertFeedback(feedback)
+        Result.success(feedback)
+    }
+
+    // AURA Task Operations
+    suspend fun getAuraTasks(): List<AuraTask> = withContext(Dispatchers.IO) {
+        val userId = _currentUserId.value
+        val user = db.userDao().getUserById(userId) ?: return@withContext emptyList()
+        val followingCount = db.socialDao().getFollowingCountFlow(userId).firstOrNull() ?: 0
+        val moments = db.momentDao().getUserMomentsFlow(userId).firstOrNull() ?: emptyList()
+        val walletTx = db.walletTransactionDao().getTransactionsFlow(userId).firstOrNull() ?: emptyList()
+        val giftsSent = walletTx.count { it.description.contains("Sent Gift", ignoreCase = true) }
+
+        val p = prefs
+        listOf(
+            AuraTask(
+                id = "task_follow_creator",
+                title = "Follow a Voice Creator",
+                description = "Follow at least 1 host or room creator on AURA Live",
+                rewardCoins = 100,
+                rewardDiamonds = 5,
+                targetCount = 1,
+                currentCount = followingCount.coerceAtMost(1),
+                isCompleted = followingCount >= 1,
+                isClaimed = p.getBoolean("TASK_CLAIMED_follow", false),
+                iconEmoji = "👥"
+            ),
+            AuraTask(
+                id = "task_post_moment",
+                title = "Publish Your First Moment",
+                description = "Share a photo and story with the AURA community",
+                rewardCoins = 150,
+                rewardDiamonds = 10,
+                targetCount = 1,
+                currentCount = moments.size.coerceAtMost(1),
+                isCompleted = moments.isNotEmpty(),
+                isClaimed = p.getBoolean("TASK_CLAIMED_moment", false),
+                iconEmoji = "📸"
+            ),
+            AuraTask(
+                id = "task_send_gift",
+                title = "Send a Voice Room Gift",
+                description = "Support a speaker by sending a gift in any active voice room",
+                rewardCoins = 200,
+                rewardDiamonds = 15,
+                targetCount = 1,
+                currentCount = giftsSent.coerceAtMost(1),
+                isCompleted = giftsSent >= 1,
+                isClaimed = p.getBoolean("TASK_CLAIMED_gift", false),
+                iconEmoji = "🎁"
+            ),
+            AuraTask(
+                id = "task_active_voice",
+                title = "Active Voice Participant",
+                description = "Send 3 gifts or participate in voice room interactions",
+                rewardCoins = 500,
+                rewardDiamonds = 25,
+                targetCount = 3,
+                currentCount = giftsSent.coerceAtMost(3),
+                isCompleted = giftsSent >= 3,
+                isClaimed = p.getBoolean("TASK_CLAIMED_active", false),
+                iconEmoji = "🎙️"
+            )
+        )
+    }
+
+    suspend fun claimAuraTaskReward(taskId: String): Result<String> = withContext(Dispatchers.IO) {
+        val tasks = getAuraTasks()
+        val task = tasks.find { it.id == taskId } ?: return@withContext Result.failure(Exception("Task not found"))
+        if (!task.isCompleted) {
+            return@withContext Result.failure(Exception("Task requirement not completed yet!"))
+        }
+        if (task.isClaimed) {
+            return@withContext Result.failure(Exception("Task reward already claimed."))
+        }
+
+        val key = when (taskId) {
+            "task_follow_creator" -> "TASK_CLAIMED_follow"
+            "task_post_moment" -> "TASK_CLAIMED_moment"
+            "task_send_gift" -> "TASK_CLAIMED_gift"
+            else -> "TASK_CLAIMED_active"
+        }
+        prefs.edit().putBoolean(key, true).apply()
+        db.userDao().updateBalance(_currentUserId.value, task.rewardCoins, task.rewardDiamonds)
+        Result.success("Claimed ${task.rewardCoins} Coins & ${task.rewardDiamonds} Diamonds! 🎉")
     }
 
     suspend fun toggleMic(roomId: String, seatIndex: Int, isMuted: Boolean) {

@@ -135,8 +135,8 @@ fun HomeScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Stylish Header (Logo + "Bisma" with Green Dot, "Voice Chat", Search, Notifications with Red Dot, + Room)
-            BismaCompactHeader(
+            // Stylish Header (Logo + "AURA Live" with Green Dot, "Voice Chat", Search, Notifications with Red Dot, + Room)
+            AuraCompactHeader(
                 totalListeners = totalActiveListeners,
                 onSearchClick = { showSearchDialog = true },
                 onNotificationClick = onOpenNotifications,
@@ -276,7 +276,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun BismaCompactHeader(
+fun AuraCompactHeader(
     totalListeners: Int,
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
@@ -289,41 +289,25 @@ fun BismaCompactHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Combined App Icon + "Bisma 🟢" Title + "Voice Chat"
+        // Combined App Icon + "AURA Live 🟢" Title + "Voice Chat"
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(13.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = Color(0xFF1E1038),
                 border = BorderStroke(
                     1.5.dp,
                     Brush.linearGradient(listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF)))
                 ),
-                modifier = Modifier.size(42.dp)
+                modifier = Modifier.size(40.dp)
             ) {
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.ic_aura_logo),
+                    contentDescription = "AURA Live",
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Microphone with neon crown
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "👑",
-                            fontSize = 9.sp,
-                            lineHeight = 10.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Bisma Voice",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -333,8 +317,8 @@ fun BismaCompactHeader(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Bisma",
-                        fontSize = 21.sp,
+                        text = "AURA Live",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         letterSpacing = 0.3.sp
@@ -446,10 +430,10 @@ fun BismaCompactHeader(
 @Composable
 fun HomeWelcomeBanner() {
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = Color(0xFF100826),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF130924),
         border = BorderStroke(
-            1.2.dp,
+            1.dp,
             Brush.horizontalGradient(
                 listOf(
                     Color(0xFFFF2A85),
@@ -460,15 +444,48 @@ fun HomeWelcomeBanner() {
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .height(126.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .height(96.dp)
+            .clip(RoundedCornerShape(16.dp))
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.home_welcome_banner),
-            contentDescription = "Welcome to Bisma Voice Chat",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "AURA Live Party ✨",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = "Meet global voices, play games & share moments",
+                    color = Color(0xFFC7BFD9),
+                    fontSize = 11.sp,
+                    maxLines = 2
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF1E1038),
+                border = BorderStroke(1.dp, Color(0x66FF2A85)),
+                modifier = Modifier.size(54.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_aura_logo),
+                    contentDescription = "AURA Live",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
     }
 }
 
@@ -1438,7 +1455,7 @@ fun SearchDialog(
         onDismissRequest = onDismiss,
         containerColor = SurfaceDark,
         title = {
-            Text("Search Bisma", color = TextPrimary, fontWeight = FontWeight.Bold)
+            Text("Search AURA Live", color = TextPrimary, fontWeight = FontWeight.Bold)
         },
         text = {
             Column(
