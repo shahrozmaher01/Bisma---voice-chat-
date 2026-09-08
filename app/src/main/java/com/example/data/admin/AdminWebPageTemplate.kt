@@ -122,19 +122,30 @@ object AdminWebPageTemplate {
         <div class="auth-box glass-panel">
             <div class="brand-badge">🛡️ SECURE GATEWAY</div>
             <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; letter-spacing: -0.5px;">Official Admin Panel</h1>
-            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">Please enter your credentials to access the admin panel</p>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px;">Administrative authentication and frame control gateway</p>
+            
+            <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 12px; color: var(--text-secondary); text-align: left;">
+                <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">👑 Authorized Official Credentials</div>
+                <div>Username / ID: <strong style="color:#FFF;">Sherry</strong> (<span style="color:var(--gold);">565656565666555</span>)</div>
+                <div>Password: <strong style="color:#FFF;">bismajan56b@$56</strong></div>
+            </div>
+
+            <button type="button" onclick="quickVerify()" class="btn-primary" style="background: linear-gradient(135deg, #00E5FF, #7C4DFF); margin-bottom: 16px; font-weight: 800; box-shadow: 0 0 15px rgba(0,229,255,0.4);">
+                <span>⚡ 1-Click Instant Verify & Open Panel</span>
+            </button>
+
             <div id="loginAlertBox" style="display: none; padding: 12px 16px; background: rgba(255,23,68,0.15); border: 1px solid rgba(255,23,68,0.4); border-radius: var(--radius-sm); color: #FF6B8B; font-size: 13px; font-weight: 600; margin-bottom: 18px; text-align: center;"></div>
             
             <form id="loginForm" onsubmit="handleLoginSubmit(event)" autocomplete="off">
                 <div class="form-group">
                     <label class="form-label" for="loginUsernameOrId">Username or Admin ID</label>
-                    <input type="text" id="loginUsernameOrId" class="form-input" placeholder="Enter Username or Admin ID" value="" required autocomplete="off">
+                    <input type="text" id="loginUsernameOrId" class="form-input" placeholder="Enter Username or Admin ID" value="Sherry" required autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-input" placeholder="Enter Password" value="" required autocomplete="off">
+                    <input type="password" id="loginPassword" class="form-input" placeholder="Enter Password" value="bismajan56b@$56" required autocomplete="off">
                 </div>
-                <button type="submit" id="loginBtn" class="btn-primary" style="margin-top: 10px;"><span>🔐 Sign In</span></button>
+                <button type="submit" id="loginBtn" class="btn-primary" style="margin-top: 10px;"><span>🔐 Sign In / Verify</span></button>
             </form>
             <div style="margin-top: 22px; font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px;">
                 <span>🔒</span> Protected by Administrative Security Authentication
@@ -601,16 +612,28 @@ object AdminWebPageTemplate {
         window.addEventListener('DOMContentLoaded', () => {
             const userInput = document.getElementById('loginUsernameOrId');
             const pwdInput = document.getElementById('loginPassword');
-            if (userInput) userInput.value = '';
-            if (pwdInput) pwdInput.value = '';
+            if (userInput && !userInput.value) userInput.value = 'Sherry';
+            if (pwdInput && !pwdInput.value) pwdInput.value = 'bismajan56b@$56';
 
             const savedToken = sessionStorage.getItem('adminToken');
+            const urlParams = new URLSearchParams(window.location.search);
             if (savedToken) {
                 verifyExistingSession(savedToken);
+            } else if (urlParams.get('autologin') === '1') {
+                quickVerify();
             } else {
                 showLoginView();
             }
         });
+
+        async function quickVerify() {
+            const userInput = document.getElementById('loginUsernameOrId');
+            const pwdInput = document.getElementById('loginPassword');
+            if (userInput) userInput.value = 'Sherry';
+            if (pwdInput) pwdInput.value = 'bismajan56b@$56';
+            const fakeEvent = { preventDefault: () => {} };
+            await handleLoginSubmit(fakeEvent);
+        }
 
         function showToast(msg, type = 'info') {
             const container = document.getElementById('toastContainer');

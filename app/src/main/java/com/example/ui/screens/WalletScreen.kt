@@ -64,15 +64,16 @@ fun WalletScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "My Wallet & Balance",
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -82,49 +83,49 @@ fun WalletScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(
                         Brush.horizontalGradient(
                             listOf(Color(0xFF4A154B), Color(0xFF2A0845), Color(0xFF0F041A))
                         )
                     )
-                    .border(1.5.dp, GoldAmber.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                    .padding(18.dp)
+                    .border(1.2.dp, GoldAmber.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                    .padding(14.dp)
             ) {
                 Column {
-                    Text("Total Assets", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Total Assets", color = TextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🪙", fontSize = 26.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("🪙", fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = "${currentUser?.coins ?: 0}",
-                                    fontSize = 24.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Black,
                                     color = GoldYellow
                                 )
                             }
-                            Text("Gold Coins Balance", color = TextSecondary, fontSize = 11.sp)
+                            Text("Gold Coins Balance", color = TextSecondary, fontSize = 10.sp)
                         }
 
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("💎", fontSize = 26.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("💎", fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = "${currentUser?.diamonds ?: 0}",
-                                    fontSize = 24.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Black,
                                     color = BrightCyan
                                 )
                             }
-                            Text("Diamonds Earned", color = TextSecondary, fontSize = 11.sp)
+                            Text("Diamonds Earned", color = TextSecondary, fontSize = 10.sp)
                         }
                     }
                 }
@@ -134,23 +135,23 @@ fun WalletScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 FilterChip(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    label = { Text("🪙 Recharge Coins") }
+                    label = { Text("🪙 Recharge", fontSize = 11.5.sp) }
                 )
                 FilterChip(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    label = { Text("💎 Exchange") }
+                    label = { Text("💎 Exchange", fontSize = 11.5.sp) }
                 )
                 FilterChip(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    label = { Text("📜 History") }
+                    label = { Text("📜 History", fontSize = 11.5.sp) }
                 )
             }
 
@@ -174,11 +175,11 @@ fun WalletScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("🪙", fontSize = 28.sp)
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text("🪙", fontSize = 22.sp)
+                                        Spacer(modifier = Modifier.width(10.dp))
                                         Column {
-                                            Text(text = "$coins Gold Coins", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                            Text(text = "Instant credit to Bisma Account", color = TextSecondary, fontSize = 10.sp)
+                                            Text(text = "$coins Gold Coins", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Text(text = "Instant credit to Bisma Account", color = TextSecondary, fontSize = 9.5.sp)
                                         }
                                     }
 
@@ -190,9 +191,11 @@ fun WalletScreen(
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = GoldAmber),
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(34.dp)
                                     ) {
-                                        Text(text = price, color = Color.Black, fontWeight = FontWeight.Black)
+                                        Text(text = price, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
                                     }
                                 }
                             }

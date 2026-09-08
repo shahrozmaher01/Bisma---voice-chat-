@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -144,26 +145,23 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val role = currentUserRole?.role?.uppercase() ?: ""
-                    val isAuthorizedAdmin = role in listOf("SUPER_ADMIN", "ADMIN", "ADMIN_LEADER", "MANAGER", "OFFICIAL") || user.id in listOf("41387", "10001", "88888")
-
-                    // Admin Panel button (only for authorized official management)
-                    if (isAuthorizedAdmin) {
-                        Surface(
-                            onClick = onOpenAdminPanel,
-                            shape = CircleShape,
-                            color = Color(0x33000000),
-                            border = BorderStroke(1.dp, GoldYellow.copy(alpha = 0.5f)),
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.AdminPanelSettings,
-                                    contentDescription = "Admin",
-                                    tint = GoldYellow,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            }
+                    // Official Admin Panel button (always accessible)
+                    Surface(
+                        onClick = onOpenAdminPanel,
+                        shape = CircleShape,
+                        color = Color(0x4000E5FF),
+                        border = BorderStroke(1.dp, Color(0xFF00E5FF)),
+                        modifier = Modifier
+                            .size(34.dp)
+                            .testTag("open_admin_panel_top_btn")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.AdminPanelSettings,
+                                contentDescription = "Admin Panel",
+                                tint = Color(0xFF00E5FF),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -202,13 +200,13 @@ fun ProfileScreen(
                         ) {
                             // Avatar with glowing neon sweep gradient ring & edit pencil badge
                             Box(
-                                modifier = Modifier.size(80.dp),
+                                modifier = Modifier.size(68.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 // Outer Neon Gradient Ring (Pink to Cyan)
                                 Box(
                                     modifier = Modifier
-                                        .size(76.dp)
+                                        .size(64.dp)
                                         .clip(CircleShape)
                                         .background(
                                             Brush.sweepGradient(
@@ -220,7 +218,7 @@ fun ProfileScreen(
                                                 )
                                             )
                                         )
-                                        .padding(2.5.dp)
+                                        .padding(2.dp)
                                         .clip(CircleShape)
                                         .background(Color(0xFF13082B)),
                                     contentAlignment = Alignment.Center
@@ -242,12 +240,12 @@ fun ProfileScreen(
                                         ) {
                                             Text(
                                                 text = "👑",
-                                                fontSize = 11.sp,
-                                                lineHeight = 12.sp
+                                                fontSize = 10.sp,
+                                                lineHeight = 11.sp
                                             )
                                             Text(
                                                 text = "BFF",
-                                                fontSize = 16.sp,
+                                                fontSize = 14.sp,
                                                 fontWeight = FontWeight.Black,
                                                 color = Color.White
                                             )
@@ -260,9 +258,9 @@ fun ProfileScreen(
                                     onClick = { showEditProfileDialog = true },
                                     shape = CircleShape,
                                     color = Color(0xFF140B2D),
-                                    border = BorderStroke(1.5.dp, Color(0xFF00E5FF)),
+                                    border = BorderStroke(1.2.dp, Color(0xFF00E5FF)),
                                     modifier = Modifier
-                                        .size(24.dp)
+                                        .size(20.dp)
                                         .align(Alignment.BottomEnd)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -270,13 +268,13 @@ fun ProfileScreen(
                                             Icons.Default.Edit,
                                             contentDescription = "Edit Avatar",
                                             tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
+                                            modifier = Modifier.size(10.dp)
                                         )
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
 
                             // Name, Badges & ID Column
                             Column(modifier = Modifier.weight(1f)) {
@@ -287,18 +285,18 @@ fun ProfileScreen(
                                 ) {
                                     Text(
                                         text = user.username.ifBlank { "bawafa log" },
-                                        fontSize = 19.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Icon(
                                         Icons.Default.Edit,
                                         contentDescription = "Edit Profile",
                                         tint = Color.White.copy(alpha = 0.85f),
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(13.dp)
                                     )
                                 }
 
@@ -576,10 +574,10 @@ fun ProfileScreen(
                 // Section 2: VIP Privilege Banner Card
                 item {
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = Color(0xFF1F0D36),
                         border = BorderStroke(
-                            1.2.dp,
+                            1.dp,
                             Brush.horizontalGradient(
                                 listOf(
                                     Color(0xFFFFD700),
@@ -596,42 +594,42 @@ fun ProfileScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("👑", fontSize = 28.sp)
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("👑", fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Join VIP and enjoy privileges",
                                     color = Color.White,
-                                    fontSize = 13.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
 
                             // Golden pill purchase button
                             Surface(
-                                shape = RoundedCornerShape(20.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = Color.Transparent,
                                 modifier = Modifier
                                     .background(
                                         Brush.horizontalGradient(
                                             listOf(Color(0xFFFF9100), Color(0xFFFF3D00))
                                         ),
-                                        RoundedCornerShape(20.dp)
+                                        RoundedCornerShape(16.dp)
                                     )
                                     .clickable { showVipDialog = true }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("👑", fontSize = 11.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("👑", fontSize = 10.sp)
+                                    Spacer(modifier = Modifier.width(3.dp))
                                     Text(
                                         text = "Purchase >",
                                         color = Color.White,
-                                        fontSize = 11.5.sp,
+                                        fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -857,6 +855,24 @@ fun ProfileScreen(
                                 subtitle = "Share suggestions or submit an issue",
                                 onClick = { showFeedbackDialog = true }
                             )
+                            MeMenuDivider()
+
+                            // 8. Official Admin Panel
+                            MeMenuItemWithBadge(
+                                badgeBgColor = Color(0x3300E5FF),
+                                badgeBorderColor = Color(0x6600E5FF),
+                                iconContent = {
+                                    Icon(
+                                        Icons.Default.AdminPanelSettings,
+                                        contentDescription = "Official Admin Panel",
+                                        tint = Color(0xFF00E5FF),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                },
+                                title = "Official Admin Panel",
+                                subtitle = "Official 1 & 2 Frame & System Portals",
+                                onClick = onOpenAdminPanel
+                            )
 
                             // 8. BD Center (only for authorized BD / management)
                             val userRoleUpper = currentUserRole?.role?.uppercase() ?: ""
@@ -1034,20 +1050,20 @@ fun MeStatItem(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
         icon()
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = "$count",
-            fontSize = 17.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
         Spacer(modifier = Modifier.height(1.dp))
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             color = Color(0xFF9E94B8)
         )
     }
@@ -1063,21 +1079,21 @@ fun MeQuickActionCard(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = Color(0x66100826),
         border = BorderStroke(1.dp, Color(0x33442E6B)),
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable { onClick() }
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 12.dp, bottom = 10.dp, start = 4.dp, end = 4.dp)
+            modifier = Modifier.padding(top = 10.dp, bottom = 8.dp, start = 2.dp, end = 2.dp)
         ) {
             // Icon with glowing background circle
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
                     .background(glowColor.copy(alpha = 0.18f))
                     .border(1.dp, glowColor.copy(alpha = 0.45f), CircleShape),
@@ -1086,7 +1102,7 @@ fun MeQuickActionCard(
                 iconContent()
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1094,7 +1110,7 @@ fun MeQuickActionCard(
             ) {
                 Text(
                     text = title,
-                    fontSize = 11.5.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -1103,18 +1119,18 @@ fun MeQuickActionCard(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.size(9.dp)
+                    modifier = Modifier.size(8.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             // Glowing indicator bar under "My Level" matching the screenshot
             if (hasActiveIndicator) {
                 Box(
                     modifier = Modifier
-                        .width(36.dp)
-                        .height(3.dp)
+                        .width(30.dp)
+                        .height(2.5.dp)
                         .clip(RoundedCornerShape(1.5.dp))
                         .background(
                             Brush.horizontalGradient(
@@ -1123,7 +1139,7 @@ fun MeQuickActionCard(
                         )
                 )
             } else {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.5.dp))
             }
         }
     }
@@ -1142,7 +1158,7 @@ fun MeMenuItemWithBadge(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+            .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1155,7 +1171,7 @@ fun MeMenuItemWithBadge(
                 shape = CircleShape,
                 color = badgeBgColor,
                 border = BorderStroke(1.dp, badgeBorderColor),
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(32.dp)
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -1165,19 +1181,19 @@ fun MeMenuItemWithBadge(
                 }
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Column {
                 Text(
                     text = title,
-                    fontSize = 13.5.sp,
+                    fontSize = 12.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = subtitle,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     color = Color(0xFF8E88A8)
                 )
             }
@@ -1187,7 +1203,7 @@ fun MeMenuItemWithBadge(
             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = null,
             tint = Color(0x66FFFFFF),
-            modifier = Modifier.size(13.dp)
+            modifier = Modifier.size(12.dp)
         )
     }
 }

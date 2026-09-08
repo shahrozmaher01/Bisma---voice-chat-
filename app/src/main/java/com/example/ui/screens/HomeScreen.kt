@@ -285,7 +285,7 @@ fun AuraCompactHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -294,13 +294,13 @@ fun AuraCompactHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = Color(0xFF1E1038),
                 border = BorderStroke(
-                    1.5.dp,
+                    1.2.dp,
                     Brush.linearGradient(listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF)))
                 ),
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(34.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_aura_logo),
@@ -310,7 +310,7 @@ fun AuraCompactHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column {
                 Row(
@@ -318,23 +318,23 @@ fun AuraCompactHeader(
                 ) {
                     Text(
                         text = "AURA Live",
-                        fontSize = 20.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
-                        letterSpacing = 0.3.sp
+                        letterSpacing = 0.2.sp
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     // Online green dot
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
+                            .size(6.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF00E676))
                     )
                 }
                 Text(
                     text = "Voice Chat",
-                    fontSize = 12.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFB5ACCC)
                 )
@@ -344,13 +344,13 @@ fun AuraCompactHeader(
         // Header Actions: Search, Notifications (with red dot), + Room
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Search Button
             IconButton(
                 onClick = onSearchClick,
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
                     .background(Color(0x332E1D52))
                     .border(1.dp, Color(0x33FFFFFF), CircleShape)
@@ -359,13 +359,13 @@ fun AuraCompactHeader(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
                     tint = Color.White,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
 
             // Notifications Button with unread red badge
             Box(
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(34.dp)
             ) {
                 IconButton(
                     onClick = onNotificationClick,
@@ -379,14 +379,14 @@ fun AuraCompactHeader(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Notifications",
                         tint = Color.White,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
                 // Unread red dot in top-right corner
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(7.dp)
                         .align(Alignment.TopEnd)
                         .offset(x = 1.dp, y = (-1).dp)
                         .clip(CircleShape)
@@ -398,27 +398,27 @@ fun AuraCompactHeader(
             Button(
                 onClick = onCreateRoomClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                shape = RoundedCornerShape(19.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                shape = RoundedCornerShape(17.dp),
                 modifier = Modifier
-                    .height(38.dp)
+                    .height(34.dp)
                     .background(
                         Brush.horizontalGradient(
                             listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF))
                         ),
-                        RoundedCornerShape(19.dp)
+                        RoundedCornerShape(17.dp)
                     )
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Create Room",
                     tint = Color.White,
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(15.dp)
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = "Room",
-                    fontSize = 13.5.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -430,7 +430,7 @@ fun AuraCompactHeader(
 @Composable
 fun HomeWelcomeBanner() {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = Color(0xFF130924),
         border = BorderStroke(
             1.dp,
@@ -444,13 +444,13 @@ fun HomeWelcomeBanner() {
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(80.dp)
+            .clip(RoundedCornerShape(14.dp))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -459,29 +459,29 @@ fun HomeWelcomeBanner() {
                     text = "AURA Live Party ✨",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 13.5.sp
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Meet global voices, play games & share moments",
                     color = Color(0xFFC7BFD9),
-                    fontSize = 11.sp,
+                    fontSize = 10.5.sp,
                     maxLines = 2
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = Color(0xFF1E1038),
                 border = BorderStroke(1.dp, Color(0x66FF2A85)),
-                modifier = Modifier.size(54.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_aura_logo),
                     contentDescription = "AURA Live",
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(6.dp),
+                        .padding(5.dp),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -498,20 +498,20 @@ fun CountrySelectorRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         items(countries) { country ->
             val isSelected = selectedCountry == country
             Surface(
                 color = if (isSelected) Color.Transparent else Color(0x55160A2D),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(
                     1.dp,
                     if (isSelected) Color.Transparent else Color(0x334E357E)
                 ),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .then(
                         if (isSelected) {
                             Modifier.background(
@@ -525,10 +525,10 @@ fun CountrySelectorRow(
             ) {
                 Text(
                     text = country,
-                    fontSize = 12.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     color = if (isSelected) Color.White else Color(0xFFCBD5E1),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp)
                 )
             }
         }
@@ -541,17 +541,17 @@ fun HomeSubTabsCapsule(
     onTabSelected: (HomeMainTab) -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(18.dp),
         color = Color(0x66160A2D),
         border = BorderStroke(1.dp, Color(0x334E357E)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 3.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 7.dp),
+                .padding(horizontal = 4.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -561,25 +561,25 @@ fun HomeSubTabsCapsule(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { onTabSelected(HomeMainTab.PARTY) }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🎉", fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "🎉", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Party",
-                        fontSize = 13.5.sp,
+                        fontSize = 12.sp,
                         fontWeight = if (selectedTab == HomeMainTab.PARTY) FontWeight.Bold else FontWeight.Medium,
                         color = if (selectedTab == HomeMainTab.PARTY) Color.White else Color(0xFF9E97B6)
                     )
                 }
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 if (selectedTab == HomeMainTab.PARTY) {
                     Box(
                         modifier = Modifier
-                            .width(32.dp)
-                            .height(2.5.dp)
-                            .clip(RoundedCornerShape(1.5.dp))
+                            .width(26.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
@@ -587,7 +587,7 @@ fun HomeSubTabsCapsule(
                             )
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(2.5.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                 }
             }
 
@@ -597,25 +597,25 @@ fun HomeSubTabsCapsule(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { onTabSelected(HomeMainTab.MINE) }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "💎", fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "💎", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Mine",
-                        fontSize = 13.5.sp,
+                        fontSize = 12.sp,
                         fontWeight = if (selectedTab == HomeMainTab.MINE) FontWeight.Bold else FontWeight.Medium,
                         color = if (selectedTab == HomeMainTab.MINE) Color.White else Color(0xFF9E97B6)
                     )
                 }
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 if (selectedTab == HomeMainTab.MINE) {
                     Box(
                         modifier = Modifier
-                            .width(28.dp)
-                            .height(2.5.dp)
-                            .clip(RoundedCornerShape(1.5.dp))
+                            .width(24.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
@@ -623,7 +623,7 @@ fun HomeSubTabsCapsule(
                             )
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(2.5.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                 }
             }
 
@@ -633,19 +633,19 @@ fun HomeSubTabsCapsule(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { onTabSelected(HomeMainTab.RANKINGS) }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🏆", fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "🏆", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Rankings",
-                        fontSize = 13.5.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF9E97B6)
                     )
                 }
-                Spacer(modifier = Modifier.height(5.5.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
             // 4. CP Space
@@ -654,25 +654,25 @@ fun HomeSubTabsCapsule(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { onTabSelected(HomeMainTab.CP_SPACE) }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🖤", fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "🖤", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "CP Space",
-                        fontSize = 13.5.sp,
+                        fontSize = 12.sp,
                         fontWeight = if (selectedTab == HomeMainTab.CP_SPACE) FontWeight.Bold else FontWeight.Medium,
                         color = if (selectedTab == HomeMainTab.CP_SPACE) Color.White else Color(0xFF9E97B6)
                     )
                 }
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 if (selectedTab == HomeMainTab.CP_SPACE) {
                     Box(
                         modifier = Modifier
-                            .width(32.dp)
-                            .height(2.5.dp)
-                            .clip(RoundedCornerShape(1.5.dp))
+                            .width(26.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(Color(0xFFFF2A85), Color(0xFF00E5FF))
@@ -680,7 +680,7 @@ fun HomeSubTabsCapsule(
                             )
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(2.5.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                 }
             }
         }
@@ -785,17 +785,17 @@ fun HomeRankingsShowcaseCard(
     onOpenRankings: (Int) -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color(0xF2100826),
-        border = BorderStroke(1.2.dp, Color(0x554E327E)),
+        border = BorderStroke(1.dp, Color(0x554E327E)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp)
+            .padding(vertical = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
             // Header Row: Crown + "Rankings" + laurel + "View All >"
             Row(
@@ -808,36 +808,36 @@ fun HomeRankingsShowcaseCard(
                 ) {
                     Text(
                         text = "👑",
-                        fontSize = 22.sp
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Rankings",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
+                        fontSize = 17.sp
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
+                        text = "Rankings",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
                         text = "🌿",
-                        fontSize = 16.sp
+                        fontSize = 13.sp
                     )
                 }
 
                 // View All > button
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = Color(0x331E1038),
                     border = BorderStroke(1.dp, Color(0x44FFFFFF)),
                     modifier = Modifier.clickable { onOpenRankings(0) }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = "View All",
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
@@ -846,18 +846,18 @@ fun HomeRankingsShowcaseCard(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = "View All",
                             tint = Color.White,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // 3 Column Showcase Cards: Top Wealth, Top Charm, Top Room
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Card 1: Top Wealth
                 RankingsMiniCard(
@@ -876,7 +876,7 @@ fun HomeRankingsShowcaseCard(
                     themeColor = Color(0xFFFF2A85),
                     crownEmoji = "👑",
                     title = "Top Charm",
-                    subtitle = "Most Attractive Users",
+                    subtitle = "Most Attractive",
                     graphicType = "charm",
                     onClick = { onOpenRankings(1) }
                 )
@@ -887,7 +887,7 @@ fun HomeRankingsShowcaseCard(
                     themeColor = Color(0xFF00E5FF),
                     crownEmoji = "👑",
                     title = "Top Room",
-                    subtitle = "Most Popular Rooms",
+                    subtitle = "Popular Rooms",
                     graphicType = "room",
                     onClick = { onOpenRankings(2) }
                 )
@@ -897,7 +897,7 @@ fun HomeRankingsShowcaseCard(
 }
 
 /**
- * Individual Mini Card within the Rankings Showcase matching the screenshot:
+ * Individual Mini Card within the Rankings Showcase:
  * Crown, Title, Subtitle, Glowing custom illustration badge, and Chevron > arrow.
  */
 @Composable
@@ -911,30 +911,30 @@ fun RankingsMiniCard(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(13.dp),
         color = Color(0x66160A2D),
-        border = BorderStroke(1.2.dp, themeColor.copy(alpha = 0.85f)),
+        border = BorderStroke(1.dp, themeColor.copy(alpha = 0.85f)),
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(13.dp))
             .clickable { onClick() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 8.dp),
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Crown emoji
             Text(
                 text = crownEmoji,
-                fontSize = 14.sp
+                fontSize = 12.sp
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(1.dp))
 
             Text(
                 text = title,
-                fontSize = 12.5.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
                 textAlign = TextAlign.Center
@@ -942,7 +942,7 @@ fun RankingsMiniCard(
 
             Text(
                 text = subtitle,
-                fontSize = 7.8.sp,
+                fontSize = 7.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFFD4CAE8),
                 textAlign = TextAlign.Center,
@@ -950,13 +950,13 @@ fun RankingsMiniCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Glowing Badge Graphic matching the screenshot with chevron >
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp),
+                    .height(46.dp),
                 contentAlignment = Alignment.Center
             ) {
                 when (graphicType) {
@@ -969,11 +969,11 @@ fun RankingsMiniCard(
                 Text(
                     text = ">",
                     color = themeColor,
-                    fontSize = 13.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 4.dp, bottom = 2.dp)
+                        .padding(end = 2.dp, bottom = 1.dp)
                 )
             }
         }
@@ -1187,9 +1187,9 @@ fun SquareRoomCard(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f) // 1:1 format
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(SurfaceCard)
-            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(14.dp))
             .clickable { onClick() }
     ) {
         // Room DP / Cover image (fills square)
@@ -1220,41 +1220,41 @@ fun SquareRoomCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Country flag badge
             Surface(
                 color = Color.Black.copy(alpha = 0.65f),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(6.dp)
             ) {
                 Text(
                     text = room.country.split(" ").firstOrNull() ?: "🌍",
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
             }
 
             // Online user count badge
             Surface(
                 color = Color.Black.copy(alpha = 0.75f),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(8.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(5.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF00E676))
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "${room.onlineCount}",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
@@ -1267,11 +1267,11 @@ fun SquareRoomCard(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(10.dp)
+                .padding(8.dp)
         ) {
             Text(
                 text = room.title,
-                fontSize = 13.5.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 maxLines = 1,
@@ -1288,23 +1288,23 @@ fun EmptyRoomsCard(
     onCreateRoomClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color(0xFF100826),
         border = BorderStroke(
-            1.2.dp,
+            1.dp,
             Brush.linearGradient(
                 listOf(Color(0xFFFF2A85), Color(0xFF7C4DFF), Color(0xFF00E5FF))
             )
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(185.dp)
+                .height(150.dp)
         ) {
             // Scenic atmospheric night background
             Image(
@@ -1333,7 +1333,7 @@ fun EmptyRoomsCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -1344,23 +1344,23 @@ fun EmptyRoomsCard(
                 ) {
                     // Left wave bars
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.width(3.dp).height(10.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
-                        Box(modifier = Modifier.width(3.dp).height(16.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFFFF2A85)))
-                        Box(modifier = Modifier.width(3.dp).height(22.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF00E5FF)))
-                        Box(modifier = Modifier.width(3.dp).height(14.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
+                        Box(modifier = Modifier.width(2.5.dp).height(8.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFF7C4DFF)))
+                        Box(modifier = Modifier.width(2.5.dp).height(13.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFFFF2A85)))
+                        Box(modifier = Modifier.width(2.5.dp).height(18.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFF00E5FF)))
+                        Box(modifier = Modifier.width(2.5.dp).height(11.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFF7C4DFF)))
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     // Circular icon container
                     Surface(
                         shape = CircleShape,
                         color = Color(0x401F153D),
                         border = BorderStroke(1.dp, Color(0x557C4DFF)),
-                        modifier = Modifier.size(50.dp)
+                        modifier = Modifier.size(42.dp)
                     ) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -1370,56 +1370,56 @@ fun EmptyRoomsCard(
                                 imageVector = Icons.Default.MicOff,
                                 contentDescription = null,
                                 tint = Color(0xFFE2DCF0),
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     // Right wave bars
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.width(3.dp).height(14.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
-                        Box(modifier = Modifier.width(3.dp).height(22.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF00E5FF)))
-                        Box(modifier = Modifier.width(3.dp).height(16.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFFFF2A85)))
-                        Box(modifier = Modifier.width(3.dp).height(10.dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF7C4DFF)))
+                        Box(modifier = Modifier.width(2.5.dp).height(11.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFF7C4DFF)))
+                        Box(modifier = Modifier.width(2.5.dp).height(18.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFF00E5FF)))
+                        Box(modifier = Modifier.width(2.5.dp).height(13.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFFFF2A85)))
+                        Box(modifier = Modifier.width(2.5.dp).height(8.dp).clip(RoundedCornerShape(1.dp)).background(Color(0xFF7C4DFF)))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = message ?: "No active voice rooms\nonline right now in $selectedCountry.",
                     color = Color(0xFFE2DCF0),
-                    fontSize = 13.5.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
+                    lineHeight = 16.sp
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Launch Voice Room Button
                 Button(
                     onClick = onCreateRoomClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
-                        .height(38.dp)
+                        .height(34.dp)
                         .background(
                             Brush.horizontalGradient(
                                 listOf(Color(0xFFFF2A85), Color(0xFF7C4DFF), Color(0xFF00E5FF))
                             ),
-                            RoundedCornerShape(20.dp)
+                            RoundedCornerShape(18.dp)
                         )
                 ) {
                     Text(
                         text = "+ Launch Voice Room",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )

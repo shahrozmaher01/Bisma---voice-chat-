@@ -64,17 +64,18 @@ fun StoreBackpackScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
                     }
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (selectedMainTab == 0) "Fashion Store ✨" else "My Backpack 🎒",
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -82,15 +83,15 @@ fun StoreBackpackScreen(
 
                 Surface(
                     color = Color(0x33FFD700),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.dp, Color(0x88FFD700))
                 ) {
                     Text(
                         text = "🪙 ${currentUser?.coins ?: 0}",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = GoldYellow,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
@@ -99,12 +100,12 @@ fun StoreBackpackScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Surface(
                     color = if (selectedMainTab == 0) NeonPink else SurfaceCard,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, if (selectedMainTab == 0) NeonPink else SurfaceCardBorder),
                     modifier = Modifier
                         .weight(1f)
@@ -112,17 +113,17 @@ fun StoreBackpackScreen(
                 ) {
                     Text(
                         text = "🛍️ Store",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (selectedMainTab == 0) Color.White else TextSecondary,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 10.dp)
+                        modifier = Modifier.padding(vertical = 7.dp)
                     )
                 }
 
                 Surface(
                     color = if (selectedMainTab == 1) NeonPink else SurfaceCard,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, if (selectedMainTab == 1) NeonPink else SurfaceCardBorder),
                     modifier = Modifier
                         .weight(1f)
@@ -130,11 +131,11 @@ fun StoreBackpackScreen(
                 ) {
                     Text(
                         text = "🎒 Backpack (${backpackItems.size})",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (selectedMainTab == 1) Color.White else TextSecondary,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 10.dp)
+                        modifier = Modifier.padding(vertical = 7.dp)
                     )
                 }
             }
@@ -144,23 +145,23 @@ fun StoreBackpackScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 categories.forEach { cat ->
                     val isSelected = selectedCategory == cat
                     Surface(
                         color = if (isSelected) ElectricBlue else SurfaceCard,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(11.dp),
                         border = BorderStroke(1.dp, if (isSelected) ElectricBlue else SurfaceCardBorder),
                         modifier = Modifier.clickable { selectedCategory = cat }
                     ) {
                         Text(
                             text = cat,
-                            fontSize = 12.5.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) Color.White else TextSecondary,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -238,33 +239,33 @@ fun StoreItemCard(
 ) {
     Surface(
         color = SurfaceCard,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(13.dp),
         border = BorderStroke(1.dp, if (item.isEquipped) NeonPink else SurfaceCardBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Icon / Emoji Stage
             Box(
                 modifier = Modifier
-                    .size(68.dp)
+                    .size(52.dp)
                     .clip(CircleShape)
                     .background(Color(item.frameColorHex).copy(alpha = 0.15f))
-                    .border(1.5.dp, Color(item.frameColorHex).copy(alpha = 0.5f), CircleShape),
+                    .border(1.2.dp, Color(item.frameColorHex).copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = item.previewIcon, fontSize = 32.sp)
+                Text(text = item.previewIcon, fontSize = 24.sp)
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
             Text(
                 text = item.name,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
@@ -273,40 +274,42 @@ fun StoreItemCard(
 
             Text(
                 text = item.category,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             if (!isBackpack) {
                 // Store Mode: Show price & Buy button
                 if (item.isOwned) {
                     Surface(
                         color = Color(0x3300E676),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
                             text = "Owned ✓",
                             color = Color(0xFF00E676),
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                 } else {
                     Button(
                         onClick = onBuy,
                         colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp)
                     ) {
                         Text(
                             text = "🪙 ${item.price}",
                             color = Color.White,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -318,14 +321,16 @@ fun StoreItemCard(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (item.isEquipped) Color(0xFF333344) else ElectricBlue
                     ),
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp)
                 ) {
                     Text(
                         text = if (item.isEquipped) "Unequip" else "Equip ✨",
                         color = if (item.isEquipped) TextSecondary else Color.White,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }

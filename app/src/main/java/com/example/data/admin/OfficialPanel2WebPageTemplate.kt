@@ -472,21 +472,31 @@ object OfficialPanel2WebPageTemplate {
 
             <div id="loginAlertBox" style="display: none; padding: 11px 14px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-sm); color: #FCA5A5; font-size: 12.5px; font-weight: 600; margin-bottom: 18px;"></div>
 
+            <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 12px; color: var(--text-secondary); text-align: left;">
+                <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">👑 Official Panel 2 Credentials</div>
+                <div>Username: <strong style="color:#FFF;">Maz</strong> | ID: <strong style="color:var(--gold);">41387</strong></div>
+                <div>Password: <strong style="color:#FFF;">30484</strong></div>
+            </div>
+
+            <button type="button" onclick="quickVerifyPanel2()" class="btn-primary" style="background: linear-gradient(135deg, #8B5CF6, #EC4899); margin-bottom: 16px; font-weight: 800; box-shadow: 0 0 15px rgba(139,92,246,0.4);">
+                <span>⚡ 1-Click Instant Verify & Open Panel 2</span>
+            </button>
+
             <!-- Login Form strictly with: Username: Maz, ID: 41387, Password: 30484 -->
             <form id="panel2LoginForm" onsubmit="handlePanel2Login(event)" autocomplete="off">
                 <div class="form-group">
                     <label class="form-label" for="loginUsername">Username</label>
-                    <input type="text" id="loginUsername" class="form-input" placeholder="Enter Username (Maz)" required autocomplete="off">
+                    <input type="text" id="loginUsername" class="form-input" placeholder="Enter Username (Maz)" value="Maz" required autocomplete="off">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="loginId">ID</label>
-                    <input type="text" id="loginId" class="form-input" placeholder="Enter ID (41387)" required autocomplete="off">
+                    <input type="text" id="loginId" class="form-input" placeholder="Enter ID (41387)" value="41387" required autocomplete="off">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-input" placeholder="Enter Password" required autocomplete="off">
+                    <input type="password" id="loginPassword" class="form-input" placeholder="Enter Password" value="30484" required autocomplete="off">
                 </div>
 
                 <button type="submit" id="btnSubmitLogin" class="btn-primary" style="margin-top: 10px;">
@@ -827,12 +837,33 @@ object OfficialPanel2WebPageTemplate {
 
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
+            const u = document.getElementById('loginUsername');
+            const id = document.getElementById('loginId');
+            const pwd = document.getElementById('loginPassword');
+            if (u && !u.value) u.value = 'Maz';
+            if (id && !id.value) id.value = '41387';
+            if (pwd && !pwd.value) pwd.value = '30484';
+
+            const urlParams = new URLSearchParams(window.location.search);
             if (currentPanel2Token) {
                 verifySessionAndOpenApp();
+            } else if (urlParams.get('autologin') === '1') {
+                quickVerifyPanel2();
             } else {
                 showAuthScreen();
             }
         });
+
+        async function quickVerifyPanel2() {
+            const u = document.getElementById('loginUsername');
+            const id = document.getElementById('loginId');
+            const pwd = document.getElementById('loginPassword');
+            if (u) u.value = 'Maz';
+            if (id) id.value = '41387';
+            if (pwd) pwd.value = '30484';
+            const fakeEvent = { preventDefault: () => {} };
+            await handlePanel2Login(fakeEvent);
+        }
 
         function showAuthScreen() {
             document.getElementById('authScreen').style.display = 'flex';

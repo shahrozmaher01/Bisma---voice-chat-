@@ -5,6 +5,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,25 +61,41 @@ fun BismaMainApp() {
     var selectedBottomTab by remember { mutableStateOf(BottomTab.HOME) }
     var inspectUserId by remember { mutableStateOf<String?>(null) }
 
+    val focusManager = LocalFocusManager.current
+    val rootInteractionSource = remember { MutableInteractionSource() }
+
     // System Back navigation handling for sub-screens and dialogs
     if (inspectUserId != null) {
         BackHandler {
+            focusManager.clearFocus(force = true)
             inspectUserId = null
         }
     } else if (currentScreen != Screen.Splash && currentScreen != Screen.Login && currentScreen != Screen.MainTabs) {
         BackHandler {
+            focusManager.clearFocus(force = true)
             currentScreen = Screen.MainTabs
         }
     } else if (currentScreen == Screen.MainTabs && selectedBottomTab != BottomTab.HOME) {
         BackHandler {
+            focusManager.clearFocus(force = true)
             selectedBottomTab = BottomTab.HOME
         }
+    }
+
+    LaunchedEffect(currentScreen, selectedBottomTab, inspectUserId) {
+        focusManager.clearFocus(force = true)
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackgroundGradient)
+            .clickable(
+                interactionSource = rootInteractionSource,
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
     ) {
         when (val screen = currentScreen) {
             is Screen.Splash -> {
@@ -255,16 +273,16 @@ fun BismaBottomNavigationBar(
 ) {
     Surface(
         color = Color(0xF20B061A),
-        tonalElevation = 12.dp,
+        tonalElevation = 8.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0x33442C73), RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+            .border(1.dp, Color(0x33442C73), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(vertical = 6.dp),
+                .padding(vertical = 3.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -311,16 +329,16 @@ private fun BottomNavTabItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (tab == BottomTab.MOMENT && isSelected) {
                 // Moment circular glowing badge
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.sweepGradient(
@@ -338,15 +356,15 @@ private fun BottomNavTabItem(
                         imageVector = Icons.Default.PhotoCamera,
                         contentDescription = tab.title,
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             } else if (tab == BottomTab.CHAT && isSelected) {
                 // Chat rounded pink badge matching screenshot
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             Brush.linearGradient(
                                 listOf(
@@ -361,7 +379,7 @@ private fun BottomNavTabItem(
                         imageVector = Icons.Default.ChatBubble,
                         contentDescription = tab.title,
                         tint = Color.White,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             } else {
@@ -369,15 +387,15 @@ private fun BottomNavTabItem(
                     if (hasCrown) {
                         Text(
                             text = "👑",
-                            fontSize = 9.sp,
-                            lineHeight = 10.sp
+                            fontSize = 8.sp,
+                            lineHeight = 9.sp
                         )
                     }
                     Icon(
                         imageVector = tab.icon,
                         contentDescription = tab.title,
                         tint = if (isSelected) Color(0xFFFF2A85) else Color(0xFF8E88A8),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(21.dp)
                     )
                 }
             }
@@ -386,37 +404,37 @@ private fun BottomNavTabItem(
             if (hasBadge) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(7.dp)
                         .align(Alignment.TopEnd)
-                        .offset(x = 3.dp, y = (-2).dp)
+                        .offset(x = 2.dp, y = (-2).dp)
                         .clip(CircleShape)
                         .background(Color(0xFFFF2A85))
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(1.dp))
 
         Text(
             text = tab.title,
-            fontSize = 11.5.sp,
+            fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             color = if (isSelected) Color(0xFFFF2A85) else Color(0xFF8E88A8)
         )
 
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(1.dp))
 
         // Selected indicator line
         if (isSelected) {
             Box(
                 modifier = Modifier
-                    .width(18.dp)
-                    .height(3.dp)
+                    .width(14.dp)
+                    .height(2.5.dp)
                     .clip(RoundedCornerShape(1.5.dp))
                     .background(Color(0xFFFF2A85))
             )
         } else {
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(2.5.dp))
         }
     }
 }

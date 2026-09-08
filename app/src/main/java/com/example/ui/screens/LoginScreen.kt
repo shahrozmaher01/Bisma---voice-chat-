@@ -112,12 +112,12 @@ fun LoginScreen(
                     Box(
                         modifier = Modifier
                             .size(72.dp)
+                            .shadow(10.dp, RoundedCornerShape(20.dp), spotColor = NeonPink)
                             .clip(RoundedCornerShape(20.dp))
                             .border(
                                 BorderStroke(1.5.dp, Brush.sweepGradient(listOf(NeonPink, ElectricBlue, NeonPink))),
                                 RoundedCornerShape(20.dp)
-                            )
-                            .shadow(12.dp, RoundedCornerShape(20.dp), spotColor = NeonPink),
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(

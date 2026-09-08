@@ -80,6 +80,7 @@ fun SplashScreen(
             Box(
                 modifier = Modifier
                     .size(140.dp)
+                    .shadow(12.dp, RoundedCornerShape(28.dp), spotColor = NeonPink)
                     .clip(RoundedCornerShape(28.dp))
                     .border(
                         BorderStroke(
@@ -87,8 +88,7 @@ fun SplashScreen(
                             Brush.sweepGradient(listOf(NeonPink, ElectricBlue, NeonPurple, NeonPink))
                         ),
                         RoundedCornerShape(28.dp)
-                    )
-                    .shadow(16.dp, RoundedCornerShape(28.dp), spotColor = NeonPink),
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
