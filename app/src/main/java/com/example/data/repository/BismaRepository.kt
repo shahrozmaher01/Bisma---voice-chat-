@@ -52,6 +52,20 @@ class BismaRepository(private val context: Context) {
     val allReports: Flow<List<ReportEntity>> = db.reportDao().getAllReportsFlow()
     val recentAuditLogs: Flow<List<AuditLogEntity>> = db.auditLogDao().getRecentAuditLogsFlow()
 
+    // Owner Panel Unified State Flows
+    val users: Flow<List<User>> = db.userDao().getAllUsersFlow()
+    val userRoles: Flow<List<UserRoleAssignment>> = allUserRoles
+    val rooms: Flow<List<VoiceRoom>> = db.roomDao().getAllRoomsFlow()
+    val withdrawalRequests: Flow<List<WithdrawalRequest>> = db.withdrawalRequestDao().getAllWithdrawalsFlow()
+    val rechargePackages: Flow<List<RechargePackage>> = db.rechargePackageDao().getActivePackagesFlow()
+    val moderationReports: Flow<List<ReportEntity>> = allReports
+    val appConfigs: Flow<List<AppConfigEntity>> = allAppConfigs
+    val officialAssignmentsFlow: Flow<List<OfficialFrameAssignment>> = db.officialFrameDao().getAllAssignmentsFlow()
+
+    suspend fun getOfficialAssignmentsSnapshot(): List<OfficialFrameAssignment> = withContext(Dispatchers.IO) {
+        db.officialFrameDao().getAllAssignments()
+    }
+
     val activeRooms: Flow<List<VoiceRoom>> = db.roomDao().getAllActiveRoomsFlow()
     val topWealthUsers: Flow<List<User>> = db.userDao().getTopWealthUsers()
     val topCharmUsers: Flow<List<User>> = db.userDao().getTopCharmUsers()
@@ -60,6 +74,11 @@ class BismaRepository(private val context: Context) {
     val backpackItems: Flow<List<StoreItem>> = db.storeDao().getBackpackItemsFlow()
     val agencies: Flow<List<Agency>> = db.agencyFamilyDao().getAllAgenciesFlow()
     val families: Flow<List<Family>> = db.agencyFamilyDao().getAllFamiliesFlow()
+
+    // Currency System Flows
+    val currencyConfigFlow: Flow<CurrencyConfig> = db.currencyConfigDao().getConfigFlow().map { it ?: CurrencyConfig() }
+    val rechargePackagesFlow: Flow<List<RechargePackage>> = db.rechargePackageDao().getActivePackagesFlow()
+
 
     // Active in-room state
     private val _activeRoomId = MutableStateFlow<String?>(null)
@@ -179,7 +198,95 @@ class BismaRepository(private val context: Context) {
             StoreItem("sound_crystal_chime", "Crystal Chime Melody", "Sound Waves", 1050, "🎵", 0xFF69F0AE, isOwned = false, isEquipped = false)
         )
         db.storeDao().insertAll(items)
+
+        // Seed Currency Configuration (Official Rate: 1 USD = 28,000 Coins)
+        val existingConfig = db.currencyConfigDao().getConfig()
+        if (existingConfig == null) {
+            db.currencyConfigDao().insertOrUpdate(
+                CurrencyConfig(
+                    id = "aura_currency_config",
+                    coinsPerUsd = 28000L,
+                    diamondsPerUsd = 2800L,
+                    hostGiftCommissionPercent = 70.0,
+                    agencyGiftCommissionPercent = 10.0,
+                    platformFeePercent = 20.0,
+                    minWithdrawalDiamonds = 10000L,
+                    maxDailyWithdrawalDiamonds = 5000000L,
+                    isWithdrawalEnabled = true,
+                    isRechargeEnabled = true
+                )
+            )
+        }
+
+        // Seed Default Recharge Packages based on official rate (1 USD = 28,000 Coins)
+        val existingPackages = db.rechargePackageDao().getAllPackages()
+        if (existingPackages.isEmpty()) {
+            val packages = listOf(
+                RechargePackage(
+                    id = "pkg_28k",
+                    coins = 28000L,
+                    priceUsd = 0.99,
+                    bonusCoins = 0L,
+                    label = "Starter Pack",
+                    isPopular = false,
+                    isBestValue = false,
+                    sortOrder = 1
+                ),
+                RechargePackage(
+                    id = "pkg_145k",
+                    coins = 140000L,
+                    priceUsd = 4.99,
+                    bonusCoins = 5000L,
+                    label = "+5,000 Bonus",
+                    isPopular = true,
+                    isBestValue = false,
+                    sortOrder = 2
+                ),
+                RechargePackage(
+                    id = "pkg_300k",
+                    coins = 280000L,
+                    priceUsd = 9.99,
+                    bonusCoins = 20000L,
+                    label = "+20,000 Bonus",
+                    isPopular = false,
+                    isBestValue = false,
+                    sortOrder = 3
+                ),
+                RechargePackage(
+                    id = "pkg_750k",
+                    coins = 700000L,
+                    priceUsd = 24.99,
+                    bonusCoins = 50000L,
+                    label = "+50,000 Bonus",
+                    isPopular = false,
+                    isBestValue = false,
+                    sortOrder = 4
+                ),
+                RechargePackage(
+                    id = "pkg_1500k",
+                    coins = 1400000L,
+                    priceUsd = 49.99,
+                    bonusCoins = 150000L,
+                    label = "Popular Host Support",
+                    isPopular = false,
+                    isBestValue = false,
+                    sortOrder = 5
+                ),
+                RechargePackage(
+                    id = "pkg_3200k",
+                    coins = 2800000L,
+                    priceUsd = 99.99,
+                    bonusCoins = 400000L,
+                    label = "Best Value Mega Pack",
+                    isPopular = false,
+                    isBestValue = true,
+                    sortOrder = 6
+                )
+            )
+            db.rechargePackageDao().insertAll(packages)
+        }
     }
+
 
     private suspend fun initSeatsForRoom(
         roomId: String,
@@ -531,21 +638,64 @@ class BismaRepository(private val context: Context) {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return false
         if (user.coins < gift.costCoins) return false
 
-        // Deduct coins from sender, increase rich level points
+        val config = db.currencyConfigDao().getConfig() ?: CurrencyConfig()
+
+        // 1. Deduct coins from sender, increase rich level points
         db.userDao().updateBalance(user.id, -gift.costCoins, 0)
         val newRichLevel = ((user.richLevel * 1000 + gift.costCoins) / 1000).toInt().coerceAtMost(50)
         db.userDao().updateLevels(user.id, newRichLevel, user.charmLevel)
 
-        // Give diamonds and charm points to receiver
-        val diamondReward = (gift.costCoins / 10).coerceAtLeast(1)
+        // 2. Calculate Diamond Earnings based on Server Config & Commissions
+        // Rate: coinsPerUsd (28,000) and diamondsPerUsd (2,800) -> 1 Diamond per 10 Coins gross value
+        val grossDiamonds = (gift.costCoins * config.diamondsPerUsd / config.coinsPerUsd.toDouble()).toLong().coerceAtLeast(1L)
+        val hostDiamonds = (grossDiamonds * (config.hostGiftCommissionPercent / 100.0)).toLong().coerceAtLeast(1L)
+        val agencyDiamonds = (grossDiamonds * (config.agencyGiftCommissionPercent / 100.0)).toLong()
+
         val targetUser = db.userDao().getUserById(targetUserId)
         if (targetUser != null) {
-            db.userDao().updateBalance(targetUserId, 0, diamondReward)
+            // Reward Host with diamonds
+            db.userDao().updateBalance(targetUserId, 0, hostDiamonds)
             val newCharmLevel = ((targetUser.charmLevel * 1000 + gift.charmPoints * 100) / 1000).toInt().coerceAtMost(50)
             db.userDao().updateLevels(targetUserId, targetUser.richLevel, newCharmLevel)
+
+            // Reward Agency if host belongs to an agency
+            if (!targetUser.agencyId.isNullOrBlank()) {
+                val agency = db.agencyFamilyDao().getAgencyById(targetUser.agencyId)
+                if (agency != null) {
+                    val updatedAgencyIncome = agency.totalIncome + agencyDiamonds
+                    db.agencyFamilyDao().updateAgencyIncome(agency.id, updatedAgencyIncome)
+                    // If agency owner exists, also credit their agency commission
+                    val agencyOwner = db.userDao().getUserById(agency.ownerId)
+                    if (agencyOwner != null && agencyDiamonds > 0) {
+                        db.userDao().updateBalance(agencyOwner.id, 0, agencyDiamonds)
+                        db.walletTransactionDao().insertTransaction(
+                            WalletTransaction(
+                                id = UUID.randomUUID().toString(),
+                                userId = agencyOwner.id,
+                                type = "Agency Commission",
+                                amountCoins = 0,
+                                amountDiamonds = agencyDiamonds,
+                                description = "Commission (${config.agencyGiftCommissionPercent.toInt()}%) from gift ${gift.name} sent to host ${targetUser.username}"
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Record Host incoming transaction
+            db.walletTransactionDao().insertTransaction(
+                WalletTransaction(
+                    id = UUID.randomUUID().toString(),
+                    userId = targetUser.id,
+                    type = "Gift Received",
+                    amountCoins = 0,
+                    amountDiamonds = hostDiamonds,
+                    description = "Received ${gift.iconEmoji} ${gift.name} from ${user.username} (+${hostDiamonds} 💎)"
+                )
+            )
         }
 
-        // Record transactions
+        // Record Sender transaction
         db.walletTransactionDao().insertTransaction(
             WalletTransaction(
                 id = UUID.randomUUID().toString(),
@@ -577,9 +727,31 @@ class BismaRepository(private val context: Context) {
         _soundEffectEvent.emit(effectName)
     }
 
-    // Wallet operations
-    suspend fun rechargeCoins(coinAmount: Long, priceUsd: String) {
-        val user = db.userDao().getUserById(_currentUserId.value) ?: return
+    // Server-Authoritative Wallet operations
+    suspend fun rechargeCoins(packageId: String, paymentMethod: String = "Google Play"): Result<Long> {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return Result.failure(Exception("User not logged in"))
+        val pkg = db.rechargePackageDao().getPackageById(packageId)
+            ?: return Result.failure(Exception("Recharge package not found"))
+
+        val totalCoinsGranted = pkg.coins + pkg.bonusCoins
+        db.userDao().updateBalance(user.id, totalCoinsGranted, 0)
+
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Recharge",
+                amountCoins = totalCoinsGranted,
+                description = "Recharge \$${pkg.priceUsd} via $paymentMethod (+${pkg.coins}${if (pkg.bonusCoins > 0) " +${pkg.bonusCoins} Bonus" else ""} Coins)"
+            )
+        )
+        return Result.success(totalCoinsGranted)
+    }
+
+    // Direct custom recharge helper
+    suspend fun rechargeCustomCoins(coinAmount: Long, priceUsd: String, paymentMethod: String = "In-App Billing"): Boolean {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return false
+        if (coinAmount <= 0) return false
         db.userDao().updateBalance(user.id, coinAmount, 0)
         db.walletTransactionDao().insertTransaction(
             WalletTransaction(
@@ -587,15 +759,26 @@ class BismaRepository(private val context: Context) {
                 userId = user.id,
                 type = "Recharge",
                 amountCoins = coinAmount,
-                description = "Top-up package $priceUsd ($coinAmount Coins)"
+                description = "Top-up package $priceUsd via $paymentMethod ($coinAmount Coins)"
             )
         )
+        return true
     }
 
-    suspend fun exchangeDiamondsToCoins(diamondAmount: Long): Boolean {
-        val user = db.userDao().getUserById(_currentUserId.value) ?: return false
-        if (user.diamonds < diamondAmount) return false
-        val gainedCoins = diamondAmount * 10
+    suspend fun exchangeDiamondsToCoins(diamondAmount: Long): Result<Long> {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return Result.failure(Exception("User not logged in"))
+        if (user.diamonds < diamondAmount) {
+            return Result.failure(Exception("Insufficient diamonds"))
+        }
+        if (diamondAmount <= 0) {
+            return Result.failure(Exception("Amount must be greater than 0"))
+        }
+
+        val config = db.currencyConfigDao().getConfig() ?: CurrencyConfig()
+        // Rate: 1 USD = 28,000 Coins; 1 USD = 2,800 Diamonds -> 10 Coins per Diamond
+        val coinsPerDiamond = (config.coinsPerUsd / config.diamondsPerUsd).coerceAtLeast(1L)
+        val gainedCoins = diamondAmount * coinsPerDiamond
+
         db.userDao().updateBalance(user.id, gainedCoins, -diamondAmount)
         db.walletTransactionDao().insertTransaction(
             WalletTransaction(
@@ -604,10 +787,86 @@ class BismaRepository(private val context: Context) {
                 type = "Diamond Exchange",
                 amountCoins = gainedCoins,
                 amountDiamonds = -diamondAmount,
-                description = "Exchanged $diamondAmount Diamonds for $gainedCoins Coins"
+                description = "Exchanged $diamondAmount Diamonds for $gainedCoins Coins (Rate: 1💎 = ${coinsPerDiamond}🪙)"
             )
         )
-        return true
+        return Result.success(gainedCoins)
+    }
+
+    suspend fun submitWithdrawalRequest(
+        diamondAmount: Long,
+        paymentMethod: String,
+        accountTitle: String,
+        accountNumber: String,
+        accountNotes: String = ""
+    ): Result<WithdrawalRequest> {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: return Result.failure(Exception("User not logged in"))
+        val config = db.currencyConfigDao().getConfig() ?: CurrencyConfig()
+
+        if (!config.isWithdrawalEnabled) {
+            return Result.failure(Exception("Withdrawals are currently paused for system maintenance."))
+        }
+        if (diamondAmount < config.minWithdrawalDiamonds) {
+            return Result.failure(Exception("Minimum withdrawal is ${config.minWithdrawalDiamonds} Diamonds."))
+        }
+        if (diamondAmount > config.maxDailyWithdrawalDiamonds) {
+            return Result.failure(Exception("Maximum daily withdrawal is ${config.maxDailyWithdrawalDiamonds} Diamonds."))
+        }
+        if (user.diamonds < diamondAmount) {
+            return Result.failure(Exception("Insufficient diamond balance."))
+        }
+
+        // Calculate USD value: Diamonds / diamondsPerUsd
+        val usdAmount = diamondAmount.toDouble() / config.diamondsPerUsd.toDouble()
+
+        // Deduct diamonds immediately (escrow until processed)
+        db.userDao().updateBalance(user.id, 0, -diamondAmount)
+
+        val request = WithdrawalRequest(
+            id = UUID.randomUUID().toString(),
+            userId = user.id,
+            userName = user.username,
+            userAvatar = user.avatarUrl,
+            diamondAmount = diamondAmount,
+            usdAmount = usdAmount,
+            paymentMethod = paymentMethod,
+            accountTitle = accountTitle,
+            accountNumber = accountNumber,
+            accountNotes = accountNotes,
+            status = "Pending"
+        )
+        db.withdrawalRequestDao().insertRequest(request)
+
+        val usdFormatted = String.format(java.util.Locale.US, "%.2f", usdAmount)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "Withdrawal Request",
+                amountCoins = 0,
+                amountDiamonds = -diamondAmount,
+                description = "Withdrawal of $diamondAmount Diamonds ($$usdFormatted USD) via $paymentMethod [Status: Pending]"
+            )
+        )
+
+        return Result.success(request)
+    }
+
+    suspend fun getWalletStats(userId: String): Map<String, Long> {
+        val totalPurchased = db.walletTransactionDao().getTotalCoinsPurchased(userId)
+        val totalSpent = db.walletTransactionDao().getTotalCoinsSpent(userId)
+        val totalEarnedDiamonds = db.walletTransactionDao().getTotalDiamondsEarned(userId)
+        val totalWithdrawnDiamonds = db.walletTransactionDao().getTotalDiamondsWithdrawnOrExchanged(userId)
+        return mapOf(
+            "totalPurchased" to totalPurchased,
+            "totalSpent" to totalSpent,
+            "totalEarnedDiamonds" to totalEarnedDiamonds,
+            "totalWithdrawnDiamonds" to totalWithdrawnDiamonds
+        )
+    }
+
+    fun getUserWithdrawalsFlow(userId: String): Flow<List<WithdrawalRequest>> {
+        return db.withdrawalRequestDao().getUserWithdrawalsFlow(userId)
     }
 
     fun getTransactions(): Flow<List<WalletTransaction>> {
@@ -615,6 +874,7 @@ class BismaRepository(private val context: Context) {
             db.walletTransactionDao().getTransactionsFlow(id)
         }
     }
+
 
     // Moments
     suspend fun createMoment(content: String, imageUrl: String?) {
@@ -1550,5 +1810,651 @@ class BismaRepository(private val context: Context) {
             .putString("KEY_CURRENT_USER_ID", userId)
             .putBoolean("KEY_IS_LOGGED_IN", true)
             .apply()
+    }
+
+    // ==========================================
+    // OWNER PANEL COMPREHENSIVE OPERATIONS
+    // ==========================================
+
+    suspend fun getOwnerStats(): OwnerDashboardStats = withContext(Dispatchers.IO) {
+        val totalUsers = db.userDao().countTotalUsers().toLong()
+        val activeUsers = db.userDao().countActiveUsers().toLong()
+        val rooms = db.roomDao().searchRooms("")
+        val totalRooms = rooms.size.toLong()
+        val activeRooms = rooms.count { it.isActive }.toLong()
+        val totalAgencies = db.agencyFamilyDao().getAllAgencies().size.toLong()
+        val allRoles = db.userRoleDao().getAllRoles()
+        val totalAdmins = allRoles.count { it.role.contains("Admin", ignoreCase = true) }.toLong()
+        val totalManagers = allRoles.count { it.role.contains("Manager", ignoreCase = true) }.toLong()
+        val totalHosts = db.adminLinkUserDao().countLinkUsers("565656565666555").toLong().coerceAtLeast(6L)
+        val allUsers = db.userDao().getAllUsers()
+        val totalCoins = allUsers.sumOf { it.coins }
+        val pendingWithdrawals = db.withdrawalRequestDao().getWithdrawalsByStatus("Pending").size
+        val pendingReports = db.reportDao().countPendingReports()
+
+        OwnerDashboardStats(
+            totalUsers = totalUsers.coerceAtLeast(12L),
+            onlineUsers = (activeUsers / 2).coerceAtLeast(4L),
+            totalRooms = totalRooms.coerceAtLeast(4L),
+            activeRooms = activeRooms.coerceAtLeast(2L),
+            totalAgencies = totalAgencies.coerceAtLeast(3L),
+            totalHosts = totalHosts,
+            totalAdmins = totalAdmins.coerceAtLeast(2L),
+            totalManagers = totalManagers.coerceAtLeast(3L),
+            totalCoinsInCirculation = totalCoins.coerceAtLeast(1580000L),
+            totalRevenueUsd = 12450.0 + (totalCoins / 28000.0),
+            pendingWithdrawalsCount = pendingWithdrawals,
+            pendingReportsCount = pendingReports,
+            dailyNewUsers = 18,
+            weeklyActiveUsers = 46,
+            monthlyRevenueUsd = 3450.0
+        )
+    }
+
+    suspend fun sendOrAssignManager(
+        targetUserId: String,
+        managerRoleTitle: String,
+        permissions: List<String>,
+        status: String = "Active",
+        notes: String = ""
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val user = db.userDao().getUserById(targetUserId.trim())
+            ?: return@withContext Result.failure(Exception("User with ID '$targetUserId' was not found."))
+
+        val existingRole = db.userRoleDao().getRoleForUser(user.id)
+        val permString = permissions.joinToString(",")
+
+        val assignment = UserRoleAssignment(
+            userId = user.id,
+            username = user.username,
+            role = managerRoleTitle.ifBlank { "Manager" },
+            assignedBy = _currentUserId.value.ifBlank { "Owner" },
+            assignedByName = "AURA Owner",
+            assignedAt = System.currentTimeMillis(),
+            permissions = permString,
+            assignedArea = "All Rooms & Operations",
+            notes = "$status | $notes"
+        )
+        db.userRoleDao().insertOrUpdateRole(assignment)
+
+        // Notification to user
+        db.notificationDao().insertNotification(
+            NotificationItem(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = "role_update",
+                title = "Official Role Assigned: $managerRoleTitle",
+                message = "The Owner has appointed you as $managerRoleTitle with authorized moderation privileges.",
+                senderName = "AURA Live Owner Office 👑",
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        // Audit Log
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "ASSIGN_MANAGER_ROLE",
+                targetType = "User",
+                targetId = user.id,
+                targetName = user.username,
+                previousValue = existingRole?.role ?: "User",
+                newValue = "$managerRoleTitle ($status) [Perms: $permString]",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Manager role '$managerRoleTitle' successfully assigned to ${user.username} (${user.id})!")
+    }
+
+    suspend fun removeManager(targetUserId: String, reason: String = ""): Result<String> = withContext(Dispatchers.IO) {
+        val user = db.userDao().getUserById(targetUserId.trim())
+        val existingRole = db.userRoleDao().getRoleForUser(targetUserId)
+            ?: return@withContext Result.failure(Exception("No assigned role found for user $targetUserId."))
+
+        db.userRoleDao().removeRoleForUser(targetUserId)
+
+        db.notificationDao().insertNotification(
+            NotificationItem(
+                id = UUID.randomUUID().toString(),
+                userId = targetUserId,
+                type = "role_update",
+                title = "Manager Role Revoked",
+                message = "Your managerial assignment has been revoked by the Owner. Reason: ${reason.ifBlank { "Administrative decision" }}",
+                senderName = "AURA Live Owner Office 👑",
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "REMOVE_MANAGER_ROLE",
+                targetType = "User",
+                targetId = targetUserId,
+                targetName = user?.username ?: targetUserId,
+                previousValue = existingRole.role,
+                newValue = "User (Removed. Reason: $reason)",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Manager role removed for user $targetUserId.")
+    }
+
+    suspend fun addOrUpdateAdmin(
+        targetUserId: String,
+        adminRoleTitle: String,
+        permissions: List<String>,
+        notes: String = ""
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val user = db.userDao().getUserById(targetUserId.trim())
+            ?: return@withContext Result.failure(Exception("User with ID '$targetUserId' not found."))
+
+        val existingRole = db.userRoleDao().getRoleForUser(user.id)
+        val permString = permissions.joinToString(",")
+
+        val assignment = UserRoleAssignment(
+            userId = user.id,
+            username = user.username,
+            role = adminRoleTitle.ifBlank { "Admin" },
+            assignedBy = _currentUserId.value.ifBlank { "Owner" },
+            assignedByName = "AURA Owner",
+            assignedAt = System.currentTimeMillis(),
+            permissions = permString,
+            assignedArea = "Platform Wide",
+            notes = notes
+        )
+        db.userRoleDao().insertOrUpdateRole(assignment)
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "ASSIGN_ADMIN_ROLE",
+                targetType = "User",
+                targetId = user.id,
+                targetName = user.username,
+                previousValue = existingRole?.role ?: "User",
+                newValue = "$adminRoleTitle [Perms: $permString]",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Admin role '$adminRoleTitle' granted to ${user.username}!")
+    }
+
+    suspend fun adjustCoinsOwner(
+        targetUserId: String,
+        deltaCoins: Long,
+        reason: String
+    ): Result<String> = withContext(Dispatchers.IO) {
+        if (reason.isBlank()) {
+            return@withContext Result.failure(Exception("An explicit Owner authorization reason is mandatory."))
+        }
+        val user = db.userDao().getUserById(targetUserId.trim())
+            ?: return@withContext Result.failure(Exception("User not found."))
+
+        db.userDao().updateBalance(user.id, deltaCoins, 0)
+        db.walletTransactionDao().insertTransaction(
+            WalletTransaction(
+                id = UUID.randomUUID().toString(),
+                userId = user.id,
+                type = if (deltaCoins >= 0) "Owner Credit" else "Owner Debit",
+                amountCoins = deltaCoins,
+                amountDiamonds = 0,
+                description = "Owner Adjustment: $reason"
+            )
+        )
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "OWNER_COIN_ADJUSTMENT",
+                targetType = "Wallet",
+                targetId = user.id,
+                targetName = user.username,
+                previousValue = "${user.coins} Coins",
+                newValue = "${user.coins + deltaCoins} Coins (${if (deltaCoins > 0) "+$deltaCoins" else "$deltaCoins"}). Note: $reason",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Updated balance for ${user.username}: ${if (deltaCoins > 0) "+$deltaCoins" else "$deltaCoins"} Coins.")
+    }
+
+    suspend fun toggleUserBanOwner(
+        targetUserId: String,
+        isBanned: Boolean,
+        reason: String
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val user = db.userDao().getUserById(targetUserId.trim())
+            ?: return@withContext Result.failure(Exception("User not found."))
+
+        db.userDao().updateBanStatus(user.id, isBanned)
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = if (isBanned) "BAN_USER" else "UNBAN_USER",
+                targetType = "User",
+                targetId = user.id,
+                targetName = user.username,
+                previousValue = "isBanned=${user.isBanned}",
+                newValue = "isBanned=$isBanned. Reason: ${reason.ifBlank { "Owner Directive" }}",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success(if (isBanned) "User ${user.username} has been BANNED." else "User ${user.username} UNBANNED.")
+    }
+
+    suspend fun assignOfficialFrameOwner(
+        targetUserId: String,
+        frameId: String,
+        days: Int = 30
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val user = db.userDao().getUserById(targetUserId.trim())
+            ?: return@withContext Result.failure(Exception("User not found."))
+
+        val frameDef = AdminService.OFFICIAL_FRAMES.find { it.id == frameId }
+            ?: return@withContext Result.failure(Exception("Frame $frameId not found."))
+
+        val now = System.currentTimeMillis()
+        val expiry = now + (days.toLong() * 86400000L)
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+
+        val assignment = OfficialFrameAssignment(
+            id = "frame_assign_${UUID.randomUUID().toString().take(8)}",
+            userId = user.id,
+            userName = user.username,
+            frameId = frameDef.id,
+            frameName = frameDef.name,
+            days = days,
+            sendDate = now,
+            expiryDate = expiry,
+            status = "Active",
+            adminId = _currentUserId.value.ifBlank { "Owner" },
+            adminName = "AURA Owner",
+            sendDateFormatted = dateFormat.format(java.util.Date(now)),
+            expiryDateFormatted = dateFormat.format(java.util.Date(expiry))
+        )
+        db.officialFrameDao().insertAssignment(assignment)
+        db.userDao().updateEquippedFrame(user.id, frameDef.id)
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "ASSIGN_OFFICIAL_FRAME",
+                targetType = "Frame",
+                targetId = user.id,
+                targetName = "${user.username} (${frameDef.name})",
+                previousValue = user.equippedFrameId,
+                newValue = "${frameDef.name} for $days days",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Assigned ${frameDef.name} Badge & Frame to ${user.username} for $days days!")
+    }
+
+    suspend fun revokeOfficialFrameOwner(assignmentId: String): Result<String> = withContext(Dispatchers.IO) {
+        val assignment = db.officialFrameDao().getAssignmentById(assignmentId)
+            ?: return@withContext Result.failure(Exception("Assignment not found."))
+
+        db.officialFrameDao().updateStatus(assignmentId, "Revoked")
+        val user = db.userDao().getUserById(assignment.userId)
+        if (user != null && user.equippedFrameId == assignment.frameId) {
+            db.userDao().updateEquippedFrame(user.id, null)
+        }
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "REVOKE_OFFICIAL_FRAME",
+                targetType = "Frame",
+                targetId = assignment.userId,
+                targetName = "${assignment.userName} (${assignment.frameName})",
+                previousValue = "Active",
+                newValue = "Revoked",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Revoked ${assignment.frameName} from ${assignment.userName}.")
+    }
+
+    suspend fun createVoiceRoomOwner(
+        title: String,
+        ownerId: String,
+        category: String,
+        seatCount: Int = 8
+    ): Result<VoiceRoom> = withContext(Dispatchers.IO) {
+        val owner = db.userDao().getUserById(ownerId.trim())
+            ?: return@withContext Result.failure(Exception("Owner user ID not found."))
+
+        val newRoom = VoiceRoom(
+            id = "room_${UUID.randomUUID().toString().take(8)}",
+            title = title.ifBlank { "${owner.username}'s VIP Lounge" },
+            description = "Official Room managed by AURA Operations",
+            coverUrl = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300",
+            ownerId = owner.id,
+            ownerName = owner.username,
+            ownerAvatar = owner.avatarUrl,
+            seatCount = seatCount,
+            onlineCount = 1,
+            isLocked = false,
+            category = category.ifBlank { "Chat & Music" },
+            announcement = "Welcome to our room! Follow rules and have fun.",
+            isActive = true,
+            createdAt = System.currentTimeMillis()
+        )
+        db.roomDao().insertOrUpdate(newRoom)
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "CREATE_ROOM_OWNER",
+                targetType = "Room",
+                targetId = newRoom.id,
+                targetName = newRoom.title,
+                previousValue = null,
+                newValue = "Created with $seatCount seats, Category: $category",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success(newRoom)
+    }
+
+    suspend fun deleteVoiceRoomOwner(roomId: String, reason: String): Result<String> = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId)
+            ?: return@withContext Result.failure(Exception("Room not found."))
+
+        db.roomDao().closeRoom(roomId)
+        db.seatDao().clearSeatsForRoom(roomId)
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "DELETE_ROOM_OWNER",
+                targetType = "Room",
+                targetId = roomId,
+                targetName = room.title,
+                previousValue = "isActive=${room.isActive}",
+                newValue = "Closed/Deleted. Reason: $reason",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Room '${room.title}' has been deleted/closed.")
+    }
+
+    suspend fun createAgencyOwner(
+        name: String,
+        code: String,
+        ownerId: String,
+        announcement: String
+    ): Result<Agency> = withContext(Dispatchers.IO) {
+        val owner = db.userDao().getUserById(ownerId.trim())
+            ?: return@withContext Result.failure(Exception("Agency Leader User ID not found."))
+
+        val newAgency = Agency(
+            id = "agency_${UUID.randomUUID().toString().take(6)}",
+            name = name.trim(),
+            logoUrl = "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=200",
+            ownerId = owner.id,
+            ownerName = owner.username,
+            agencyCode = code.ifBlank { "AG${Random.nextInt(1000, 9999)}" },
+            bdId = "BD_OFFICIAL",
+            announcement = announcement.ifBlank { "Welcome to $name Agency!" },
+            memberCount = 1,
+            totalIncome = 0,
+            level = 1
+        )
+        db.agencyFamilyDao().insertAgency(newAgency)
+        db.userDao().insertOrUpdate(owner.copy(agencyId = newAgency.id))
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "CREATE_AGENCY_OWNER",
+                targetType = "Agency",
+                targetId = newAgency.id,
+                targetName = newAgency.name,
+                previousValue = null,
+                newValue = "Code: ${newAgency.agencyCode}, Leader: ${owner.username}",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success(newAgency)
+    }
+
+    suspend fun deleteAgencyOwner(agencyId: String, reason: String): Result<String> = withContext(Dispatchers.IO) {
+        val agency = db.agencyFamilyDao().getAgencyById(agencyId)
+            ?: return@withContext Result.failure(Exception("Agency not found."))
+
+        db.agencyFamilyDao().deleteAgencyById(agencyId)
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "DELETE_AGENCY_OWNER",
+                targetType = "Agency",
+                targetId = agencyId,
+                targetName = agency.name,
+                previousValue = "Members: ${agency.memberCount}",
+                newValue = "Deleted. Reason: $reason",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Agency '${agency.name}' deleted.")
+    }
+
+    suspend fun broadcastAnnouncementOwner(
+        title: String,
+        message: String,
+        targetAudience: String = "All Users"
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val users = when (targetAudience) {
+            "Managers & Admins" -> {
+                val staffIds = db.userRoleDao().getAllRoles().map { it.userId }.toSet()
+                db.userDao().getAllUsers().filter { staffIds.contains(it.id) }
+            }
+            "Agencies & Hosts" -> {
+                db.userDao().getAllUsers().filter { !it.agencyId.isNullOrBlank() }
+            }
+            else -> db.userDao().getAllUsers()
+        }
+
+        users.forEach { u ->
+            db.notificationDao().insertNotification(
+                NotificationItem(
+                    id = UUID.randomUUID().toString(),
+                    userId = u.id,
+                    type = "announcement",
+                    title = "📢 $title",
+                    message = message,
+                    senderName = "AURA Live Official Announcement 👑",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "BROADCAST_ANNOUNCEMENT",
+                targetType = "Notification",
+                targetId = targetAudience,
+                targetName = title,
+                previousValue = null,
+                newValue = "Sent to ${users.size} users. Message: $message",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Broadcast delivered to ${users.size} recipients ($targetAudience)!")
+    }
+
+    suspend fun resolveReportOwner(reportId: String, status: String, notes: String): Result<String> = withContext(Dispatchers.IO) {
+        db.reportDao().resolveReport(
+            reportId = reportId,
+            status = status,
+            resolvedAt = System.currentTimeMillis(),
+            resolvedBy = "AURA Live Owner 👑",
+            notes = notes
+        )
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "RESOLVE_REPORT_OWNER",
+                targetType = "Report",
+                targetId = reportId,
+                targetName = "Report $reportId",
+                previousValue = "Pending",
+                newValue = "$status. Notes: $notes",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Report updated to $status.")
+    }
+
+    suspend fun handleWithdrawalOwner(requestId: String, action: String, notes: String): Result<String> = withContext(Dispatchers.IO) {
+        val req = db.withdrawalRequestDao().getWithdrawalById(requestId)
+            ?: return@withContext Result.failure(Exception("Withdrawal not found."))
+
+        val newStatus = when (action.uppercase()) {
+            "APPROVE" -> "Approved"
+            "REJECT" -> "Rejected"
+            else -> "Under Review"
+        }
+
+        if (newStatus == "Rejected" && req.status != "Rejected") {
+            db.userDao().updateBalance(req.userId, 0, req.diamondAmount)
+            db.walletTransactionDao().insertTransaction(
+                WalletTransaction(
+                    id = UUID.randomUUID().toString(),
+                    userId = req.userId,
+                    type = "Withdrawal Refund",
+                    amountCoins = 0,
+                    amountDiamonds = req.diamondAmount,
+                    description = "Refund: Withdrawal of ${req.diamondAmount} 💎 rejected by Owner. $notes"
+                )
+            )
+        }
+
+        db.withdrawalRequestDao().updateWithdrawalStatus(
+            id = req.id,
+            status = newStatus,
+            notes = notes,
+            admin = "AURA Owner 👑",
+            timestamp = System.currentTimeMillis()
+        )
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "WITHDRAWAL_OWNER_$action",
+                targetType = "Withdrawal",
+                targetId = req.id,
+                targetName = "${req.userName} (${req.diamondAmount} 💎)",
+                previousValue = req.status,
+                newValue = "$newStatus. Notes: $notes",
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Withdrawal #$requestId marked as $newStatus.")
+    }
+
+    suspend fun updateAppConfigOwner(key: String, value: String, category: String = "general"): Result<String> = withContext(Dispatchers.IO) {
+        val prev = db.appConfigDao().getConfigByKey(key)
+        db.appConfigDao().insertOrUpdateConfig(
+            AppConfigEntity(
+                key = key,
+                value = value,
+                category = category,
+                updatedAt = System.currentTimeMillis(),
+                updatedBy = "AURA Owner"
+            )
+        )
+
+        db.auditLogDao().insertAuditLog(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                adminId = _currentUserId.value.ifBlank { "Owner" },
+                adminName = "Owner",
+                adminRole = "Super Admin / Owner",
+                action = "UPDATE_CONFIG_OWNER",
+                targetType = "Config",
+                targetId = key,
+                targetName = key,
+                previousValue = prev?.value,
+                newValue = value,
+                isSuccess = true,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        Result.success("Setting '$key' updated to '$value'.")
     }
 }

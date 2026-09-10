@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,13 +24,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.model.*
 import com.example.data.repository.BismaRepository
 import com.example.ui.components.*
@@ -69,6 +74,13 @@ fun VoiceRoomScreen(
     var showExitDialog by remember { mutableStateOf(false) }
     var showSeatActionDialog by remember { mutableStateOf<RoomSeat?>(null) }
     var showSendLuckyBagDialog by remember { mutableStateOf(false) }
+
+    var selectedChatFilter by remember { mutableStateOf("All") }
+    var clearedChatTimestamp by remember { mutableLongStateOf(0L) }
+    var isChatExpanded by remember { mutableStateOf(false) }
+    var showDailyGiftDialog by remember { mutableStateOf(false) }
+    var showLuckyBoxDialog by remember { mutableStateOf(false) }
+    var showRoomGoalDialog by remember { mutableStateOf(false) }
 
     var activeGiftBanner by remember { mutableStateOf<ChatMessage?>(null) }
     var activeRocketAnimation by remember { mutableStateOf<String?>(null) }
@@ -127,10 +139,31 @@ fun VoiceRoomScreen(
     val currentRoom = room!!
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkBackgroundGradient)
+        modifier = Modifier.fillMaxSize()
     ) {
+        // Nighttime Mountain Lake Background from Reference Image
+        Image(
+            painter = painterResource(id = R.drawable.img_voice_room_bg),
+            contentDescription = "Room Background",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        // Ambient Dark Translucent Tint
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0x990A041A),
+                            Color(0x440D0622),
+                            Color(0x220A041A),
+                            Color(0xDD080316)
+                        )
+                    )
+                )
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -141,25 +174,7 @@ fun VoiceRoomScreen(
             RoomTopBar(
                 room = currentRoom,
                 onCloseRoom = { showExitDialog = true },
-                onHostTools = { showHostToolsSheet = true },
-                onMediaClick = { showMediaSheet = true }
-            )
-
-            // Room Announcement Banner
-            RoomAnnouncementBanner(announcement = currentRoom.announcement)
-
-            // Live Audio Activity Status & Spectrogram Banner
-            val speakingSeats = seats.filter { it.isSpeaking && it.userId != null }
-            RoomAudioActivityBanner(
-                speakingSeats = speakingSeats,
-                mySeat = mySeat,
-                onQuickMuteToggle = {
-                    if (mySeat != null) {
-                        coroutineScope.launch {
-                            repository.toggleMic(currentRoom.id, mySeat.seatIndex, !mySeat.isMuted)
-                        }
-                    }
-                }
+                onHostTools = { showHostToolsSheet = true }
             )
 
             // Lucky Bags & Active Event Floating Bar
@@ -204,28 +219,41 @@ fun VoiceRoomScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Room Seats Grid
-            val columns = when {
-                currentRoom.seatCount <= 6 -> 3
-                currentRoom.seatCount <= 12 -> 4
-                else -> 5
+            // Exactly 8 Seats matching reference layout (4 columns x 2 rows)
+            val displaySeats = remember(seats) {
+                val list = mutableListOf<RoomSeat>()
+                for (i in 0 until 8) {
+                    val existing = seats.find { it.seatIndex == i }
+                    if (existing != null) {
+                        list.add(existing)
+                    } else {
+                        list.add(
+                            RoomSeat(
+                                roomId = currentRoom.id,
+                                seatIndex = i,
+                                userId = null,
+                                username = null,
+                                avatarUrl = null
+                            )
+                        )
+                    }
+                }
+                list
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.48f)
-                    .padding(horizontal = 10.dp)
+                    .height(172.dp)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
+                    columns = GridCells.Fixed(4),
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(seats) { seat ->
+                    items(displaySeats) { seat ->
                         val userReactions = seatReactions.filter { it.userId == seat.userId }
 
                         RoomSeatItemWithReactions(
@@ -256,28 +284,358 @@ fun VoiceRoomScreen(
                 }
             }
 
-            // Live Scrolling Chat Feed
-            Box(
+            // Chat Filter Tabs Bar (All, Gifts, Chat, Clear •, Expand)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.38f)
-                    .padding(horizontal = 12.dp)
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    listOf("All", "Gifts", "Chat").forEach { tab ->
+                        val isSelected = selectedChatFilter == tab
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable { selectedChatFilter = tab }
+                        ) {
+                            Text(
+                                text = tab,
+                                color = if (isSelected) Color.White else Color(0xFF9E91B8),
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(18.dp)
+                                        .height(2.5.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color(0xFFFF2A85))
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(2.5.dp))
+                            }
+                        }
+                    }
+
+                    // Clear tab with red dot
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            clearedChatTimestamp = System.currentTimeMillis()
+                            Toast.makeText(context, "Chat cleared", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Text(
+                            text = "Clear",
+                            color = Color(0xFF9E91B8),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF1744))
+                        )
+                    }
+                }
+
+                // Fullscreen / Expand Chat Icon
+                IconButton(
+                    onClick = { isChatExpanded = !isChatExpanded },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CropFree,
+                        contentDescription = "Expand Chat",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Main Live Chat & Right Floating Action Badges Column
+            val filteredMessages = remember(messages, selectedChatFilter, clearedChatTimestamp) {
+                messages.filter { msg ->
+                    when (selectedChatFilter) {
+                        "Gifts" -> msg.giftName != null
+                        "Chat" -> msg.giftName == null
+                        else -> true
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(start = 12.dp, end = 6.dp)
+            ) {
+                // Left: Chat Feed
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(messages) { msg ->
+                    item {
+                        // Welcome Card
+                        Surface(
+                            color = Color(0x661A0C38),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(0.5.dp, Color(0x337C4DFF)),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF7C4DFF)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("👑", fontSize = 13.sp)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Welcome to ${currentRoom.title}!",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Be respectful, follow the rules, and enjoy your time here. Good vibes only! 💜",
+                                        color = Color(0xFFD1C7E8),
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        // Security Notice Pill
+                        Surface(
+                            color = Color(0x55120726),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text("🛡️", fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "This room is for genuine users. No fake profiles, no bad behavior.",
+                                    color = Color(0xFFD1C7E8),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        // Friendly Notice Pill
+                        Surface(
+                            color = Color(0x55120726),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text("⭐", fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Have a great time and make new friends! ✨",
+                                    color = Color(0xFFD1C7E8),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        // User Room Entry Indicator
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        ) {
+                            Surface(
+                                color = Color(0xFF2979FF).copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(0.5.dp, Color(0xFF82B1FF))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text("⭐", fontSize = 9.sp)
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text("32", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Surface(
+                                color = Color(0xFF00BFA5).copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(0.5.dp, Color(0xFF64FFDA))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text("🛡️", fontSize = 9.sp)
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text("35", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "• ${currentUser?.username ?: "SHERRY"} •",
+                                color = Color(0xFFE040FB),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = " entered the room",
+                                color = Color(0xFFB5A9D2),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    // Chat messages
+                    items(filteredMessages) { msg ->
                         RoomChatMessageBubble(
                             message = msg,
                             onUserClick = { onOpenUserProfile(msg.senderId) }
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Right: Floating Badges Column
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(end = 4.dp)
+                ) {
+                    // Scroll to top arrow
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(0)
+                            }
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = "Scroll Up",
+                            tint = Color(0xFFB5A9D2),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Badge 1: 0/100k Gift Box
+                    Surface(
+                        color = Color(0x771E103E),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0x447C4DFF)),
+                        modifier = Modifier
+                            .width(58.dp)
+                            .clickable { showRoomGoalDialog = true }
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
+                        ) {
+                            Text(text = "🎁", fontSize = 22.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Surface(
+                                color = Color(0xAA120726),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "0/100k",
+                                    color = Color(0xFFFFD54F),
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Badge 2: Daily Gift
+                    Surface(
+                        color = Color(0x773E1558),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0x55FF4081)),
+                        modifier = Modifier
+                            .width(58.dp)
+                            .clickable { showDailyGiftDialog = true }
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
+                        ) {
+                            Text(text = "👑", fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = "Daily Gift",
+                                color = Color.White,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Badge 3: Lucky Box
+                    Surface(
+                        color = Color(0x77170D2D),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0x44FFA000)),
+                        modifier = Modifier
+                            .width(58.dp)
+                            .clickable { showLuckyBoxDialog = true }
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
+                        ) {
+                            Text(text = "👑", fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = "Lucky Box",
+                                color = Color.White,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
 
-            // Quick Live Reaction Bar (Heart, Fire, Clap, Laugh, Party, Star, Rose, Like)
+            // Quick live reactions bar (if not full chat)
             QuickEmojiReactionsBar(
                 onReactionClick = { emoji ->
                     coroutineScope.launch {
@@ -300,7 +658,6 @@ fun VoiceRoomScreen(
                     }
                 },
                 isMicMuted = mySeat?.isMuted ?: true,
-                hasSeat = mySeat != null,
                 onToggleMic = {
                     if (mySeat != null) {
                         coroutineScope.launch {
@@ -313,6 +670,7 @@ fun VoiceRoomScreen(
                 onOpenEmoji = { showEmojiSheet = true },
                 onOpenGifts = { showGiftSheet = true },
                 onOpenSoundboard = { showSoundboardSheet = true },
+                onOpenSettings = { showHostToolsSheet = true },
                 onOpenGames = onOpenGames
             )
         }
@@ -473,6 +831,31 @@ fun VoiceRoomScreen(
                         onCloseRoom()
                     }
                 }
+            )
+        }
+
+        // Daily Gift Dialog
+        if (showDailyGiftDialog) {
+            DailyGiftDialog(
+                repository = repository,
+                onDismiss = { showDailyGiftDialog = false }
+            )
+        }
+
+        // Lucky Box Dialog
+        if (showLuckyBoxDialog) {
+            LuckyBoxDialog(
+                onOpenGifts = { showGiftSheet = true },
+                onDismiss = { showLuckyBoxDialog = false }
+            )
+        }
+
+        // Room Goal Dialog
+        if (showRoomGoalDialog) {
+            RoomGoalDialog(
+                roomTitle = currentRoom.title,
+                onSendGift = { showGiftSheet = true },
+                onDismiss = { showRoomGoalDialog = false }
             )
         }
     }
@@ -748,13 +1131,12 @@ fun SendLuckyBagDialog(
 fun RoomTopBar(
     room: VoiceRoom,
     onCloseRoom: () -> Unit,
-    onHostTools: () -> Unit,
-    onMediaClick: () -> Unit
+    onHostTools: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -762,63 +1144,178 @@ fun RoomTopBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            IconButton(onClick = onCloseRoom, modifier = Modifier.size(34.dp)) {
+            IconButton(onClick = onCloseRoom, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(2.dp))
+
+            // Room Avatar with glowing purple ring
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .border(
+                            1.5.dp,
+                            Brush.sweepGradient(
+                                listOf(
+                                    Color(0xFF9D4EDD),
+                                    Color(0xFFFF2A85),
+                                    Color(0xFF00E5FF),
+                                    Color(0xFF9D4EDD)
+                                )
+                            ),
+                            CircleShape
+                        )
+                ) {
+                    AsyncImage(
+                        model = room.coverUrl.ifBlank { "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400" },
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Column {
-                Text(
-                    text = room.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "ID: ${room.id}",
-                        fontSize = 10.sp,
-                        color = TextSecondary
+                        text = room.title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        color = Color(0x3300E5FF),
-                        shape = RoundedCornerShape(6.dp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "👑", fontSize = 11.sp)
+                }
+                Text(
+                    text = "ID: ${room.id}",
+                    fontSize = 10.sp,
+                    color = Color(0xFFB5A9D2),
+                    fontWeight = FontWeight.Normal
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                // 🏆 Top Room Badge
+                Surface(
+                    color = Color(0x443D2605),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE5A100))
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                        ) {
-                            SpeakingWaveAnimation(modifier = Modifier.height(8.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "${room.onlineCount} Online",
-                                fontSize = 9.sp,
-                                color = ElectricBlue,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Text(text = "🏆", fontSize = 9.sp)
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "Top Room",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFFD54F)
+                        )
                     }
                 }
             }
         }
 
+        // Right Controls: Viewer count pill + Actions pill
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            IconButton(
-                onClick = onMediaClick,
-                modifier = Modifier.size(34.dp).clip(CircleShape).background(SurfaceCard)
+            // Viewer Count Capsule
+            Surface(
+                color = Color(0x66180E2E),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(0.5.dp, Color(0x33FFFFFF))
             ) {
-                Icon(Icons.Default.MusicNote, contentDescription = "Music", tint = ElectricBlue, modifier = Modifier.size(18.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    AsyncImage(
+                        model = room.ownerAvatar.ifBlank { "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" },
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = "${room.onlineCount.coerceAtLeast(1)}",
+                        fontSize = 11.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
-            IconButton(
-                onClick = onHostTools,
-                modifier = Modifier.size(34.dp).clip(CircleShape).background(SurfaceCard)
+
+            // Options & Power Button Capsule
+            Surface(
+                color = Color(0x66180E2E),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(0.5.dp, Color(0x33FFFFFF))
             ) {
-                Icon(Icons.Default.Settings, contentDescription = "Tools", tint = Color.White, modifier = Modifier.size(18.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    // Cyan dots button for tools
+                    Column(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onHostTools() }
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(3.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF00E5FF))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(3.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF00E5FF))
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(5.dp))
+
+                    // Power / Close button
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x33FF2A85))
+                            .clickable { onCloseRoom() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PowerSettingsNew,
+                            contentDescription = "Close Room",
+                            tint = Color(0xFFFF2A85),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -996,23 +1493,36 @@ fun RoomSeatItem(
     isMySeat: Boolean,
     onSeatClick: () -> Unit
 ) {
+    val isSeat8 = seat.seatIndex == 7
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable { onSeatClick() }
-            .padding(vertical = 4.dp)
+            .padding(vertical = 2.dp)
     ) {
         if (seat.userId != null) {
             // Occupied Seat
             Box(contentAlignment = Alignment.Center) {
                 AvatarWithFrame(
                     avatarUrl = seat.avatarUrl,
-                    size = 52.dp,
+                    size = 50.dp,
                     frameId = seat.frameId,
                     vipLevel = seat.vipLevel,
                     isSpeaking = seat.isSpeaking
                 )
+
+                // Host Crown (Angled on Top-Left of Avatar)
+                if (isHostSeat) {
+                    Text(
+                        text = "👑",
+                        fontSize = 16.sp,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = (-4).dp, y = (-4).dp)
+                    )
+                }
 
                 // Mic Status Badge (Bottom Right)
                 Box(
@@ -1021,15 +1531,15 @@ fun RoomSeatItem(
                         .offset(x = 2.dp, y = 2.dp)
                         .size(18.dp)
                         .clip(CircleShape)
-                        .background(if (seat.isMuted) DarkRed else EmeraldGreen)
-                        .border(1.dp, Color.Black, CircleShape)
-                        .padding(2.5.dp)
+                        .background(if (seat.isMuted) Color(0xFFE53935) else Color(0xFF8A2BE2))
+                        .border(1.dp, Color(0xFF140B29), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (seat.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.size(11.dp)
                     )
                 }
             }
@@ -1038,7 +1548,7 @@ fun RoomSeatItem(
 
             // User Name
             Text(
-                text = seat.username ?: "User",
+                text = if (isHostSeat && (seat.username == null || seat.username == "Host")) "Go on..." else (seat.username ?: "User"),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isMySeat) NeonPink else Color.White,
@@ -1051,63 +1561,67 @@ fun RoomSeatItem(
                 AudioActivityEqualizer(
                     isSpeaking = true,
                     barCount = 4,
-                    maxBarHeight = 10.dp,
+                    maxBarHeight = 8.dp,
                     minBarHeight = 2.dp,
                     barColor = EmeraldGreen,
                     modifier = Modifier.padding(top = 1.dp)
                 )
-            } else if (isHostSeat) {
-                Surface(
-                    color = GoldAmber,
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.padding(top = 1.dp)
-                ) {
-                    Text(
-                        text = "HOST 👑",
-                        color = Color.Black,
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
-                    )
-                }
-            } else {
-                Text(
-                    text = "Seat ${seat.seatIndex + 1}",
-                    fontSize = 8.sp,
-                    color = TextMuted
-                )
             }
         } else {
             // Empty Seat
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceCard.copy(alpha = 0.6f))
-                    .border(1.dp, if (seat.isLocked) DarkRed else SurfaceCardBorder, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = if (seat.isLocked) Icons.Default.Lock else if (isHostSeat) Icons.Default.Star else Icons.Default.Mic,
-                        contentDescription = "Empty Seat",
-                        tint = if (seat.isLocked) DarkRed else if (isHostSeat) GoldYellow else TextMuted,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "${seat.seatIndex + 1}",
-                        fontSize = 8.sp,
-                        color = TextMuted,
-                        fontWeight = FontWeight.Bold
-                    )
+            if (isSeat8) {
+                // Special VIP / Boss Golden Crown Seat 8
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x332E1D02))
+                        .border(1.5.dp, Color(0xFFFFD54F), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("👑", fontSize = 20.sp)
                 }
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = "8",
+                    fontSize = 11.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                // Regular Empty Seat (Seats 1-7)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x33140A28))
+                        .border(1.5.dp, Color(0xFF4B3882), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (seat.isLocked) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = Color(0xFFE53935),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Empty Seat",
+                            tint = Color(0xFF7A68A6),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = if (isHostSeat) "1" else "${seat.seatIndex + 1}",
+                    fontSize = 11.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium
+                )
             }
-            Spacer(modifier = Modifier.height(3.dp))
-            Text(
-                text = if (seat.isLocked) "Locked" else if (isHostSeat) "Host" else "Seat ${seat.seatIndex + 1}",
-                fontSize = 9.sp,
-                color = TextMuted
-            )
         }
     }
 }
@@ -1167,97 +1681,174 @@ fun RoomBottomControlBar(
     onChatTextChange: (String) -> Unit,
     onSendChat: () -> Unit,
     isMicMuted: Boolean,
-    hasSeat: Boolean,
     onToggleMic: () -> Unit,
     onOpenEmoji: () -> Unit,
     onOpenGifts: () -> Unit,
     onOpenSoundboard: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit
 ) {
-    Surface(
-        color = SurfaceDark,
-        tonalElevation = 8.dp,
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xCC080316))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            OutlinedTextField(
-                value = chatText,
-                onValueChange = onChatTextChange,
-                placeholder = { Text("Say something...", fontSize = 11.sp, color = TextMuted) },
-                singleLine = true,
-                modifier = Modifier.weight(1f).height(44.dp),
-                shape = RoundedCornerShape(22.dp),
-                trailingIcon = {
+            // Chat Input Pill
+            Surface(
+                color = Color(0x551E1038),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0x337C4DFF)),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp)
+                ) {
+                    BasicTextField(
+                        value = chatText,
+                        onValueChange = onChatTextChange,
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontSize = 12.sp
+                        ),
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { innerTextField ->
+                            if (chatText.isEmpty()) {
+                                Text(
+                                    text = "Say something...",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF8E81A8)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+
                     if (chatText.isNotBlank()) {
-                        IconButton(onClick = onSendChat) {
-                            Icon(Icons.Default.Send, contentDescription = "Send", tint = NeonPink, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = onSendChat,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send",
+                                tint = Color(0xFFFF2A85),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeonPink,
-                    unfocusedBorderColor = SurfaceCardBorder,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
+                }
+            }
+
+            // 1. Mic Button
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isMicMuted) Color(0x442B1042) else Color(0x4400E5FF)
+                    )
+                    .border(
+                        1.dp,
+                        if (isMicMuted) Color(0x667C4DFF) else Color(0xFF00E5FF),
+                        CircleShape
+                    )
+                    .clickable { onToggleMic() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isMicMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                    contentDescription = "Mic Toggle",
+                    tint = if (isMicMuted) Color.White else Color(0xFF00E5FF),
+                    modifier = Modifier.size(19.dp)
                 )
-            )
+            }
 
-            // Dedicated Emoji Button
-            IconButton(
-                onClick = onOpenEmoji,
+            // 2. Emoji Button
+            Box(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(SurfaceCard)
-                    .border(1.dp, SurfaceCardBorder, CircleShape)
+                    .background(Color(0x442B1042))
+                    .border(1.dp, Color(0x667C4DFF), CircleShape)
+                    .clickable { onOpenEmoji() },
+                contentAlignment = Alignment.Center
             ) {
-                Text(text = "😊", fontSize = 18.sp, textAlign = TextAlign.Center)
+                Text(text = "😊", fontSize = 18.sp)
             }
 
-            // Prominent Mute / Unmute Toggle Button
-            InteractiveMuteToggleButton(
-                isMuted = isMicMuted,
-                hasSeat = hasSeat,
-                onToggle = onToggleMic
-            )
-
-            // Soundboard
-            IconButton(
-                onClick = onOpenSoundboard,
+            // 3. Soundboard / Audio Effects Button
+            Box(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(SurfaceCard)
+                    .background(Color(0x442B1042))
+                    .border(1.dp, Color(0x667C4DFF), CircleShape)
+                    .clickable { onOpenSoundboard() },
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.GraphicEq, contentDescription = "Effects", tint = NeonPurpleLight, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = "Soundboard",
+                    tint = Color(0xFFD1C7E8),
+                    modifier = Modifier.size(19.dp)
+                )
             }
 
-            // Games
-            IconButton(
-                onClick = onOpenGames,
+            // 4. Room Settings Button
+            Box(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(SurfaceCard)
+                    .background(Color(0x442B1042))
+                    .border(1.dp, Color(0x667C4DFF), CircleShape)
+                    .clickable { onOpenSettings() },
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.SportsEsports, contentDescription = "Games", tint = GoldYellow, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Room Settings",
+                    tint = Color(0xFFD1C7E8),
+                    modifier = Modifier.size(19.dp)
+                )
             }
 
-            // Gift Button
-            IconButton(
-                onClick = onOpenGifts,
+            // 5. Gifts Floating Action Button (Vibrant Pink/Purple Gradient)
+            Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(PrimaryGradient)
+                    .background(
+                        Brush.sweepGradient(
+                            listOf(
+                                Color(0xFFFF2A85),
+                                Color(0xFF9D4EDD),
+                                Color(0xFFFF5252),
+                                Color(0xFFFF2A85)
+                            )
+                        )
+                    )
+                    .clickable { onOpenGifts() },
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.CardGiftcard, contentDescription = "Gift", tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(
+                    imageVector = Icons.Default.CardGiftcard,
+                    contentDescription = "Gift",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
     }
@@ -1737,4 +2328,224 @@ fun FloatingCanvasReactionAnimation(
     ) {
         Text(text = emoji, fontSize = 34.sp)
     }
+}
+
+@Composable
+fun DailyGiftDialog(
+    repository: BismaRepository,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var claimed by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E1038),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "👑", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Daily Room Gift",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Collect free daily room gifts & mystery coins every day you spend time in voice rooms!",
+                    color = Color(0xFFD1C7E8),
+                    fontSize = 13.sp
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    listOf("Day 1" to "🪙 100", "Day 2" to "🪙 150", "Day 3" to "🎁 Rose", "Day 4" to "🪙 300").forEach { (day, prize) ->
+                        Surface(
+                            color = Color(0x55351A5E),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0x337C4DFF)),
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(text = day, color = Color(0xFFB5A9D2), fontSize = 10.sp)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = prize, color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (!claimed) {
+                        claimed = true
+                        coroutineScope.launch {
+                            Toast.makeText(context, "🎉 Claimed 🪙 200 Free Coins for today!", Toast.LENGTH_LONG).show()
+                            onDismiss()
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2A85)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(if (claimed) "Claimed" else "Claim Today's Gift", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = Color(0xFFB5A9D2))
+            }
+        }
+    )
+}
+
+@Composable
+fun LuckyBoxDialog(
+    onOpenGifts: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1B0D34),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "👑", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Lucky Box Event",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Every gift sent in this room adds tickets to the Lucky Box drawing! Top prize: 100,000 Coins 🪙",
+                    color = Color(0xFFD1C7E8),
+                    fontSize = 13.sp
+                )
+                Surface(
+                    color = Color(0x44FFA000),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFFD54F)),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("✨", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Next Lucky Box opens in 04:32 mins",
+                            color = Color(0xFFFFD54F),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onDismiss()
+                    onOpenGifts()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9100)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text("Send Gift for Tickets", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = Color(0xFFB5A9D2))
+            }
+        }
+    )
+}
+
+@Composable
+fun RoomGoalDialog(
+    roomTitle: String,
+    onSendGift: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1B0D34),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "🎁", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Room Goal Progress",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Help $roomTitle reach the 100,000 Coins goal to trigger full-screen room fireworks & unlock special animated room badges!",
+                    color = Color(0xFFD1C7E8),
+                    fontSize = 13.sp
+                )
+
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Progress", color = Color(0xFFB5A9D2), fontSize = 11.sp)
+                        Text("0 / 100,000 🪙", color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { 0.05f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = Color(0xFFFF2A85),
+                        trackColor = Color(0x447C4DFF)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onDismiss()
+                    onSendGift()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2A85)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text("Support Room Goal", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = Color(0xFFB5A9D2))
+            }
+        }
+    )
 }

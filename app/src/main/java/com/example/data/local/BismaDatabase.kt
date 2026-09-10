@@ -31,9 +31,12 @@ import com.example.data.model.*
         AuditLogEntity::class,
         AdminLinkUser::class,
         OfficialFrameAssignment::class,
-        FeedbackItem::class
+        FeedbackItem::class,
+        RechargePackage::class,
+        WithdrawalRequest::class,
+        CurrencyConfig::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class BismaDatabase : RoomDatabase() {
@@ -58,6 +61,10 @@ abstract class BismaDatabase : RoomDatabase() {
     abstract fun adminLinkUserDao(): AdminLinkUserDao
     abstract fun officialFrameDao(): OfficialFrameDao
     abstract fun feedbackDao(): FeedbackDao
+    abstract fun rechargePackageDao(): RechargePackageDao
+    abstract fun withdrawalRequestDao(): WithdrawalRequestDao
+    abstract fun currencyConfigDao(): CurrencyConfigDao
+
 
     companion object {
         @Volatile

@@ -14,6 +14,8 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.UUID
+import com.example.data.model.RechargePackage
 
 class AdminWebServer(
     private val adminService: AdminService,
@@ -933,6 +935,120 @@ class AdminWebServer(
                 val logs = adminService.getAuditLogs(session, limit)
                 sendResponse(outputStream, 200, "OK", "application/json", JSONArray(logs).toString())
             }
+
+            // Financial & Currency Management Endpoints
+            path == "/api/admin/currency/config" && method == "GET" -> {
+                val config = adminService.getCurrencyConfig(session)
+                sendResponse(outputStream, 200, "OK", "application/json", config.toString())
+            }
+
+            path == "/api/admin/currency/config" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val coinsPerUsd = json.optLong("coinsPerUsd", 28000L)
+                val diamondsPerUsd = json.optLong("diamondsPerUsd", 2800L)
+                val hostCommission = json.optDouble("hostGiftCommissionPercent", 70.0)
+                val agencyCommission = json.optDouble("agencyGiftCommissionPercent", 10.0)
+                val platformFee = json.optDouble("platformFeePercent", 20.0)
+                val minWithdrawal = json.optLong("minWithdrawalDiamonds", 10000L)
+                val maxDaily = json.optLong("maxDailyWithdrawalDiamonds", 5000000L)
+                val isWithdrawalEnabled = json.optBoolean("isWithdrawalEnabled", true)
+                val isRechargeEnabled = json.optBoolean("isRechargeEnabled", true)
+
+                val res = adminService.updateCurrencyConfig(
+                    session = session,
+                    coinsPerUsd = coinsPerUsd,
+                    diamondsPerUsd = diamondsPerUsd,
+                    hostCommission = hostCommission,
+                    agencyCommission = agencyCommission,
+                    platformFee = platformFee,
+                    minWithdrawal = minWithdrawal,
+                    maxDailyWithdrawal = maxDaily,
+                    isWithdrawalEnabled = isWithdrawalEnabled,
+                    isRechargeEnabled = isRechargeEnabled,
+                    clientIp = clientIp
+                )
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply { put("success", true); put("message", "Currency configuration updated (Official Rate: 1 USD = $coinsPerUsd Coins)") }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply { put("success", false); put("message", res.exceptionOrNull()?.message ?: "Failed to update currency config") }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            path == "/api/admin/recharge-packages" && method == "GET" -> {
+                val pkgs = adminService.getAllRechargePackages(session)
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(pkgs).toString())
+            }
+
+            path == "/api/admin/recharge-packages" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val id = json.optString("id", UUID.randomUUID().toString())
+                val coins = json.optLong("coins", 28000L)
+                val priceUsd = json.optDouble("priceUsd", 0.99)
+                val bonusCoins = json.optLong("bonusCoins", 0L)
+                val label = json.optString("label", "")
+                val isPopular = json.optBoolean("isPopular", false)
+                val isBestValue = json.optBoolean("isBestValue", false)
+                val isActive = json.optBoolean("isActive", true)
+                val sortOrder = json.optInt("sortOrder", 1)
+
+                val pkg = RechargePackage(
+                    id = id,
+                    coins = coins,
+                    priceUsd = priceUsd,
+                    bonusCoins = bonusCoins,
+                    label = label,
+                    isPopular = isPopular,
+                    isBestValue = isBestValue,
+                    isActive = isActive,
+                    sortOrder = sortOrder
+                )
+
+                val res = adminService.saveRechargePackage(session, pkg, clientIp)
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply { put("success", true); put("message", "Recharge package saved successfully") }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply { put("success", false); put("message", res.exceptionOrNull()?.message ?: "Failed to save package") }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            path == "/api/admin/recharge-packages/delete" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val packageId = json.optString("id", "")
+                val res = adminService.deleteRechargePackage(session, packageId, clientIp)
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply { put("success", true); put("message", "Package deleted") }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply { put("success", false); put("message", res.exceptionOrNull()?.message ?: "Failed to delete package") }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
+            path == "/api/admin/withdrawals" && method == "GET" -> {
+                val list = adminService.getAllWithdrawals(session)
+                sendResponse(outputStream, 200, "OK", "application/json", JSONArray(list).toString())
+            }
+
+            path == "/api/admin/withdrawals/action" && method == "POST" -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                val reqId = json.optString("requestId", json.optString("txId", ""))
+                val action = json.optString("action", "APPROVE")
+                val notes = json.optString("notes", "Processed by admin")
+
+                val res = adminService.handleWithdrawalAction(session, reqId, action, notes, clientIp)
+                if (res.isSuccess) {
+                    val resp = JSONObject().apply { put("success", true); put("message", "Withdrawal request marked as $action") }
+                    sendResponse(outputStream, 200, "OK", "application/json", resp.toString())
+                } else {
+                    val err = JSONObject().apply { put("success", false); put("message", res.exceptionOrNull()?.message ?: "Failed to process withdrawal") }
+                    sendResponse(outputStream, 400, "Bad Request", "application/json", err.toString())
+                }
+            }
+
 
             else -> {
                 sendResponse(outputStream, 404, "Not Found", "text/plain", "404 Not Found")

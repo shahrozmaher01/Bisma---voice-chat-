@@ -78,6 +78,9 @@ interface RoomDao {
     @Query("SELECT * FROM rooms WHERE isActive = 1 ORDER BY (CASE WHEN onlineCount > 0 THEN 1 ELSE 0 END) DESC, onlineCount DESC, createdAt DESC")
     fun getAllActiveRoomsFlow(): Flow<List<VoiceRoom>>
 
+    @Query("SELECT * FROM rooms ORDER BY createdAt DESC")
+    fun getAllRoomsFlow(): Flow<List<VoiceRoom>>
+
     @Query("SELECT * FROM rooms WHERE isActive = 1 AND onlineCount > 0 ORDER BY onlineCount DESC, createdAt DESC")
     fun getLiveActiveRoomsFlow(): Flow<List<VoiceRoom>>
 
@@ -222,6 +225,9 @@ interface AgencyFamilyDao {
     @Query("SELECT * FROM agencies WHERE id = :id LIMIT 1")
     suspend fun getAgencyById(id: String): Agency?
 
+    @Query("UPDATE agencies SET totalIncome = :totalIncome WHERE id = :id")
+    suspend fun updateAgencyIncome(id: String, totalIncome: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAgency(agency: Agency)
 
@@ -249,9 +255,82 @@ interface WalletTransactionDao {
     @Query("SELECT * FROM wallet_transactions ORDER BY timestamp DESC")
     suspend fun getAllTransactions(): List<WalletTransaction>
 
+    @Query("SELECT * FROM wallet_transactions ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getRecentTransactions(limit: Int): List<WalletTransaction>
+
+    @Query("SELECT COALESCE(SUM(amountCoins), 0) FROM wallet_transactions WHERE userId = :userId AND amountCoins > 0 AND type = 'Recharge'")
+    suspend fun getTotalCoinsPurchased(userId: String): Long
+
+    @Query("SELECT COALESCE(ABS(SUM(amountCoins)), 0) FROM wallet_transactions WHERE userId = :userId AND amountCoins < 0")
+    suspend fun getTotalCoinsSpent(userId: String): Long
+
+    @Query("SELECT COALESCE(SUM(amountDiamonds), 0) FROM wallet_transactions WHERE userId = :userId AND amountDiamonds > 0")
+    suspend fun getTotalDiamondsEarned(userId: String): Long
+
+    @Query("SELECT COALESCE(ABS(SUM(amountDiamonds)), 0) FROM wallet_transactions WHERE userId = :userId AND amountDiamonds < 0")
+    suspend fun getTotalDiamondsWithdrawnOrExchanged(userId: String): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: WalletTransaction)
 }
+
+@Dao
+interface RechargePackageDao {
+    @Query("SELECT * FROM recharge_packages WHERE isActive = 1 ORDER BY sortOrder ASC, priceUsd ASC")
+    fun getActivePackagesFlow(): Flow<List<RechargePackage>>
+
+    @Query("SELECT * FROM recharge_packages ORDER BY sortOrder ASC, priceUsd ASC")
+    suspend fun getAllPackages(): List<RechargePackage>
+
+    @Query("SELECT * FROM recharge_packages WHERE id = :id LIMIT 1")
+    suspend fun getPackageById(id: String): RechargePackage?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(pkg: RechargePackage)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(packages: List<RechargePackage>)
+
+    @Query("DELETE FROM recharge_packages WHERE id = :id")
+    suspend fun deletePackage(id: String)
+}
+
+@Dao
+interface WithdrawalRequestDao {
+    @Query("SELECT * FROM withdrawal_requests WHERE userId = :userId ORDER BY requestedAt DESC")
+    fun getUserWithdrawalsFlow(userId: String): Flow<List<WithdrawalRequest>>
+
+    @Query("SELECT * FROM withdrawal_requests ORDER BY requestedAt DESC")
+    fun getAllWithdrawalsFlow(): Flow<List<WithdrawalRequest>>
+
+    @Query("SELECT * FROM withdrawal_requests ORDER BY requestedAt DESC")
+    suspend fun getAllWithdrawals(): List<WithdrawalRequest>
+
+    @Query("SELECT * FROM withdrawal_requests WHERE status = :status ORDER BY requestedAt DESC")
+    suspend fun getWithdrawalsByStatus(status: String): List<WithdrawalRequest>
+
+    @Query("SELECT * FROM withdrawal_requests WHERE id = :id LIMIT 1")
+    suspend fun getWithdrawalById(id: String): WithdrawalRequest?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRequest(request: WithdrawalRequest)
+
+    @Query("UPDATE withdrawal_requests SET status = :status, adminNotes = :notes, processedBy = :admin, processedAt = :timestamp WHERE id = :id")
+    suspend fun updateWithdrawalStatus(id: String, status: String, notes: String, admin: String, timestamp: Long)
+}
+
+@Dao
+interface CurrencyConfigDao {
+    @Query("SELECT * FROM system_currency_config WHERE id = 'aura_currency_config' LIMIT 1")
+    fun getConfigFlow(): Flow<CurrencyConfig?>
+
+    @Query("SELECT * FROM system_currency_config WHERE id = 'aura_currency_config' LIMIT 1")
+    suspend fun getConfig(): CurrencyConfig?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(config: CurrencyConfig)
+}
+
 
 @Dao
 interface SocialDao {

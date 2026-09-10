@@ -145,23 +145,18 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Official Admin Panel button (always accessible)
+                    // Official Owner & Admin Panel button (accessible with golden crown)
                     Surface(
                         onClick = onOpenAdminPanel,
                         shape = CircleShape,
-                        color = Color(0x4000E5FF),
-                        border = BorderStroke(1.dp, Color(0xFF00E5FF)),
+                        color = Color(0x33FFD700),
+                        border = BorderStroke(1.dp, Color(0xFFFFD700)),
                         modifier = Modifier
                             .size(34.dp)
                             .testTag("open_admin_panel_top_btn")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.AdminPanelSettings,
-                                contentDescription = "Admin Panel",
-                                tint = Color(0xFF00E5FF),
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Text("👑", fontSize = 16.sp)
                         }
                     }
 
@@ -638,8 +633,79 @@ fun ProfileScreen(
                     }
                 }
 
+                // AURA Live Virtual Currency Snapshot Banner
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0x77160B2C),
+                        border = BorderStroke(1.dp, Color(0x44FFB300)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenWallet() }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🪙", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Column {
+                                    Text(
+                                        text = "${user.coins}",
+                                        color = Color(0xFFFFD700),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                    Text("Coins", color = Color(0xFF9E94B8), fontSize = 9.sp)
+                                }
+                            }
+
+                            Box(modifier = Modifier.width(1.dp).height(24.dp).background(Color(0x33FFFFFF)))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("💎", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Column {
+                                    Text(
+                                        text = "${user.diamonds}",
+                                        color = Color(0xFF00E5FF),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                    Text("Diamonds", color = Color(0xFF9E94B8), fontSize = 9.sp)
+                                }
+                            }
+
+                            // Recharge Pill Action
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFFFB300),
+                                modifier = Modifier
+                                    .clickable { onOpenWallet() }
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = "Recharge",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text("Top Up", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 10.5.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Section 3: 4 Rounded Floating Action Icons (My Level, My Wallet, My Agency, My Room)
                 item {
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -862,15 +928,10 @@ fun ProfileScreen(
                                 badgeBgColor = Color(0x3300E5FF),
                                 badgeBorderColor = Color(0x6600E5FF),
                                 iconContent = {
-                                    Icon(
-                                        Icons.Default.AdminPanelSettings,
-                                        contentDescription = "Official Admin Panel",
-                                        tint = Color(0xFF00E5FF),
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                    Text("👑", fontSize = 18.sp)
                                 },
-                                title = "Official Admin Panel",
-                                subtitle = "Official 1 & 2 Frame & System Portals",
+                                title = "Owner Panel",
+                                subtitle = "Full Dashboard, User/Manager, Rooms, Economy & Badges",
                                 onClick = onOpenAdminPanel
                             )
 

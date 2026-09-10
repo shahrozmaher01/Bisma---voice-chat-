@@ -740,36 +740,182 @@ class AdminService(
     }
 
     suspend fun getAllWithdrawals(session: AdminSession): List<JSONObject> = withContext(Dispatchers.IO) {
-        val txs = db.walletTransactionDao().getAllTransactions()
-            .filter { it.type.contains("Withdraw", ignoreCase = true) || it.type.contains("Exchange", ignoreCase = true) || it.description.contains("Cash", ignoreCase = true) }
-        txs.map { tx ->
+        val requests = db.withdrawalRequestDao().getAllWithdrawals()
+        requests.map { req ->
             val obj = JSONObject()
-            obj.put("id", tx.id)
-            obj.put("userId", tx.userId)
-            obj.put("type", tx.type)
-            obj.put("amountCoins", tx.amountCoins)
-            obj.put("amountDiamonds", tx.amountDiamonds)
-            obj.put("description", tx.description)
-            obj.put("timestamp", tx.timestamp)
-            obj.put("status", if (tx.description.contains("Approved", ignoreCase = true)) "Approved" else if (tx.description.contains("Rejected", ignoreCase = true)) "Rejected" else "Pending Review")
+            obj.put("id", req.id)
+            obj.put("userId", req.userId)
+            obj.put("userName", req.userName)
+            obj.put("diamondAmount", req.diamondAmount)
+            obj.put("usdAmount", req.usdAmount)
+            obj.put("paymentMethod", req.paymentMethod)
+            obj.put("accountTitle", req.accountTitle)
+            obj.put("accountNumber", req.accountNumber)
+            obj.put("accountNotes", req.accountNotes)
+            obj.put("status", req.status)
+            obj.put("requestedAt", req.requestedAt)
+            obj.put("processedAt", req.processedAt ?: 0L)
+            obj.put("processedBy", req.processedBy ?: "")
+            obj.put("adminNotes", req.adminNotes ?: "")
             obj
         }
     }
 
     suspend fun handleWithdrawalAction(
         session: AdminSession,
-        txId: String,
-        action: String, // "APPROVE", "REJECT"
+        requestId: String,
+        action: String, // "APPROVE", "REJECT", "REVIEW"
         notes: String,
         clientIp: String
     ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val req = db.withdrawalRequestDao().getWithdrawalById(requestId)
+            ?: return@withContext Result.failure(Exception("Withdrawal request not found."))
+
+        val newStatus = when (action.uppercase()) {
+            "APPROVE" -> "Approved"
+            "REJECT" -> "Rejected"
+            "REVIEW" -> "Under Review"
+            else -> return@withContext Result.failure(Exception("Invalid withdrawal action: $action"))
+        }
+
+        // If rejected, refund escrowed diamonds back to the user
+        if (newStatus == "Rejected" && req.status != "Rejected") {
+            db.userDao().updateBalance(req.userId, 0, req.diamondAmount)
+            db.walletTransactionDao().insertTransaction(
+                WalletTransaction(
+                    id = UUID.randomUUID().toString(),
+                    userId = req.userId,
+                    type = "Withdrawal Refund",
+                    amountCoins = 0,
+                    amountDiamonds = req.diamondAmount,
+                    description = "Refund: Withdrawal of ${req.diamondAmount} 💎 rejected by admin (${session.username}). Reason: $notes"
+                )
+            )
+        }
+
+        db.withdrawalRequestDao().updateWithdrawalStatus(
+            id = req.id,
+            status = newStatus,
+            notes = notes,
+            admin = "${session.username} (${session.role.roleName})",
+            timestamp = System.currentTimeMillis()
+        )
+
         securityManager.logAction(
             session.userId, session.username, session.role.roleName,
-            "WITHDRAWAL_$action", "Withdrawal", txId, txId,
-            "Pending", "$action: $notes", true, clientIp
+            "WITHDRAWAL_$action", "Withdrawal", req.id, "${req.userName} (${req.diamondAmount} 💎)",
+            req.status, "$newStatus: $notes", true, clientIp
         )
         Result.success(true)
     }
+
+    // Currency System Admin Operations
+    suspend fun getCurrencyConfig(session: AdminSession): JSONObject = withContext(Dispatchers.IO) {
+        val config = db.currencyConfigDao().getConfig() ?: CurrencyConfig()
+        val obj = JSONObject()
+        obj.put("id", config.id)
+        obj.put("coinsPerUsd", config.coinsPerUsd)
+        obj.put("diamondsPerUsd", config.diamondsPerUsd)
+        obj.put("hostGiftCommissionPercent", config.hostGiftCommissionPercent)
+        obj.put("agencyGiftCommissionPercent", config.agencyGiftCommissionPercent)
+        obj.put("platformFeePercent", config.platformFeePercent)
+        obj.put("minWithdrawalDiamonds", config.minWithdrawalDiamonds)
+        obj.put("maxDailyWithdrawalDiamonds", config.maxDailyWithdrawalDiamonds)
+        obj.put("isWithdrawalEnabled", config.isWithdrawalEnabled)
+        obj.put("isRechargeEnabled", config.isRechargeEnabled)
+        obj
+    }
+
+    suspend fun updateCurrencyConfig(
+        session: AdminSession,
+        coinsPerUsd: Long,
+        diamondsPerUsd: Long,
+        hostCommission: Double,
+        agencyCommission: Double,
+        platformFee: Double,
+        minWithdrawal: Long,
+        maxDailyWithdrawal: Long,
+        isWithdrawalEnabled: Boolean,
+        isRechargeEnabled: Boolean,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
+            return@withContext Result.failure(Exception("Permission Denied: Only Super Admin and Admin can update financial rates."))
+        }
+
+        val updated = CurrencyConfig(
+            id = "aura_currency_config",
+            coinsPerUsd = coinsPerUsd,
+            diamondsPerUsd = diamondsPerUsd,
+            hostGiftCommissionPercent = hostCommission,
+            agencyGiftCommissionPercent = agencyCommission,
+            platformFeePercent = platformFee,
+            minWithdrawalDiamonds = minWithdrawal,
+            maxDailyWithdrawalDiamonds = maxDailyWithdrawal,
+            isWithdrawalEnabled = isWithdrawalEnabled,
+            isRechargeEnabled = isRechargeEnabled
+        )
+        db.currencyConfigDao().insertOrUpdate(updated)
+
+        securityManager.logAction(
+            session.userId, session.username, session.role.roleName,
+            "UPDATE_CURRENCY_CONFIG", "Finance", "aura_currency_config", "Currency Config",
+            null, "Rate: 1 USD = $coinsPerUsd Coins, Host: $hostCommission%, Agency: $agencyCommission%", true, clientIp
+        )
+        Result.success(true)
+    }
+
+    suspend fun getAllRechargePackages(session: AdminSession): List<JSONObject> = withContext(Dispatchers.IO) {
+        val pkgs = db.rechargePackageDao().getAllPackages()
+        pkgs.map { p ->
+            val obj = JSONObject()
+            obj.put("id", p.id)
+            obj.put("coins", p.coins)
+            obj.put("priceUsd", p.priceUsd)
+            obj.put("bonusCoins", p.bonusCoins)
+            obj.put("label", p.label)
+            obj.put("isPopular", p.isPopular)
+            obj.put("isBestValue", p.isBestValue)
+            obj.put("isActive", p.isActive)
+            obj.put("sortOrder", p.sortOrder)
+            obj
+        }
+    }
+
+    suspend fun saveRechargePackage(
+        session: AdminSession,
+        pkg: RechargePackage,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
+            return@withContext Result.failure(Exception("Permission Denied: Insufficient privilege to manage recharge packages."))
+        }
+        db.rechargePackageDao().insertOrUpdate(pkg)
+        securityManager.logAction(
+            session.userId, session.username, session.role.roleName,
+            "SAVE_RECHARGE_PACKAGE", "Package", pkg.id, "${pkg.coins} Coins ($${pkg.priceUsd})",
+            null, "Saved package with ${pkg.bonusCoins} bonus", true, clientIp
+        )
+        Result.success(true)
+    }
+
+    suspend fun deleteRechargePackage(
+        session: AdminSession,
+        packageId: String,
+        clientIp: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        if (session.role != AdminRole.SUPER_ADMIN && session.role != AdminRole.ADMIN) {
+            return@withContext Result.failure(Exception("Permission Denied: Insufficient privilege to delete recharge packages."))
+        }
+        db.rechargePackageDao().deletePackage(packageId)
+        securityManager.logAction(
+            session.userId, session.username, session.role.roleName,
+            "DELETE_RECHARGE_PACKAGE", "Package", packageId, packageId,
+            null, "Deleted package", true, clientIp
+        )
+        Result.success(true)
+    }
+
 
     suspend fun getAllStoreItems(session: AdminSession): List<JSONObject> = withContext(Dispatchers.IO) {
         val items = db.storeDao().getAllItems()

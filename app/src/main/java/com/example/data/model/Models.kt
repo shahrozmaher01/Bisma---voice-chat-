@@ -446,3 +446,88 @@ data class AuraTask(
     val iconEmoji: String
 )
 
+@Entity(tableName = "recharge_packages")
+data class RechargePackage(
+    @PrimaryKey val id: String,
+    val coins: Long,
+    val priceUsd: Double,
+    val bonusCoins: Long = 0,
+    val label: String = "",
+    val isPopular: Boolean = false,
+    val isBestValue: Boolean = false,
+    val isActive: Boolean = true,
+    val sortOrder: Int = 0
+)
+
+@Entity(tableName = "withdrawal_requests")
+data class WithdrawalRequest(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val userName: String,
+    val userAvatar: String = "",
+    val diamondAmount: Long,
+    val usdAmount: Double,
+    val paymentMethod: String, // "Bank Transfer", "PayPal", "USDT (TRC20)", "JazzCash", "EasyPaisa", "Payoneer"
+    val accountTitle: String,
+    val accountNumber: String,
+    val accountNotes: String = "",
+    val status: String = "Pending", // "Pending", "Under Review", "Approved", "Rejected"
+    val adminNotes: String = "",
+    val processedBy: String = "",
+    val processedAt: Long? = null,
+    val requestedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "system_currency_config")
+data class CurrencyConfig(
+    @PrimaryKey val id: String = "aura_currency_config",
+    val coinsPerUsd: Long = 28000L, // Official Rate: 1 USD = 28,000 AURA Coins
+    val diamondsPerUsd: Long = 2800L, // Host Diamond Rate: 1 USD = 2,800 Diamonds
+    val hostGiftCommissionPercent: Double = 70.0, // 70% to Host
+    val agencyGiftCommissionPercent: Double = 10.0, // 10% to Agency
+    val platformFeePercent: Double = 20.0, // 20% platform burn / operational fee
+    val minWithdrawalDiamonds: Long = 10000L, // Min 10,000 Diamonds
+    val maxDailyWithdrawalDiamonds: Long = 5000000L,
+    val isWithdrawalEnabled: Boolean = true,
+    val isRechargeEnabled: Boolean = true,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+data class OwnerDashboardStats(
+    val totalUsers: Long = 0,
+    val onlineUsers: Long = 0,
+    val totalRooms: Long = 0,
+    val activeRooms: Long = 0,
+    val totalAgencies: Long = 0,
+    val totalHosts: Long = 0,
+    val totalAdmins: Long = 0,
+    val totalManagers: Long = 0,
+    val totalCoinsInCirculation: Long = 0,
+    val totalRevenueUsd: Double = 0.0,
+    val pendingWithdrawalsCount: Int = 0,
+    val pendingReportsCount: Int = 0,
+    val dailyNewUsers: Int = 0,
+    val weeklyActiveUsers: Int = 0,
+    val monthlyRevenueUsd: Double = 0.0
+)
+
+data class SecurityAlertItem(
+    val id: String,
+    val title: String,
+    val severity: String, // "CRITICAL", "HIGH", "MEDIUM", "LOW"
+    val description: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class LoginLogItem(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val role: String,
+    val deviceModel: String,
+    val ipAddress: String,
+    val status: String, // "Success", "Failed", "2FA Verified"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+

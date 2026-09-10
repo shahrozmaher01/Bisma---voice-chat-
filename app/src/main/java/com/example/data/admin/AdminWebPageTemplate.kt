@@ -176,6 +176,9 @@ object AdminWebPageTemplate {
                 <a class="menu-item" onclick="switchTab('frames')">
                     <span class="menu-item-icon">👑</span> <strong>Frame Management</strong>
                 </a>
+                <a class="menu-item" onclick="switchTab('finance')">
+                    <span class="menu-item-icon">🪙</span> <strong>Finance & Economy</strong>
+                </a>
                 <div class="menu-category">Session</div>
                 <a class="menu-item" onclick="handleLogout()" style="color: var(--danger);">
                     <span class="menu-item-icon">🚪</span> Logout
@@ -448,6 +451,150 @@ object AdminWebPageTemplate {
                                 </thead>
                                 <tbody id="frameHistoryTableBody">
                                     <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading frame sending history...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. FINANCE & ECONOMY MANAGEMENT -->
+                <section id="tab-finance" class="tab-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-card-title">Official Coin Rate</div>
+                            <div class="stat-card-value" id="statFinanceCoinsRate" style="color: var(--gold); font-size: 20px;">28,000 / $1</div>
+                            <div class="stat-card-icon">🪙</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-title">Host Commission</div>
+                            <div class="stat-card-value" id="statFinanceHostComm" style="color: var(--cyan); font-size: 20px;">70%</div>
+                            <div class="stat-card-icon">🎤</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-title">Agency Commission</div>
+                            <div class="stat-card-value" id="statFinanceAgencyComm" style="color: var(--emerald); font-size: 20px;">10%</div>
+                            <div class="stat-card-icon">🏢</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-title">Platform Share</div>
+                            <div class="stat-card-value" id="statFinancePlatformShare" style="color: var(--primary); font-size: 20px;">20%</div>
+                            <div class="stat-card-icon">🛡️</div>
+                        </div>
+                    </div>
+
+                    <!-- Currency Configuration Form -->
+                    <div class="glass-card" style="padding: 24px; margin-bottom: 22px;">
+                        <h3 style="font-size: 17px; font-weight: 800; color: var(--gold); margin-bottom: 6px;">⚙️ AURA Live Currency System Configuration</h3>
+                        <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 18px;">
+                            Official server-authoritative exchange rates and split commissions across all live voice rooms.
+                        </p>
+                        <form id="financeConfigForm" onsubmit="handleSaveCurrencyConfig(event)">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                                <div class="form-group">
+                                    <label class="form-label">Coins Per 1 USD (Rate)</label>
+                                    <input type="number" id="cfgCoinsPerUsd" class="form-input" value="28000" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Diamonds Per 1 USD</label>
+                                    <input type="number" id="cfgDiamondsPerUsd" class="form-input" value="2800" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Host Commission (%)</label>
+                                    <input type="number" step="0.1" id="cfgHostComm" class="form-input" value="70.0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Agency Commission (%)</label>
+                                    <input type="number" step="0.1" id="cfgAgencyComm" class="form-input" value="10.0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Platform Fee (%)</label>
+                                    <input type="number" step="0.1" id="cfgPlatformFee" class="form-input" value="20.0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Min Withdrawal (💎)</label>
+                                    <input type="number" id="cfgMinWithdrawal" class="form-input" value="10000" required>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 20px; align-items: center; margin-top: 14px; flex-wrap: wrap;">
+                                <label style="display: flex; align-items: center; gap: 8px; color: #FFF; font-size: 13px; cursor: pointer;">
+                                    <input type="checkbox" id="cfgWithdrawalEnabled" checked style="accent-color: var(--cyan); width: 16px; height: 16px;">
+                                    Withdrawals Enabled
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; color: #FFF; font-size: 13px; cursor: pointer;">
+                                    <input type="checkbox" id="cfgRechargeEnabled" checked style="accent-color: var(--gold); width: 16px; height: 16px;">
+                                    Coin Recharges Enabled
+                                </label>
+                                <button type="submit" class="btn-primary" style="margin-left: auto; padding: 10px 24px; font-size: 13px; font-weight: 700;">
+                                    💾 Save Currency Settings
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Host Withdrawal Requests Queue -->
+                    <div class="glass-card" style="padding: 24px; margin-bottom: 22px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h3 style="font-size: 17px; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 8px;">
+                                    <span>💎</span> Host Diamond Withdrawal Requests
+                                </h3>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                                    Review and process pending payout requests submitted by voice room hosts.
+                                </p>
+                            </div>
+                            <button class="btn-secondary" onclick="loadWithdrawalsTable()" style="font-size: 12px; padding: 6px 14px;">
+                                🔄 Refresh Payouts
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Host</th>
+                                        <th>Amount (💎)</th>
+                                        <th>Payout (USD)</th>
+                                        <th>Method & Account</th>
+                                        <th>Requested Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="withdrawalsTableBody">
+                                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading payout requests...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Recharge Packages Table -->
+                    <div class="glass-card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h3 style="font-size: 17px; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 8px;">
+                                    <span>📦</span> Recharge Packages Catalog
+                                </h3>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                                    Standard store packages available for users to purchase coins.
+                                </p>
+                            </div>
+                            <button class="btn-secondary" onclick="loadPackagesTable()" style="font-size: 12px; padding: 6px 14px;">
+                                🔄 Refresh Packages
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Package</th>
+                                        <th>Coins</th>
+                                        <th>Price (USD)</th>
+                                        <th>Bonus Coins</th>
+                                        <th>Badge / Label</th>
+                                        <th>Active</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="packagesTableBody">
+                                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading packages...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -768,7 +915,8 @@ object AdminWebPageTemplate {
             const titleMap = {
                 dashboard: ['Dashboard', 'Real-time overview of users registered under your link'],
                 link: ['🔗 LINK Management', 'Users registered under your unique admin link & their assigned work'],
-                frames: ['👑 Frame Management', 'Exclusive Official 1 Frame Distribution System & Audit History']
+                frames: ['👑 Frame Management', 'Exclusive Official 1 Frame Distribution System & Audit History'],
+                finance: ['🪙 Finance & Economy', 'Official Currency Rates (1 USD = 28,000 Coins), Host Diamond Withdrawals & Packages']
             };
 
             const info = titleMap[tabId] || ['Official 1', 'Admin Control Panel'];
@@ -788,6 +936,7 @@ object AdminWebPageTemplate {
             if (tabId === 'dashboard') loadDashboardStats();
             if (tabId === 'link') loadLinkUsers();
             if (tabId === 'frames') loadFrameHistory();
+            if (tabId === 'finance') loadFinanceTab();
         }
 
         async function loadDashboardStats() {
@@ -1279,6 +1428,183 @@ object AdminWebPageTemplate {
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
         }
+
+        // ================= FINANCE TAB JS =================
+        async function loadFinanceTab() {
+            await Promise.all([
+                loadCurrencyConfig(),
+                loadWithdrawalsTable(),
+                loadPackagesTable()
+            ]);
+        }
+
+        async function loadCurrencyConfig() {
+            try {
+                const res = await fetch('/api/admin/currency/config', { headers: getAuthHeaders() });
+                if (!res.ok) return;
+                const cfg = await res.json();
+                document.getElementById('cfgCoinsPerUsd').value = cfg.coinsPerUsd || 28000;
+                document.getElementById('cfgDiamondsPerUsd').value = cfg.diamondsPerUsd || 2800;
+                document.getElementById('cfgHostComm').value = cfg.hostGiftCommissionPercent || 70.0;
+                document.getElementById('cfgAgencyComm').value = cfg.agencyGiftCommissionPercent || 10.0;
+                document.getElementById('cfgPlatformFee').value = cfg.platformFeePercent || 20.0;
+                document.getElementById('cfgMinWithdrawal').value = cfg.minWithdrawalDiamonds || 10000;
+                document.getElementById('cfgWithdrawalEnabled').checked = cfg.isWithdrawalEnabled !== false;
+                document.getElementById('cfgRechargeEnabled').checked = cfg.isRechargeEnabled !== false;
+
+                document.getElementById('statFinanceCoinsRate').innerText = (cfg.coinsPerUsd || 28000).toLocaleString() + ' / $1';
+                document.getElementById('statFinanceHostComm').innerText = (cfg.hostGiftCommissionPercent || 70) + '%';
+                document.getElementById('statFinanceAgencyComm').innerText = (cfg.agencyGiftCommissionPercent || 10) + '%';
+                document.getElementById('statFinancePlatformShare').innerText = (cfg.platformFeePercent || 20) + '%';
+            } catch (e) {
+                console.error('Failed to load currency config', e);
+            }
+        }
+
+        async function handleSaveCurrencyConfig(e) {
+            e.preventDefault();
+            const coinsPerUsd = parseInt(document.getElementById('cfgCoinsPerUsd').value) || 28000;
+            const diamondsPerUsd = parseInt(document.getElementById('cfgDiamondsPerUsd').value) || 2800;
+            const hostGiftCommissionPercent = parseFloat(document.getElementById('cfgHostComm').value) || 70.0;
+            const agencyGiftCommissionPercent = parseFloat(document.getElementById('cfgAgencyComm').value) || 10.0;
+            const platformFeePercent = parseFloat(document.getElementById('cfgPlatformFee').value) || 20.0;
+            const minWithdrawalDiamonds = parseInt(document.getElementById('cfgMinWithdrawal').value) || 10000;
+            const isWithdrawalEnabled = document.getElementById('cfgWithdrawalEnabled').checked;
+            const isRechargeEnabled = document.getElementById('cfgRechargeEnabled').checked;
+
+            try {
+                const res = await fetch('/api/admin/currency/config', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        coinsPerUsd,
+                        diamondsPerUsd,
+                        hostGiftCommissionPercent,
+                        agencyGiftCommissionPercent,
+                        platformFeePercent,
+                        minWithdrawalDiamonds,
+                        isWithdrawalEnabled,
+                        isRechargeEnabled
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Currency settings saved successfully!', 'success');
+                    loadCurrencyConfig();
+                } else {
+                    showToast(data.message || 'Failed to update currency settings', 'error');
+                }
+            } catch (err) {
+                showToast('Network error saving currency settings', 'error');
+            }
+        }
+
+        async function loadWithdrawalsTable() {
+            const tableBody = document.getElementById('withdrawalsTableBody');
+            if (!tableBody) return;
+            try {
+                const res = await fetch('/api/admin/withdrawals', { headers: getAuthHeaders() });
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No payout requests found.</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = list.map(req => {
+                    let statusBadge = '';
+                    let actionButtons = '';
+                    if (req.status === 'Pending') {
+                        statusBadge = '<span class="badge-role" style="background: rgba(255,215,0,0.15); color: #FFD700; border: 1px solid #FFD700;">⏳ Pending</span>';
+                        actionButtons = `
+                            <button class="btn-primary" style="padding: 4px 10px; font-size: 11px; margin-right: 4px;" onclick="processWithdrawal('${'$'}{req.id}', 'APPROVE')">✓ Approve</button>
+                            <button class="btn-danger" style="padding: 4px 10px; font-size: 11px;" onclick="processWithdrawal('${'$'}{req.id}', 'REJECT')">✕ Reject</button>
+                        `;
+                    } else if (req.status === 'Approved') {
+                        statusBadge = '<span class="badge-role" style="background: rgba(0,230,118,0.15); color: #00E676; border: 1px solid #00E676;">✓ Approved</span>';
+                        actionButtons = `<span style="font-size: 11px; color: var(--text-muted);">${'$'}{req.processedBy || 'Processed'}</span>`;
+                    } else {
+                        statusBadge = '<span class="badge-role" style="background: rgba(255,42,133,0.15); color: #FF2A85; border: 1px solid #FF2A85;">✕ Rejected (Refunded)</span>';
+                        actionButtons = `<span style="font-size: 11px; color: var(--text-muted);">${'$'}{req.adminNotes || 'Rejected'}</span>`;
+                    }
+
+                    const dateFormatted = new Date(req.requestedAt).toLocaleString();
+                    return `
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong style="color: #FFF;">${'$'}{req.userName}</strong>
+                                    <div style="font-family: monospace; font-size: 11px; color: var(--cyan);">${'$'}{req.userId}</div>
+                                </div>
+                            </td>
+                            <td><strong style="color: #00E5FF;">${'$'}{(req.diamondAmount || 0).toLocaleString()} 💎</strong></td>
+                            <td><strong style="color: #00E676;">$${'$'}{req.usdAmount || '0.00'}</strong></td>
+                            <td>
+                                <div>
+                                    <span style="font-size: 12px; font-weight: 700; color: #FFF;">${'$'}{req.paymentMethod}</span>
+                                    <div style="font-size: 11px; color: var(--text-muted);">${'$'}{req.accountNumber} (${'$'}{req.accountTitle})</div>
+                                </div>
+                            </td>
+                            <td><span style="font-size: 12px; color: var(--text-secondary);">${'$'}{dateFormatted}</span></td>
+                            <td>${'$'}{statusBadge}</td>
+                            <td>${'$'}{actionButtons}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error(e);
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load withdrawals.</td></tr>';
+            }
+        }
+
+        async function processWithdrawal(requestId, action) {
+            const notes = prompt(`Enter notes for ${'$'}{action} (e.g. Bank transfer TX ID / Reason):`, action === 'APPROVE' ? 'Processed via Bank Transfer' : 'Invalid account details');
+            if (notes === null) return;
+
+            try {
+                const res = await fetch('/api/admin/withdrawals/action', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ requestId, action, notes })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Withdrawal marked as ${'$'}{action}`, 'success');
+                    loadWithdrawalsTable();
+                } else {
+                    showToast(data.message || 'Failed to process withdrawal', 'error');
+                }
+            } catch (err) {
+                showToast('Network error processing withdrawal', 'error');
+            }
+        }
+
+        async function loadPackagesTable() {
+            const tableBody = document.getElementById('packagesTableBody');
+            if (!tableBody) return;
+            try {
+                const res = await fetch('/api/admin/recharge-packages', { headers: getAuthHeaders() });
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No recharge packages found.</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = list.map(pkg => `
+                    <tr>
+                        <td><strong style="color: #FFF;">${'$'}{pkg.id}</strong></td>
+                        <td><span style="color: var(--gold); font-weight: 700;">${'$'}{pkg.coins.toLocaleString()} 🪙</span></td>
+                        <td><strong style="color: var(--emerald);">$${'$'}{pkg.priceUsd.toFixed(2)}</strong></td>
+                        <td><span style="color: var(--cyan);">${'$'}{pkg.bonusCoins > 0 ? ('+' + pkg.bonusCoins.toLocaleString()) : '-'}</span></td>
+                        <td><span class="badge-role" style="background: rgba(255,145,0,0.15); color: #FF9100;">${'$'}{pkg.label || (pkg.isPopular ? 'POPULAR' : (pkg.isBestValue ? 'BEST VALUE' : 'STANDARD'))}</span></td>
+                        <td><span style="color: ${'$'}{pkg.isActive ? '#00E676' : '#FF2A85'};">${'$'}{pkg.isActive ? 'Active' : 'Inactive'}</span></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+                tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load packages.</td></tr>';
+            }
+        }
+
     """
 
     private const val HTML_TAIL = """
