@@ -1,8 +1,12 @@
 package com.example.ui.screens
 
+import android.accounts.AccountManager
+import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -34,6 +38,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.CustomCredential
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.example.R
 import com.example.data.repository.BismaRepository
 import com.example.ui.components.GlassCard
@@ -60,11 +69,47 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val credentialManager = remember { CredentialManager.create(context) }
 
     var selectedTabIndex by remember { mutableStateOf(0) } // 0 = Login with ID, 1 = Create Account
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
-    var showGoogleAccountDialog by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+
+    // Native Android Google Account Chooser launcher
+    val accountPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val accountName = result.data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+            if (!accountName.isNullOrBlank()) {
+                isLoading = true
+                coroutineScope.launch {
+                    val displayName = accountName.substringBefore("@")
+                        .replace(".", " ")
+                        .split(" ")
+                        .joinToString(" ") { word ->
+                            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                        }
+                    val loginResult = repository.loginWithGoogle(
+                        email = accountName,
+                        displayName = displayName,
+                        avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
+                    )
+                    isLoading = false
+                    loginResult.onSuccess { user ->
+                        Toast.makeText(context, "Signed in as ${user.email} ✨", Toast.LENGTH_SHORT).show()
+                        onLoginSuccess()
+                    }.onFailure { err ->
+                        Toast.makeText(context, err.message ?: "Google Sign-In failed", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } else {
+                isLoading = false
+            }
+        } else {
+            isLoading = false
+        }
+    }
 
     // Login Form State
     var loginId by remember { mutableStateOf("") }
@@ -150,13 +195,64 @@ fun LoginScreen(
             // Google Login Button (Prominent)
             item {
                 Button(
-                    onClick = { showGoogleAccountDialog = true },
+                    onClick = {
+                        isLoading = true
+                        try {
+                            val intent = AccountManager.newChooseAccountIntent(
+                                null,
+                                null,
+                                arrayOf("com.google"),
+                                null,
+                                null,
+                                null,
+                                null
+                            )
+                            accountPickerLauncher.launch(intent)
+                        } catch (e: Exception) {
+                            // Fallback to CredentialManager if AccountManager is not directly available
+                            coroutineScope.launch {
+                                try {
+                                    val googleIdOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId("987654321000-dummyclientid.apps.googleusercontent.com")
+                                        .setAutoSelectEnabled(false)
+                                        .build()
+                                    val credRequest = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleIdOption)
+                                        .build()
+                                    val result = credentialManager.getCredential(context = context, request = credRequest)
+                                    val credential = result.credential
+                                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                        val email = googleIdTokenCredential.id
+                                        val name = googleIdTokenCredential.displayName ?: email.substringBefore("@")
+                                        val avatar = googleIdTokenCredential.profilePictureUri?.toString()
+                                            ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
+                                        val loginResult = repository.loginWithGoogle(email = email, displayName = name, avatarUrl = avatar)
+                                        loginResult.onSuccess { user ->
+                                            Toast.makeText(context, "Welcome, ${user.username}! ✨", Toast.LENGTH_SHORT).show()
+                                            onLoginSuccess()
+                                        }.onFailure { err ->
+                                            Toast.makeText(context, err.message ?: "Sign in failed", Toast.LENGTH_LONG).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Google Sign-In canceled", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e2: Exception) {
+                                    Toast.makeText(context, "No Google accounts found on device. Please sign in with ID or create an account.", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SurfaceCard),
                     border = BorderStroke(1.dp, SurfaceCardBorder),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = !isLoading
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -165,7 +261,7 @@ fun LoginScreen(
                         Text("🌐", fontSize = 18.sp)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Continue with Google",
+                            text = if (isLoading) "Connecting to Google..." else "Continue with Google",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
@@ -638,93 +734,6 @@ fun LoginScreen(
                     }
                 }
             }
-        }
-
-        // GOOGLE ACCOUNT SIGN IN DIALOG
-        if (showGoogleAccountDialog) {
-            var googleEmail by remember { mutableStateOf("") }
-            var googleName by remember { mutableStateOf("") }
-
-            AlertDialog(
-                onDismissRequest = { showGoogleAccountDialog = false },
-                containerColor = SurfaceDark,
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🌐 ", fontSize = 20.sp)
-                        Text("Sign in with Google", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = "Enter your Google account details to sign in or create an account with Google:",
-                            color = TextSecondary,
-                            fontSize = 12.sp
-                        )
-
-                        OutlinedTextField(
-                            value = googleEmail,
-                            onValueChange = { googleEmail = it },
-                            label = { Text("Google Email", color = TextSecondary) },
-                            placeholder = { Text("user@gmail.com", color = TextMuted) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonPink,
-                                unfocusedBorderColor = SurfaceCardBorder,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
-
-                        OutlinedTextField(
-                            value = googleName,
-                            onValueChange = { googleName = it },
-                            label = { Text("Display Name", color = TextSecondary) },
-                            placeholder = { Text("Your Name", color = TextMuted) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonPink,
-                                unfocusedBorderColor = SurfaceCardBorder,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
-                    }
-                },
-                confirmButton = {
-                    NeonButton(
-                        text = "Continue with Google",
-                        onClick = {
-                            if (googleEmail.isBlank() || !googleEmail.contains("@")) {
-                                Toast.makeText(context, "Please enter a valid Google email", Toast.LENGTH_SHORT).show()
-                                return@NeonButton
-                            }
-                            showGoogleAccountDialog = false
-                            coroutineScope.launch {
-                                val result = repository.loginWithGoogle(
-                                    email = googleEmail.trim(),
-                                    displayName = googleName.trim().ifBlank { googleEmail.substringBefore("@") },
-                                    avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
-                                )
-                                result.onSuccess { user ->
-                                    Toast.makeText(context, "Welcome, ${user.username}! ✨", Toast.LENGTH_SHORT).show()
-                                    onLoginSuccess()
-                                }.onFailure { err ->
-                                    Toast.makeText(context, err.message ?: "Sign in failed", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        }
-                    )
-                },
-                dismissButton = {
-                    TextButton(onClick = { showGoogleAccountDialog = false }) {
-                        Text("Cancel", color = TextSecondary)
-                    }
-                }
-            )
         }
 
         // FORGOT PASSWORD DIALOG

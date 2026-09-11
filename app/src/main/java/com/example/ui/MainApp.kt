@@ -56,6 +56,7 @@ fun BismaMainApp() {
     val context = LocalContext.current
     val repository = remember { BismaRepository(context) }
     val isLoggedIn by repository.isLoggedIn.collectAsState()
+    val unreadChatCount by repository.unreadChatCountFlow.collectAsState(initial = 0)
 
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
     var selectedBottomTab by remember { mutableStateOf(BottomTab.HOME) }
@@ -118,6 +119,7 @@ fun BismaMainApp() {
                     bottomBar = {
                         BismaBottomNavigationBar(
                             selectedTab = selectedBottomTab,
+                            unreadChatCount = unreadChatCount,
                             onTabSelected = { selectedBottomTab = it }
                         )
                     },
@@ -269,6 +271,7 @@ fun BismaMainApp() {
 @Composable
 fun BismaBottomNavigationBar(
     selectedTab: BottomTab,
+    unreadChatCount: Int = 0,
     onTabSelected: (BottomTab) -> Unit
 ) {
     Surface(
@@ -300,12 +303,12 @@ fun BismaBottomNavigationBar(
                 onClick = { onTabSelected(BottomTab.MOMENT) }
             )
 
-            // 3. Chat
+            // 3. Chat (with real unread badge)
             BottomNavTabItem(
                 tab = BottomTab.CHAT,
                 isSelected = selectedTab == BottomTab.CHAT,
                 onClick = { onTabSelected(BottomTab.CHAT) },
-                hasBadge = selectedTab != BottomTab.CHAT
+                hasBadge = unreadChatCount > 0 && selectedTab != BottomTab.CHAT
             )
 
             // 4. Me

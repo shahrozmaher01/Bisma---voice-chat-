@@ -61,6 +61,7 @@ data class VoiceRoom(
     val announcement: String = "Welcome to our Bisma Voice Chat Room! Please be respectful and enjoy the music & voice interactions.",
     val onlineCount: Int = 1,
     val backgroundRes: String = "bg_neon_purple",
+    val wallpaperUrl: String? = null,
     val category: String = "Singing & Chill",
     val isFeatured: Boolean = false,
     val allowPublicChat: Boolean = true,
@@ -102,6 +103,7 @@ data class ChatMessage(
     val giftName: String? = null,
     val giftIcon: String? = null,
     val giftCount: Int = 1,
+    val isRead: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )
 

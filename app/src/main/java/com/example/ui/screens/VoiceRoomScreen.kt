@@ -81,6 +81,7 @@ fun VoiceRoomScreen(
     var showDailyGiftDialog by remember { mutableStateOf(false) }
     var showLuckyBoxDialog by remember { mutableStateOf(false) }
     var showRoomGoalDialog by remember { mutableStateOf(false) }
+    var showRoomProfileDialog by remember { mutableStateOf(false) }
 
     var activeGiftBanner by remember { mutableStateOf<ChatMessage?>(null) }
     var activeRocketAnimation by remember { mutableStateOf<String?>(null) }
@@ -141,13 +142,22 @@ fun VoiceRoomScreen(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Nighttime Mountain Lake Background from Reference Image
-        Image(
-            painter = painterResource(id = R.drawable.img_voice_room_bg),
-            contentDescription = "Room Background",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Nighttime Mountain Lake Background or Custom Room Wallpaper
+        if (!currentRoom.wallpaperUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = currentRoom.wallpaperUrl,
+                contentDescription = "Room Wallpaper Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.img_voice_room_bg),
+                contentDescription = "Room Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         // Ambient Dark Translucent Tint
         Box(
             modifier = Modifier
@@ -174,7 +184,8 @@ fun VoiceRoomScreen(
             RoomTopBar(
                 room = currentRoom,
                 onCloseRoom = { showExitDialog = true },
-                onHostTools = { showHostToolsSheet = true }
+                onHostTools = { showHostToolsSheet = true },
+                onRoomProfileClick = { showRoomProfileDialog = true }
             )
 
             // Lucky Bags & Active Event Floating Bar
@@ -759,6 +770,10 @@ fun VoiceRoomScreen(
                     showHostToolsSheet = false
                     showSendLuckyBagDialog = true
                 },
+                onRoomDpProfile = {
+                    showHostToolsSheet = false
+                    showRoomProfileDialog = true
+                },
                 onDismiss = { showHostToolsSheet = false }
             )
         }
@@ -856,6 +871,16 @@ fun VoiceRoomScreen(
                 roomTitle = currentRoom.title,
                 onSendGift = { showGiftSheet = true },
                 onDismiss = { showRoomGoalDialog = false }
+            )
+        }
+
+        // Room DP & Profile Management Dialog
+        if (showRoomProfileDialog) {
+            RoomProfileDpDialog(
+                room = currentRoom,
+                isHostOrAdmin = isHost || currentRoom.adminUserIds.split(",").contains(currentUser?.id),
+                repository = repository,
+                onDismiss = { showRoomProfileDialog = false }
             )
         }
     }
@@ -1131,7 +1156,8 @@ fun SendLuckyBagDialog(
 fun RoomTopBar(
     room: VoiceRoom,
     onCloseRoom: () -> Unit,
-    onHostTools: () -> Unit
+    onHostTools: () -> Unit,
+    onRoomProfileClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -1142,7 +1168,9 @@ fun RoomTopBar(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onRoomProfileClick() }
         ) {
             IconButton(onClick = onCloseRoom, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -2142,6 +2170,7 @@ fun HostToolsBottomSheet(
     room: VoiceRoom,
     isHost: Boolean,
     onSendLuckyBag: () -> Unit,
+    onRoomDpProfile: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -2162,11 +2191,13 @@ fun HostToolsBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             val tools = listOf(
+                Triple(Icons.Default.AccountCircle, "Room Profile & DP Management 🖼️", onRoomDpProfile),
                 Triple(Icons.Default.CardGiftcard, "Drop Lucky Coin Bag 🧧", onSendLuckyBag),
+                Triple(Icons.Default.Campaign, "Update Room Announcement 📢", onRoomDpProfile),
+                Triple(Icons.Default.Wallpaper, "Change Room Wallpaper 🌌", onRoomDpProfile),
                 Triple(Icons.Default.Lock, "Lock Empty Seats", onDismiss),
                 Triple(Icons.Default.CleaningServices, "Clean Chat Stream", onDismiss),
                 Triple(Icons.Default.MicOff, "Mute All Speakers", onDismiss),
-                Triple(Icons.Default.Campaign, "Update Room Announcement", onDismiss),
                 Triple(Icons.Default.Share, "Share Room Invitation", onDismiss)
             )
 

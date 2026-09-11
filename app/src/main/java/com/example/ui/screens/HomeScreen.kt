@@ -67,6 +67,9 @@ fun HomeScreen(
     val topWealthUsers by repository.topWealthUsers.collectAsState(initial = emptyList())
     val topCharmUsers by repository.topCharmUsers.collectAsState(initial = emptyList())
 
+    val unreadNotificationsCount by repository.unreadNotificationsCountFlow.collectAsState(initial = 0)
+    val myPrimaryRoom by repository.getMyCreatedRoomFlow().collectAsState(initial = null)
+
     var currentTab by remember { mutableStateOf(HomeMainTab.PARTY) }
     var currentMineSubTab by remember { mutableStateOf(MineSubTab.FOLLOWING) }
     var selectedCountry by remember { mutableStateOf("🔥 All") }
@@ -135,12 +138,25 @@ fun HomeScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Stylish Header (Logo + "AURA Live" with Green Dot, "Voice Chat", Search, Notifications with Red Dot, + Room)
+            // Stylish Header (Logo + "AURA Live" with Green Dot, "Voice Chat", Search, Notifications with Red Dot, + Room / My Room)
             AuraCompactHeader(
                 totalListeners = totalActiveListeners,
+                unreadNotificationsCount = unreadNotificationsCount,
+                hasMyRoom = myPrimaryRoom != null,
                 onSearchClick = { showSearchDialog = true },
-                onNotificationClick = onOpenNotifications,
-                onCreateRoomClick = { showCreateRoomDialog = true }
+                onNotificationClick = {
+                    coroutineScope.launch {
+                        repository.markAllNotificationsRead()
+                    }
+                    onOpenNotifications()
+                },
+                onCreateOrOpenRoomClick = {
+                    if (myPrimaryRoom != null) {
+                        onOpenRoom(myPrimaryRoom!!.id)
+                    } else {
+                        showCreateRoomDialog = true
+                    }
+                }
             )
 
             // Pull to refresh wrapper matching the screenshot's unified layout
@@ -278,9 +294,11 @@ fun HomeScreen(
 @Composable
 fun AuraCompactHeader(
     totalListeners: Int,
+    unreadNotificationsCount: Int = 0,
+    hasMyRoom: Boolean = false,
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    onCreateRoomClick: () -> Unit
+    onCreateOrOpenRoomClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -341,7 +359,7 @@ fun AuraCompactHeader(
             }
         }
 
-        // Header Actions: Search, Notifications (with red dot), + Room
+        // Header Actions: Search, Notifications (with real unread badge), + Room / My Room
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -363,7 +381,7 @@ fun AuraCompactHeader(
                 )
             }
 
-            // Notifications Button with unread red badge
+            // Notifications Button with real unread red badge
             Box(
                 modifier = Modifier.size(34.dp)
             ) {
@@ -383,42 +401,48 @@ fun AuraCompactHeader(
                     )
                 }
 
-                // Unread red dot in top-right corner
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .align(Alignment.TopEnd)
-                        .offset(x = 1.dp, y = (-1).dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFFF2A85))
-                )
+                // Unread red dot in top-right corner only when unreadNotificationsCount > 0
+                if (unreadNotificationsCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 1.dp, y = (-1).dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF2A85))
+                            .border(1.dp, Color.White, CircleShape)
+                    )
+                }
             }
 
-            // + Room Button (Gradient pill button matching screenshot)
+            // + Room / My Room Button
             Button(
-                onClick = onCreateRoomClick,
+                onClick = onCreateOrOpenRoomClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                 shape = RoundedCornerShape(17.dp),
                 modifier = Modifier
                     .height(34.dp)
                     .background(
                         Brush.horizontalGradient(
-                            listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF))
+                            if (hasMyRoom)
+                                listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF), Color(0xFFFF2A85))
+                            else
+                                listOf(Color(0xFFFF2A85), Color(0xFF9C27B0), Color(0xFF00E5FF))
                         ),
                         RoundedCornerShape(17.dp)
                     )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create Room",
+                    imageVector = if (hasMyRoom) Icons.Default.Mic else Icons.Default.Add,
+                    contentDescription = if (hasMyRoom) "My Room" else "Create Room",
                     tint = Color.White,
                     modifier = Modifier.size(15.dp)
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
-                    text = "Room",
-                    fontSize = 12.sp,
+                    text = if (hasMyRoom) "My Room" else "Room",
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )

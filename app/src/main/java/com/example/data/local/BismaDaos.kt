@@ -126,6 +126,9 @@ interface SeatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateSeat(seat: RoomSeat)
 
+    @Query("UPDATE room_seats SET frameId = :frameId WHERE userId = :userId")
+    suspend fun updateUserFrameInSeats(userId: String, frameId: String?)
+
     @Query("DELETE FROM room_seats WHERE roomId = :roomId")
     suspend fun clearSeatsForRoom(roomId: String)
 }
@@ -134,6 +137,12 @@ interface SeatDao {
 interface ChatDao {
     @Query("SELECT * FROM chat_messages WHERE targetId = :targetId ORDER BY timestamp ASC")
     fun getMessagesFlow(targetId: String): Flow<List<ChatMessage>>
+
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE targetId = :userId AND isRoomChat = 0 AND isRead = 0")
+    fun getUnreadPrivateMessagesCountFlow(userId: String): Flow<Int>
+
+    @Query("UPDATE chat_messages SET isRead = 1 WHERE targetId = :userId AND senderId = :peerId AND isRoomChat = 0")
+    suspend fun markPrivateMessagesRead(userId: String, peerId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: ChatMessage)
@@ -164,6 +173,9 @@ interface MomentDao {
 interface NotificationDao {
     @Query("SELECT * FROM notifications WHERE userId = :userId ORDER BY timestamp DESC")
     fun getNotificationsFlow(userId: String): Flow<List<NotificationItem>>
+
+    @Query("SELECT COUNT(*) FROM notifications WHERE userId = :userId AND isRead = 0")
+    fun getUnreadNotificationsCountFlow(userId: String): Flow<Int>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNotification(item: NotificationItem)

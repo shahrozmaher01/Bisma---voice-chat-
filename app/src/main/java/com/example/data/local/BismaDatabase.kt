@@ -36,7 +36,7 @@ import com.example.data.model.*
         WithdrawalRequest::class,
         CurrencyConfig::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class BismaDatabase : RoomDatabase() {

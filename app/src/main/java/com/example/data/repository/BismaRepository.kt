@@ -147,19 +147,35 @@ class BismaRepository(private val context: Context) {
         db.momentDao().deleteMoment("m_1")
         db.notificationDao().deleteNotification("notif_1")
 
-        // Seed 10 items in each category (Headwear, Entry Effects, Chat Bubbles, Sound Waves)
+        // Seed items in categories (VIP Luxury, Neon Glow, Anime Fantasy, Official & Roles, Romantic CP, Entry Effects, Chat Bubbles, Sound Waves)
         val items = listOf(
-            // Headwear (10 items)
-            StoreItem("head_angel_wings", "Angel Wings Halo", "Headwear", 1500, "🪽", 0xFFFFFFFF, isOwned = false, isEquipped = false),
-            StoreItem("head_devil_horns", "Neon Devil Horns", "Headwear", 1400, "😈", 0xFFFF1744, isOwned = false, isEquipped = false),
-            StoreItem("head_imperial_tiara", "Golden Imperial Tiara", "Headwear", 2200, "👑", 0xFFFFD700, isOwned = false, isEquipped = false),
-            StoreItem("head_cyber_cat_ears", "Cyberpunk Cat Ears", "Headwear", 1800, "🐱", 0xFF00E5FF, isOwned = false, isEquipped = false),
-            StoreItem("head_dragon_horns", "Mystic Dragon Horns", "Headwear", 3000, "🐉", 0xFFFF2A85, isOwned = false, isEquipped = false),
-            StoreItem("head_sakura_crown", "Sakura Blossom Crown", "Headwear", 1600, "🌸", 0xFFFF80AB, isOwned = false, isEquipped = false),
-            StoreItem("head_galaxy_stars", "Galaxy Star Headband", "Headwear", 2500, "✨", 0xFF7C4DFF, isOwned = false, isEquipped = false),
-            StoreItem("head_sultan_turban", "Royal Sultan Turban", "Headwear", 2800, "👳", 0xFFFFAB00, isOwned = false, isEquipped = false),
-            StoreItem("head_crystal_antlers", "Arctic Crystal Antlers", "Headwear", 2100, "🦌", 0xFF80D8FF, isOwned = false, isEquipped = false),
-            StoreItem("head_phoenix_feathers", "Phoenix Feather Crest", "Headwear", 3500, "🪶", 0xFFFF6D00, isOwned = false, isEquipped = false),
+            // VIP Luxury Frames
+            StoreItem("frame_imperial_tiara", "Imperial Gold Tiara", "VIP Luxury", 2200, "👑", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("frame_sultan_crown", "Royal Sultan Crown", "VIP Luxury", 3500, "👳", 0xFFFFAB00, isOwned = false, isEquipped = false),
+            StoreItem("frame_galaxy_gold", "Galaxy 24K Gold Orbit", "VIP Luxury", 4500, "✨", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("frame_diamond_monarch", "Diamond Monarch Halo", "VIP Luxury", 5000, "💎", 0xFF00E5FF, isOwned = false, isEquipped = false),
+
+            // Neon Glow Frames
+            StoreItem("frame_devil_horns", "Neon Devil Horns", "Neon Glow", 1400, "😈", 0xFFFF1744, isOwned = false, isEquipped = false),
+            StoreItem("frame_cyber_cyan", "Cyberpunk Hologram", "Neon Glow", 1800, "🐱", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("frame_electric_violet", "Electric Violet Pulse", "Neon Glow", 2000, "⚡", 0xFFE040FB, isOwned = false, isEquipped = false),
+            StoreItem("frame_neon_matrix", "Neon Matrix Wireframe", "Neon Glow", 2400, "🌐", 0xFF00E676, isOwned = false, isEquipped = false),
+
+            // Anime Fantasy Frames
+            StoreItem("frame_angel_wings", "Angelic Wings Aura", "Anime Fantasy", 1500, "🪽", 0xFFFFFFFF, isOwned = false, isEquipped = false),
+            StoreItem("frame_dragon_horns", "Mystic Dragon Spirit", "Anime Fantasy", 3000, "🐉", 0xFFFF2A85, isOwned = false, isEquipped = false),
+            StoreItem("frame_sakura_blossom", "Sakura Petal Breeze", "Anime Fantasy", 1600, "🌸", 0xFFFF80AB, isOwned = false, isEquipped = false),
+            StoreItem("frame_phoenix_crest", "Phoenix Flame Crest", "Anime Fantasy", 3200, "🪶", 0xFFFF6D00, isOwned = false, isEquipped = false),
+
+            // Official & Roles Frames
+            StoreItem("frame_official_admin", "Official Super Admin", "Official & Roles", 10000, "🛡️", 0xFFFFD700, isOwned = false, isEquipped = false),
+            StoreItem("frame_official_host", "Elite Verified Host", "Official & Roles", 8000, "🎙️", 0xFF00E5FF, isOwned = false, isEquipped = false),
+            StoreItem("frame_official_manager", "Agency Senior Manager", "Official & Roles", 9000, "💼", 0xFFE040FB, isOwned = false, isEquipped = false),
+
+            // Romantic CP Frames
+            StoreItem("frame_romantic_heart", "Romantic Sweetheart Glow", "Romantic CP", 1800, "💖", 0xFFFF4081, isOwned = false, isEquipped = false),
+            StoreItem("frame_twin_flame", "Twin Flame Infinity", "Romantic CP", 2500, "🔥", 0xFFFF5722, isOwned = false, isEquipped = false),
+            StoreItem("frame_starlight_lovers", "Starlight Celestial Couple", "Romantic CP", 2800, "🌟", 0xFF7C4DFF, isOwned = false, isEquipped = false),
 
             // Entry Effects (10 items)
             StoreItem("entry_supercar", "Lamborghini Supercar", "Entry Effects", 5000, "🏎️", 0xFFFFD700, isOwned = false, isEquipped = false),
@@ -396,6 +412,145 @@ class BismaRepository(private val context: Context) {
 
     fun getMyCreatedRoomFlow(): Flow<VoiceRoom?> = _currentUserId.flatMapLatest { uid ->
         db.roomDao().getOwnerRoomFlow(uid)
+    }
+
+    val unreadNotificationsCountFlow: Flow<Int> = _currentUserId.flatMapLatest { uid ->
+        db.notificationDao().getUnreadNotificationsCountFlow(uid)
+    }
+
+    val unreadChatCountFlow: Flow<Int> = _currentUserId.flatMapLatest { uid ->
+        db.chatDao().getUnreadPrivateMessagesCountFlow(uid)
+    }
+
+    suspend fun markAllNotificationsRead() {
+        db.notificationDao().markAllRead(_currentUserId.value)
+    }
+
+    suspend fun markChatMessagesRead(peerId: String) {
+        db.chatDao().markPrivateMessagesRead(_currentUserId.value, peerId)
+    }
+
+    suspend fun getOrCreatePrimaryRoom(): VoiceRoom {
+        val user = db.userDao().getUserById(_currentUserId.value) ?: throw IllegalStateException("User not logged in")
+        val existing = db.roomDao().getRoomByOwnerId(user.id)
+        if (existing != null) {
+            if (!existing.isActive) {
+                val reactivated = existing.copy(isActive = true, onlineCount = 1)
+                db.roomDao().insertOrUpdate(reactivated)
+            }
+            _activeRoomId.value = existing.id
+            return existing
+        }
+        val newRoomId = (Random.nextInt(100000, 999999)).toString()
+        val room = VoiceRoom(
+            id = newRoomId,
+            title = "${user.username}'s Room",
+            description = "Welcome to ${user.username}'s official room! 🎙️",
+            coverUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400",
+            ownerId = user.id,
+            ownerName = user.username,
+            ownerAvatar = user.avatarUrl,
+            ownerVip = user.vipLevel,
+            country = user.country,
+            seatCount = 8,
+            isLocked = false,
+            password = "",
+            category = "Party",
+            onlineCount = 1,
+            isActive = true
+        )
+        db.roomDao().insertOrUpdate(room)
+        initSeatsForRoom(newRoomId, 8, user.id, user.username, user.avatarUrl, user.vipLevel)
+        _activeRoomId.value = newRoomId
+        return room
+    }
+
+    suspend fun saveAndCompressImage(uriString: String, prefix: String): String = withContext(Dispatchers.IO) {
+        if (!uriString.startsWith("content://") && !uriString.startsWith("file://")) {
+            return@withContext uriString
+        }
+        try {
+            val uri = android.net.Uri.parse(uriString)
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext uriString
+            val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+            inputStream.close()
+            if (originalBitmap == null) return@withContext uriString
+
+            val maxDim = 1024
+            val width = originalBitmap.width
+            val height = originalBitmap.height
+            val scaledBitmap = if (width > maxDim || height > maxDim) {
+                val ratio = width.toFloat() / height.toFloat()
+                val newWidth = if (width > height) maxDim else (maxDim * ratio).toInt()
+                val newHeight = if (height >= width) maxDim else (maxDim / ratio).toInt()
+                android.graphics.Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+            } else {
+                originalBitmap
+            }
+
+            val mediaDir = java.io.File(context.filesDir, "room_media").apply { mkdirs() }
+            val destFile = java.io.File(mediaDir, "${prefix}_${System.currentTimeMillis()}.jpg")
+            val outputStream = java.io.FileOutputStream(destFile)
+            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, outputStream)
+            outputStream.flush()
+            outputStream.close()
+
+            if (scaledBitmap != originalBitmap) {
+                scaledBitmap.recycle()
+            }
+            originalBitmap.recycle()
+
+            destFile.absolutePath
+        } catch (e: Exception) {
+            uriString
+        }
+    }
+
+    suspend fun updateRoomDP(roomId: String, newDpUrl: String): Boolean {
+        val room = db.roomDao().getRoomById(roomId) ?: return false
+        val currentUid = _currentUserId.value
+        val isOwner = room.ownerId == currentUid
+        val isAdmin = room.adminUserIds.split(",").contains(currentUid)
+        if (!isOwner && !isAdmin) return false
+        val processedUrl = saveAndCompressImage(newDpUrl, "room_dp_${roomId}")
+        val updated = room.copy(coverUrl = processedUrl)
+        db.roomDao().insertOrUpdate(updated)
+        return true
+    }
+
+    suspend fun resetRoomDP(roomId: String): Boolean {
+        val room = db.roomDao().getRoomById(roomId) ?: return false
+        val currentUid = _currentUserId.value
+        val isOwner = room.ownerId == currentUid
+        val isAdmin = room.adminUserIds.split(",").contains(currentUid)
+        if (!isOwner && !isAdmin) return false
+        val defaultCover = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400"
+        val updated = room.copy(coverUrl = defaultCover)
+        db.roomDao().insertOrUpdate(updated)
+        return true
+    }
+
+    suspend fun updateRoomWallpaper(roomId: String, wallpaperUrl: String): Boolean {
+        val room = db.roomDao().getRoomById(roomId) ?: return false
+        val currentUid = _currentUserId.value
+        val isOwner = room.ownerId == currentUid
+        val isAdmin = room.adminUserIds.split(",").contains(currentUid)
+        if (!isOwner && !isAdmin) return false
+        val processedUrl = saveAndCompressImage(wallpaperUrl, "room_wp_${roomId}")
+        val updated = room.copy(wallpaperUrl = processedUrl)
+        db.roomDao().insertOrUpdate(updated)
+        return true
+    }
+
+    suspend fun updateRoomAnnouncement(roomId: String, announcement: String): Boolean {
+        val room = db.roomDao().getRoomById(roomId) ?: return false
+        val currentUid = _currentUserId.value
+        val isOwner = room.ownerId == currentUid
+        val isAdmin = room.adminUserIds.split(",").contains(currentUid)
+        if (!isOwner && !isAdmin) return false
+        val updated = room.copy(announcement = announcement)
+        db.roomDao().insertOrUpdate(updated)
+        return true
     }
 
     fun getSeatsForRoom(roomId: String): Flow<List<RoomSeat>> {
@@ -1439,16 +1594,22 @@ class BismaRepository(private val context: Context) {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return
         db.storeDao().unequipCategory(category)
         db.storeDao().setEquipped(itemId, true)
-        if (category == "Frames") {
+        val isFrameCategory = category == "Frames" || category.contains("Frame", ignoreCase = true) ||
+                category in listOf("VIP Luxury", "Neon Glow", "Anime Fantasy", "Official & Roles", "Romantic CP", "Headwear")
+        if (isFrameCategory) {
             db.userDao().updateEquippedFrame(user.id, itemId)
+            db.seatDao().updateUserFrameInSeats(user.id, itemId)
         }
     }
 
     suspend fun unequipItem(itemId: String, category: String) {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return
         db.storeDao().setEquipped(itemId, false)
-        if (category == "Frames") {
+        val isFrameCategory = category == "Frames" || category.contains("Frame", ignoreCase = true) ||
+                category in listOf("VIP Luxury", "Neon Glow", "Anime Fantasy", "Official & Roles", "Romantic CP", "Headwear")
+        if (isFrameCategory) {
             db.userDao().updateEquippedFrame(user.id, null)
+            db.seatDao().updateUserFrameInSeats(user.id, null)
         }
     }
 
@@ -1633,6 +1794,7 @@ class BismaRepository(private val context: Context) {
             .putBoolean("KEY_IS_LOGGED_IN", true)
             .apply()
 
+        getOrCreatePrimaryRoom()
         Result.success(user)
     }
 
@@ -1672,15 +1834,15 @@ class BismaRepository(private val context: Context) {
             dateOfBirth = dateOfBirth,
             passwordHash = hashPassword(password),
             email = email,
-            bio = "Hey there! I am using Bisma Voice Chat ✨",
+            bio = "Hey there! I am using AURA Live Voice Chat ✨",
             country = "🇵🇰 Pakistan",
             language = "English",
             userLevel = 1,
             richLevel = 0,
             charmLevel = 0,
             vipLevel = 0,
-            coins = 0,
-            diamonds = 0,
+            coins = 2000,
+            diamonds = 50,
             followersCount = 0,
             followingCount = 0,
             friendsCount = 0,
@@ -1697,6 +1859,7 @@ class BismaRepository(private val context: Context) {
             .putBoolean("KEY_IS_LOGGED_IN", true)
             .apply()
 
+        getOrCreatePrimaryRoom()
         Result.success(newUser)
     }
 
