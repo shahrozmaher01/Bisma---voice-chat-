@@ -13,6 +13,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
   const { currentUser, rechargeCoins, convertDiamondsToCoins } = useAura();
   const [activeTab, setActiveTab] = useState<'recharge' | 'convert'>('recharge');
   const [convertDiamondsInput, setConvertDiamondsInput] = useState('100');
+  const [customUsdInput, setCustomUsdInput] = useState('1');
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -20,6 +21,26 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
   const handleRecharge = (pkg: RechargePackage) => {
     rechargeCoins(pkg);
     setStatusNotice(`Successfully purchased ${pkg.coins.toLocaleString()} Coins!`);
+    setTimeout(() => setStatusNotice(null), 3500);
+  };
+
+  const handleCustomRecharge = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dollars = parseFloat(customUsdInput);
+    if (isNaN(dollars) || dollars <= 0) return;
+    const coinsCalculated = Math.floor(dollars * 3000);
+    const bonusDiamonds = Math.floor(dollars * 50);
+
+    const customPkg: RechargePackage = {
+      id: `custom_${Date.now()}`,
+      title: `$${dollars} Custom Recharge`,
+      coins: coinsCalculated,
+      bonusDiamonds,
+      priceUsd: dollars,
+    };
+
+    rechargeCoins(customPkg);
+    setStatusNotice(`Successfully recharged ${coinsCalculated.toLocaleString()} Coins for $${dollars}!`);
     setTimeout(() => setStatusNotice(null), 3500);
   };
 
@@ -127,9 +148,68 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
         {/* Content */}
         <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
           {activeTab === 'recharge' && (
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-400 block mb-1">
-                Official In-App Coin Packs:
+            <div className="space-y-3">
+              {/* Rate Highlight Banner */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#ffd700]/10 to-rose-500/15 border border-amber-500/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-400/20 flex items-center justify-center text-amber-300 font-black text-sm">
+                    💎
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black text-white flex items-center gap-1.5">
+                      <span>OFFICIAL COIN RATE</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-black text-[9px] font-extrabold">
+                        NEW PRICING
+                      </span>
+                    </div>
+                    <div className="text-xs text-amber-300 font-extrabold mt-0.5">
+                      $1.00 USD = 3,000 Coins 🪙
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right text-[10px] text-slate-300">
+                  Instant Credit
+                </div>
+              </div>
+
+              {/* Custom Dollar Amount Recharge */}
+              <form
+                onSubmit={handleCustomRecharge}
+                className="p-3.5 rounded-2xl bg-[#160c2e] border border-[#3b2066] space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Custom Amount Recharge ($1 = 3,000 Coins)
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={customUsdInput}
+                      onChange={(e) => setCustomUsdInput(e.target.value)}
+                      placeholder="Enter USD (e.g. 1)"
+                      className="w-full bg-[#100722] border border-[#442576] rounded-xl pl-7 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 text-black font-extrabold text-xs shadow hover:opacity-95 active:scale-95 transition-all whitespace-nowrap"
+                  >
+                    Recharge +{Math.floor((parseFloat(customUsdInput) || 0) * 3000).toLocaleString()} Coins
+                  </button>
+                </div>
+              </form>
+
+              <span className="text-xs font-bold text-slate-400 block pt-1">
+                Select a Package:
               </span>
               {RECHARGE_PACKAGES.map((pkg) => (
                 <div
