@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 10, 30, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 77, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 77, 255, 0.6);
+}
+
+/* Audio wave animation */
+@keyframes audioWave {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+.audio-bar-1 { animation: audioWave 0.6s ease-in-out infinite; }
+.audio-bar-2 { animation: audioWave 0.8s ease-in-out infinite 0.15s; }
+.audio-bar-3 { animation: audioWave 0.5s ease-in-out infinite 0.3s; }
+.audio-bar-4 { animation: audioWave 0.7s ease-in-out infinite 0.2s; }
+
+/* Pulse glow animation for speaking border */
+@keyframes ringPulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(0, 230, 118, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+}
+
+.speaking-pulse {
+  animation: ringPulse 1.5s infinite;
+}
+
+/* Gift banner fly animation */
+@keyframes giftFly {
+  0% { transform: translateY(20px) scale(0.9); opacity: 0; }
+  15% { transform: translateY(0) scale(1.05); opacity: 1; }
+  85% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-30px) scale(0.95); opacity: 0; }
+}
+
+.gift-banner-animate {
+  animation: giftFly 3.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
