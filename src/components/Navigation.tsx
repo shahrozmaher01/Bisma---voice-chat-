@@ -16,32 +16,55 @@ import {
 } from 'lucide-react';
 import { useAura } from '../context/AuraContext';
 import { AvatarWithFrame } from './AvatarWithFrame';
+import { TabType } from '../types';
 
-export type TabType = 'party' | 'moments' | 'messages' | 'store' | 'profile';
+export type { TabType };
 
 interface NavigationProps {
-  currentTab: TabType;
-  onTabChange: (tab: TabType) => void;
-  onOpenAdmin: () => void;
-  onOpenOfficialFrames: () => void;
-  onOpenRankings: () => void;
-  onOpenWallet: () => void;
-  onOpenCreateRoom: () => void;
-  onOpenNotifications: () => void;
+  currentTab?: TabType;
+  onTabChange?: (tab: TabType) => void;
+  onOpenAdmin?: () => void;
+  onOpenAdminPanel?: () => void;
+  onOpenOfficialFrames?: () => void;
+  onOpenRankings?: () => void;
+  onOpenWallet?: () => void;
+  onOpenCreateRoom?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
-  currentTab,
+  currentTab: propTab,
   onTabChange,
   onOpenAdmin,
+  onOpenAdminPanel,
   onOpenOfficialFrames,
   onOpenRankings,
   onOpenWallet,
   onOpenCreateRoom,
   onOpenNotifications,
 }) => {
-  const { currentUser, allUsers, switchUser, unreadNotifCount } = useAura();
+  const {
+    currentUser,
+    allUsers,
+    switchUser,
+    unreadNotifCount,
+    currentTab: contextTab,
+    setCurrentTab,
+  } = useAura();
+
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const activeTab = propTab || contextTab || 'party';
+  const handleTabChange = (tab: TabType) => {
+    if (typeof onTabChange === 'function') {
+      onTabChange(tab);
+    }
+    if (typeof setCurrentTab === 'function') {
+      setCurrentTab(tab);
+    }
+  };
+
+  const handleOpenAdmin = onOpenAdmin || onOpenAdminPanel;
 
   return (
     <>
@@ -55,7 +78,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="flex items-center gap-2.5">
             <div
               id="brand-logo-pill"
-              onClick={() => onTabChange('party')}
+              onClick={() => handleTabChange('party')}
               className="flex items-center gap-2 cursor-pointer group"
             >
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#ff2a85] via-[#7c4dff] to-[#00e5ff] p-[1.5px] shadow-[0_0_12px_rgba(255,42,133,0.4)]">
@@ -164,7 +187,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             {/* Admin / Official 1 & 2 Panel button */}
             <button
               id="nav-admin-panel-btn"
-              onClick={onOpenAdmin}
+              onClick={handleOpenAdmin}
               className="p-2 rounded-full bg-[#20123f] border border-[#442875] text-[#ff2a85] hover:bg-[#2b1855] hover:border-[#ff2a85] transition-all relative"
               title="Executive Admin Panel"
             >
@@ -218,9 +241,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Party (Rooms) */}
           <button
             id="tab-party-btn"
-            onClick={() => onTabChange('party')}
+            onClick={() => handleTabChange('party')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-              currentTab === 'party' ? 'text-[#ff2a85] scale-105' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'party' ? 'text-[#ff2a85] scale-105' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Mic className="w-5 h-5 mb-0.5" />
@@ -230,9 +253,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Moments */}
           <button
             id="tab-moments-btn"
-            onClick={() => onTabChange('moments')}
+            onClick={() => handleTabChange('moments')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-              currentTab === 'moments' ? 'text-[#7c4dff] scale-105' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'moments' ? 'text-[#7c4dff] scale-105' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Camera className="w-5 h-5 mb-0.5" />
@@ -242,9 +265,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Messages */}
           <button
             id="tab-messages-btn"
-            onClick={() => onTabChange('messages')}
+            onClick={() => handleTabChange('messages')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-              currentTab === 'messages' ? 'text-[#00e5ff] scale-105' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'messages' ? 'text-[#00e5ff] scale-105' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <MessageSquare className="w-5 h-5 mb-0.5" />
@@ -254,9 +277,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Store */}
           <button
             id="tab-store-btn"
-            onClick={() => onTabChange('store')}
+            onClick={() => handleTabChange('store')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-              currentTab === 'store' ? 'text-[#ffd700] scale-105' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'store' ? 'text-[#ffd700] scale-105' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <ShoppingBag className="w-5 h-5 mb-0.5" />
@@ -266,9 +289,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Profile */}
           <button
             id="tab-profile-btn"
-            onClick={() => onTabChange('profile')}
+            onClick={() => handleTabChange('profile')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-              currentTab === 'profile' ? 'text-white scale-105' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'profile' ? 'text-white scale-105' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <UserIcon className="w-5 h-5 mb-0.5" />

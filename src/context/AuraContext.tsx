@@ -16,6 +16,7 @@ import {
   NotificationItem,
   LuckyBag,
   AdminRoleType,
+  TabType,
 } from '../types';
 import {
   OFFICIAL_FRAMES,
@@ -53,6 +54,8 @@ interface AuraContextType {
   notifications: NotificationItem[];
   tasks: AuraTask[];
   unreadNotifCount: number;
+  currentTab: TabType;
+  setCurrentTab: (tab: TabType) => void;
 
   // Auth & Session
   login: (idOrEmail: string) => { success: boolean; message?: string };
@@ -106,6 +109,7 @@ interface AuraContextType {
   postMoment: (content: string, mediaUrl?: string) => void;
   followUser: (targetUserId: string) => void;
   claimTaskReward: (taskId: string) => boolean;
+  claimDailyTaskReward: (taskId: string) => boolean;
   markNotificationsAsRead: () => void;
 }
 
@@ -199,6 +203,8 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const saved = localStorage.getItem(`${STORAGE_KEY}_tasks`);
     return saved ? JSON.parse(saved) : INITIAL_TASKS;
   });
+
+  const [currentTab, setCurrentTab] = useState<TabType>('party');
 
   // Current User instance
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || null;
@@ -1462,6 +1468,8 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         notifications,
         tasks,
         unreadNotifCount,
+        currentTab,
+        setCurrentTab,
 
         login,
         register,
@@ -1509,6 +1517,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         postMoment,
         followUser,
         claimTaskReward,
+        claimDailyTaskReward: claimTaskReward,
         markNotificationsAsRead,
       }}
     >

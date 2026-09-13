@@ -10,25 +10,31 @@ interface StoreViewProps {
 }
 
 const CATEGORIES: { id: StoreItemCategory; label: string }[] = [
-  { id: 'frame', label: 'Frames 👑' },
-  { id: 'bubble', label: 'Chat Bubbles 💬' },
-  { id: 'ride', label: 'Entry Rides 🏎️' },
-  { id: 'wallpaper', label: 'Room Themes 🌌' },
+  { id: 'Frame', label: 'Frames 👑' },
+  { id: 'Bubble', label: 'Chat Bubbles 💬' },
+  { id: 'Ride', label: 'Entry Rides 🏎️' },
+  { id: 'Wallpaper', label: 'Room Themes 🌌' },
 ];
 
 export const StoreView: React.FC<StoreViewProps> = ({ onOpenWallet }) => {
-  const { currentUser, buyStoreItem, equipStoreItem } = useAura();
-  const [selectedCategory, setSelectedCategory] = useState<StoreItemCategory>('frame');
-  const [previewItem, setPreviewItem] = useState<StoreItem>(STORE_ITEMS[0]);
+  const { currentUser, storeItems, buyStoreItem, equipStoreItem } = useAura();
+  const allItems = storeItems && storeItems.length > 0 ? storeItems : STORE_ITEMS;
+  const [selectedCategory, setSelectedCategory] = useState<StoreItemCategory>('Frame');
+  const [previewItem, setPreviewItem] = useState<StoreItem>(allItems[0]);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const filteredItems = STORE_ITEMS.filter((item) => item.category === selectedCategory);
+  const filteredItems = allItems.filter((item) => item.category === selectedCategory);
 
-  const isOwned = (itemId: string) => currentUser?.inventory.includes(itemId);
+  const isOwned = (itemId: string) => {
+    const item = allItems.find((s) => s.id === itemId);
+    return item?.isOwned ?? false;
+  };
+
   const isEquipped = (item: StoreItem) => {
-    if (item.category === 'frame') return currentUser?.equippedFrameId === item.id;
-    if (item.category === 'bubble') return currentUser?.equippedBubbleId === item.id;
-    if (item.category === 'ride') return currentUser?.equippedRideId === item.id;
+    if (item.category === 'Frame') return currentUser?.equippedFrameId === item.id;
+    if (item.category === 'Bubble') return currentUser?.equippedBubbleId === item.id;
+    if (item.category === 'Ride') return currentUser?.equippedRideId === item.id;
+    if (item.category === 'Wallpaper') return currentUser?.equippedWallpaperId === item.id;
     return false;
   };
 
@@ -91,7 +97,7 @@ export const StoreView: React.FC<StoreViewProps> = ({ onOpenWallet }) => {
             avatarUrl={currentUser?.avatarUrl}
             size={60}
             equippedFrameId={
-              previewItem.category === 'frame'
+              previewItem.category === 'Frame'
                 ? previewItem.id
                 : currentUser?.equippedFrameId
             }
@@ -103,7 +109,7 @@ export const StoreView: React.FC<StoreViewProps> = ({ onOpenWallet }) => {
             </span>
             <h3 className="text-sm font-extrabold text-white flex items-center gap-2 mt-0.5">
               <span>{previewItem.name}</span>
-              <span className="text-xl">{previewItem.previewUrl}</span>
+              <span className="text-xl">{previewItem.previewIcon}</span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">{previewItem.description}</p>
           </div>
@@ -132,7 +138,7 @@ export const StoreView: React.FC<StoreViewProps> = ({ onOpenWallet }) => {
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 text-black font-extrabold text-xs shadow-lg flex items-center gap-1.5 hover:opacity-95 active:scale-95 transition-all"
             >
               <Coins className="w-3.5 h-3.5" />
-              <span>Buy for {previewItem.priceCoins.toLocaleString()} Coins</span>
+              <span>Buy for {previewItem.price.toLocaleString()} Coins</span>
             </button>
           )}
         </div>
@@ -183,7 +189,7 @@ export const StoreView: React.FC<StoreViewProps> = ({ onOpenWallet }) => {
               }`}
             >
               <div className="flex flex-col items-center text-center gap-2">
-                <span className="text-4xl select-none animate-pulse">{item.previewUrl}</span>
+                <span className="text-4xl select-none animate-pulse">{item.previewIcon}</span>
                 <div>
                   <h4 className="text-xs font-extrabold text-white">{item.name}</h4>
                   <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
@@ -195,7 +201,7 @@ export const StoreView: React.FC<StoreViewProps> = ({ onOpenWallet }) => {
               <div className="pt-2 border-t border-[#29174c] flex items-center justify-between">
                 <div className="flex items-center gap-1 text-xs font-black text-amber-300">
                   <Coins className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{item.priceCoins.toLocaleString()}</span>
+                  <span>{item.price.toLocaleString()}</span>
                 </div>
 
                 {owned ? (

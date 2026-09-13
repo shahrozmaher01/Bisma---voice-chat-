@@ -16,7 +16,7 @@ import { StoreView } from './views/StoreView';
 import { ProfileView } from './views/ProfileView';
 
 export function App() {
-  const { currentTab, activeRoom } = useAura();
+  const { currentTab, setCurrentTab, activeRoom } = useAura();
 
   const [isOfficialFramesOpen, setIsOfficialFramesOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -34,9 +34,12 @@ export function App() {
     <div className="min-h-screen bg-[#0d071a] text-slate-100 flex flex-col font-sans selection:bg-[#7c4dff] selection:text-white">
       {/* Top Application Header & Bottom Tab Bar */}
       <Navigation
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
         onOpenRankings={() => setIsRankingsOpen(true)}
         onOpenWallet={() => setIsWalletOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenAdmin={() => setIsAdminPanelOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenOfficialFrames={() => setIsOfficialFramesOpen(true)}
         onOpenCreateRoom={() => setIsCreateRoomOpen(true)}

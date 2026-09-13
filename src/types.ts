@@ -111,10 +111,14 @@ export interface VirtualGift {
   multiplierMax?: number;
 }
 
+export type TabType = 'party' | 'moments' | 'messages' | 'store' | 'profile';
+
+export type StoreItemCategory = 'Frame' | 'Bubble' | 'Ride' | 'Wallpaper';
+
 export interface StoreItem {
   id: string;
   name: string;
-  category: 'Frame' | 'Bubble' | 'Ride' | 'Wallpaper';
+  category: StoreItemCategory;
   price: number;
   previewIcon: string;
   durationDays: number;

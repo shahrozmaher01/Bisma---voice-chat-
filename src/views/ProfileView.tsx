@@ -33,7 +33,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenAdminPanel,
   onOpenRankings,
 }) => {
-  const { currentUser, allUsers, switchUser, claimDailyTaskReward } = useAura();
+  const { currentUser, allUsers, switchUser, tasks, claimTaskReward } = useAura();
 
   const [claimNotice, setClaimNotice] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     currentUser.role === 'Manager';
 
   const handleClaim = (taskId: string, reward: number) => {
-    claimDailyTaskReward(taskId);
+    claimTaskReward(taskId);
     setClaimNotice(`Claimed +${reward} Coins reward! 🪙`);
     setTimeout(() => setClaimNotice(null), 3000);
   };
@@ -261,7 +261,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
 
         <div className="space-y-2">
-          {currentUser.dailyTasks.map((task) => (
+          {(tasks || []).map((task) => (
             <div
               key={task.id}
               className="p-3 rounded-2xl bg-[#120a24] border border-[#2c184c] flex items-center justify-between gap-3"
