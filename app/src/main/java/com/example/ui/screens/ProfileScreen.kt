@@ -61,11 +61,13 @@ fun ProfileScreen(
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
     onOpenAdminPanel: () -> Unit,
+    onOpenRoom: (String) -> Unit = {},
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val currentUser by repository.currentUser.collectAsState(initial = null)
+    val myPrimaryRoom by repository.getMyCreatedRoomFlow().collectAsState(initial = null)
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
@@ -767,9 +769,25 @@ fun ProfileScreen(
                             },
                             glowColor = Color(0xFF00E5FF),
                             onClick = {
-                                val myRoomId = "room_${user.id}"
-                                repository.enterRoom(myRoomId)
-                                Toast.makeText(context, "Opening personal voice room...", Toast.LENGTH_SHORT).show()
+                                if (myPrimaryRoom != null) {
+                                    repository.enterRoom(myPrimaryRoom!!.id)
+                                    onOpenRoom(myPrimaryRoom!!.id)
+                                } else {
+                                    coroutineScope.launch {
+                                        val roomId = repository.createOrGetRoom(
+                                            title = "${user.username}'s Voice Room",
+                                            description = "Welcome to my official permanent room!",
+                                            coverUrl = user.avatarUrl,
+                                            seatCount = 8,
+                                            country = user.country,
+                                            category = "Voice Lounge",
+                                            isLocked = false,
+                                            password = ""
+                                        )
+                                        repository.enterRoom(roomId)
+                                        onOpenRoom(roomId)
+                                    }
+                                }
                             },
                             modifier = Modifier.weight(1f)
                         )

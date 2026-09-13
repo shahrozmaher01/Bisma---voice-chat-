@@ -45,6 +45,15 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
 
+    @Query("SELECT * FROM users WHERE authProvider = :provider AND providerUserId = :providerUserId LIMIT 1")
+    suspend fun getUserByProvider(provider: String, providerUserId: String): User?
+
+    @Query("UPDATE users SET lastLoginAt = :timestamp WHERE id = :userId")
+    suspend fun updateLastLogin(userId: String, timestamp: Long)
+
+    @Query("UPDATE users SET accountStatus = :status WHERE id = :userId")
+    suspend fun updateAccountStatus(userId: String, status: String)
+
     @Query("SELECT * FROM users WHERE username = :username LIMIT 1")
     suspend fun getUserByUsername(username: String): User?
 
@@ -95,6 +104,27 @@ interface RoomDao {
 
     @Query("SELECT * FROM rooms WHERE ownerId = :ownerId LIMIT 1")
     suspend fun getRoomByOwnerId(ownerId: String): VoiceRoom?
+
+    @Query("SELECT COUNT(*) FROM rooms WHERE ownerId = :ownerId")
+    suspend fun countRoomsByOwnerId(ownerId: String): Int
+
+    @Query("UPDATE rooms SET isActive = :isActive, updatedAt = :updatedAt WHERE id = :roomId")
+    suspend fun updateRoomActiveStatus(roomId: String, isActive: Boolean, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE rooms SET title = :title, description = :description, announcement = :announcement, rules = :rules, updatedAt = :updatedAt WHERE id = :roomId")
+    suspend fun updateRoomDetails(roomId: String, title: String, description: String, announcement: String, rules: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE rooms SET coverUrl = :coverUrl, updatedAt = :updatedAt WHERE id = :roomId")
+    suspend fun updateRoomCover(roomId: String, coverUrl: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE rooms SET wallpaperUrl = :wallpaperUrl, updatedAt = :updatedAt WHERE id = :roomId")
+    suspend fun updateRoomWallpaper(roomId: String, wallpaperUrl: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE rooms SET seatCount = :seatCount, updatedAt = :updatedAt WHERE id = :roomId")
+    suspend fun updateRoomSeatCount(roomId: String, seatCount: Int, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE rooms SET isLocked = :isLocked, password = :password, updatedAt = :updatedAt WHERE id = :roomId")
+    suspend fun updateRoomLock(roomId: String, isLocked: Boolean, password: String, updatedAt: Long = System.currentTimeMillis())
 
     @Query("SELECT * FROM rooms WHERE isActive = 1 AND (title LIKE '%' || :query || '%' OR id = :query)")
     suspend fun searchRooms(query: String): List<VoiceRoom>

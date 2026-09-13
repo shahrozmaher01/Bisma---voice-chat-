@@ -169,6 +169,9 @@ fun BismaMainApp() {
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 onOpenGames = { currentScreen = Screen.Games },
                                 onOpenAdminPanel = { currentScreen = Screen.AdminPanel },
+                                onOpenRoom = { roomId ->
+                                    currentScreen = Screen.VoiceRoom(roomId)
+                                },
                                 onLogout = { currentScreen = Screen.Login }
                             )
                         }

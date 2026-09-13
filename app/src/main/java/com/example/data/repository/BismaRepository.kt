@@ -30,6 +30,27 @@ class BismaRepository(private val context: Context) {
         scope.launch {
             adminService.initializeDefaultConfigs()
             adminWebServer.start()
+            validateSession()
+        }
+    }
+
+    private suspend fun validateSession() {
+        val savedUid = prefs.getString("KEY_CURRENT_USER_ID", "") ?: ""
+        val savedLoggedIn = prefs.getBoolean("KEY_IS_LOGGED_IN", false)
+        if (savedLoggedIn && savedUid.isNotBlank()) {
+            val user = db.userDao().getUserById(savedUid)
+            if (user != null && !user.isBanned && user.accountStatus != "BANNED") {
+                db.userDao().updateLastLogin(user.id, System.currentTimeMillis())
+                _currentUserId.value = user.id
+                _isLoggedIn.value = true
+            } else {
+                _isLoggedIn.value = false
+                _currentUserId.value = ""
+                prefs.edit().putBoolean("KEY_IS_LOGGED_IN", false).putString("KEY_CURRENT_USER_ID", "").apply()
+            }
+        } else {
+            _isLoggedIn.value = false
+            _currentUserId.value = ""
         }
     }
 
@@ -365,11 +386,14 @@ class BismaRepository(private val context: Context) {
         country: String,
         category: String,
         isLocked: Boolean,
-        password: String
+        password: String,
+        announcement: String = "",
+        rules: String = ""
     ): String {
         val user = db.userDao().getUserById(_currentUserId.value) ?: return ""
         val existingRoom = db.roomDao().getRoomByOwnerId(user.id)
         if (existingRoom != null) {
+            // Reject creating duplicate room: return existing permanent room
             val updated = existingRoom.copy(
                 title = title.ifBlank { existingRoom.title },
                 description = description.ifBlank { existingRoom.description },
@@ -379,8 +403,11 @@ class BismaRepository(private val context: Context) {
                 category = category,
                 isLocked = isLocked,
                 password = password,
+                announcement = announcement.ifBlank { existingRoom.announcement },
+                rules = rules.ifBlank { existingRoom.rules },
                 isActive = true,
-                onlineCount = 1
+                onlineCount = maxOf(1, existingRoom.onlineCount),
+                updatedAt = System.currentTimeMillis()
             )
             db.roomDao().insertOrUpdate(updated)
             _activeRoomId.value = updated.id
@@ -391,7 +418,7 @@ class BismaRepository(private val context: Context) {
         val room = VoiceRoom(
             id = newRoomId,
             title = title.ifBlank { "${user.username}'s Voice Room" },
-            description = description.ifBlank { "Welcome to AURA Live voice chat!" },
+            description = description.ifBlank { "Welcome to ${user.username}'s official AURA Live room!" },
             coverUrl = coverUrl.ifBlank { "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400" },
             ownerId = user.id,
             ownerName = user.username,
@@ -402,12 +429,65 @@ class BismaRepository(private val context: Context) {
             isLocked = isLocked,
             password = password,
             category = category,
-            onlineCount = 1
+            announcement = announcement.ifBlank { "Welcome to our AURA Live Voice Chat Room! Please be respectful and enjoy the music & voice interactions." },
+            rules = rules.ifBlank { "1. Respect all speakers.\n2. No abusive language or harassment.\n3. Keep mic muted when not speaking.\n4. Enjoy music and have fun!" },
+            onlineCount = 1,
+            isActive = true,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
         )
         db.roomDao().insertOrUpdate(room)
         initSeatsForRoom(newRoomId, seatCount, user.id, user.username, user.avatarUrl, user.vipLevel)
         _activeRoomId.value = newRoomId
         return newRoomId
+    }
+
+    suspend fun getPrimaryRoomForUser(userId: String): VoiceRoom? {
+        return db.roomDao().getRoomByOwnerId(userId)
+    }
+
+    suspend fun updateRoomSettings(
+        roomId: String,
+        title: String,
+        description: String,
+        announcement: String,
+        rules: String,
+        seatCount: Int,
+        isLocked: Boolean,
+        password: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId)
+            ?: return@withContext Result.failure(Exception("Room not found"))
+        val currentUid = _currentUserId.value
+        val isOwner = room.ownerId == currentUid
+        val isAdmin = room.adminUserIds.split(",").map { it.trim() }.contains(currentUid)
+        if (!isOwner && !isAdmin) {
+            return@withContext Result.failure(Exception("Security check failed: Only room owner or admin can edit room settings"))
+        }
+
+        val updated = room.copy(
+            title = title.trim().ifBlank { room.title },
+            description = description.trim().ifBlank { room.description },
+            announcement = announcement.trim().ifBlank { room.announcement },
+            rules = rules.trim().ifBlank { room.rules },
+            seatCount = seatCount,
+            isLocked = isLocked,
+            password = password,
+            updatedAt = System.currentTimeMillis()
+        )
+        db.roomDao().insertOrUpdate(updated)
+
+        // If seat capacity changed, adjust seat records
+        val existingSeats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        if (existingSeats.size < seatCount) {
+            val seatsToAdd = mutableListOf<RoomSeat>()
+            for (i in existingSeats.size until seatCount) {
+                seatsToAdd.add(RoomSeat(roomId = roomId, seatIndex = i))
+            }
+            db.seatDao().insertSeats(seatsToAdd)
+        }
+
+        Result.success(true)
     }
 
     fun getMyCreatedRoomFlow(): Flow<VoiceRoom?> = _currentUserId.flatMapLatest { uid ->
@@ -628,9 +708,19 @@ class BismaRepository(private val context: Context) {
         }
 
         val targetSeat = currentSeats.find { it.seatIndex == seatIndex }
-        if (targetSeat != null && targetSeat.userId != null && targetSeat.userId != user.id) {
-            // Seat is already occupied by someone else
-            return
+        if (targetSeat != null) {
+            if (targetSeat.userId != null && targetSeat.userId != user.id) {
+                // Seat is already occupied by someone else
+                return
+            }
+            if (targetSeat.isLocked) {
+                val room = db.roomDao().getRoomById(roomId)
+                val isPrivileged = room != null && isUserOwnerOrAdmin(room, user.id)
+                if (!isPrivileged) {
+                    // Normal users cannot join a locked seat
+                    return
+                }
+            }
         }
 
         val updatedSeat = RoomSeat(
@@ -642,6 +732,7 @@ class BismaRepository(private val context: Context) {
             vipLevel = user.vipLevel,
             userLevel = user.userLevel,
             frameId = user.equippedFrameId,
+            isLocked = targetSeat?.isLocked ?: false,
             isMuted = false,
             isSpeaking = false
         )
@@ -654,15 +745,22 @@ class BismaRepository(private val context: Context) {
     }
 
     suspend fun leaveSeat(roomId: String, seatIndex: Int) {
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        val currentSeat = seats.find { it.seatIndex == seatIndex }
         val seat = RoomSeat(
             roomId = roomId,
             seatIndex = seatIndex,
             userId = null,
             username = null,
             avatarUrl = null,
-            isSpeaking = false
+            isLocked = currentSeat?.isLocked ?: false,
+            isSpeaking = false,
+            isMuted = false
         )
         db.seatDao().updateSeat(seat)
+        val refreshedSeats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        val count = refreshedSeats.count { it.userId != null }.coerceAtLeast(1)
+        db.roomDao().updateOnlineCount(roomId, count)
     }
 
     // Feedback Management
@@ -768,10 +866,18 @@ class BismaRepository(private val context: Context) {
         Result.success("Claimed ${task.rewardCoins} Coins & ${task.rewardDiamonds} Diamonds! 🎉")
     }
 
-    suspend fun toggleMic(roomId: String, seatIndex: Int, isMuted: Boolean) {
-        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return
-        val seat = seats.find { it.seatIndex == seatIndex } ?: return
-        db.seatDao().updateSeat(seat.copy(isMuted = isMuted, isSpeaking = !isMuted))
+    suspend fun toggleMic(roomId: String, seatIndex: Int, isMuted: Boolean): Boolean {
+        val room = db.roomDao().getRoomById(roomId) ?: return false
+        val currentUid = _currentUserId.value
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return false
+        val seat = seats.find { it.seatIndex == seatIndex } ?: return false
+
+        val isMySeat = seat.userId == currentUid
+        val isPrivileged = isUserOwnerOrAdmin(room, currentUid)
+        if (!isMySeat && !isPrivileged) return false
+
+        db.seatDao().updateSeat(seat.copy(isMuted = isMuted, isSpeaking = if (isMuted) false else seat.isSpeaking))
+        return true
     }
 
     suspend fun sendRoomChatMessage(roomId: String, text: String) {
@@ -1420,10 +1526,184 @@ class BismaRepository(private val context: Context) {
     }
 
     // Room Host and Admin Management
-    suspend fun lockSeat(roomId: String, seatIndex: Int, isLocked: Boolean) {
-        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return
-        val seat = seats.find { it.seatIndex == seatIndex } ?: return
+    fun isUserOwnerOrAdmin(room: VoiceRoom, userId: String): Boolean {
+        if (room.ownerId == userId) return true
+        val adminList = room.adminUserIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        return adminList.contains(userId)
+    }
+
+    suspend fun takeDownUserFromSeat(roomId: String, seatIndex: Int): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return@withContext false
+        val seat = seats.find { it.seatIndex == seatIndex } ?: return@withContext false
+        val targetName = seat.username ?: "User"
+
+        // Clear user from seat, freeing the microphone
+        db.seatDao().updateSeat(
+            seat.copy(
+                userId = null,
+                username = null,
+                avatarUrl = null,
+                isSpeaking = false,
+                isMuted = false
+            )
+        )
+
+        // Broadcast real-time system message in room chat
+        db.chatDao().insertMessage(
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                targetId = roomId,
+                isRoomChat = true,
+                senderId = "system",
+                senderName = "System",
+                senderAvatar = "",
+                senderVip = 0,
+                content = "📢 $targetName was moved to audience by Host."
+            )
+        )
+
+        // Refresh online count
+        val refreshed = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        val count = refreshed.count { it.userId != null }.coerceAtLeast(1)
+        db.roomDao().updateOnlineCount(roomId, count)
+        return@withContext true
+    }
+
+    suspend fun lockSeat(roomId: String, seatIndex: Int, isLocked: Boolean): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return@withContext false
+        val seat = seats.find { it.seatIndex == seatIndex } ?: return@withContext false
         db.seatDao().updateSeat(seat.copy(isLocked = isLocked))
+        return@withContext true
+    }
+
+    suspend fun lockAllEmptySeats(roomId: String, isLocked: Boolean = true): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return@withContext false
+        seats.filter { it.userId == null }.forEach { emptySeat ->
+            db.seatDao().updateSeat(emptySeat.copy(isLocked = isLocked))
+        }
+        return@withContext true
+    }
+
+    suspend fun muteAllSpeakers(roomId: String): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: return@withContext false
+        seats.filter { it.userId != null && it.userId != room.ownerId }.forEach { speakerSeat ->
+            db.seatDao().updateSeat(speakerSeat.copy(isMuted = true, isSpeaking = false))
+        }
+        return@withContext true
+    }
+
+    suspend fun clearRoomChat(roomId: String): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        db.chatDao().clearMessages(roomId)
+        db.chatDao().insertMessage(
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                targetId = roomId,
+                isRoomChat = true,
+                senderId = "system",
+                senderName = "System",
+                senderAvatar = "",
+                senderVip = 0,
+                content = "🧹 Chat stream was cleared by Host."
+            )
+        )
+        return@withContext true
+    }
+
+    suspend fun closeRoom(roomId: String): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (room.ownerId != currentUid) return@withContext false
+
+        // Release occupied seats
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        seats.forEach { seat ->
+            if (seat.userId != null) {
+                db.seatDao().updateSeat(seat.copy(userId = null, username = null, avatarUrl = null, isSpeaking = false))
+            }
+        }
+
+        // Post room closed system notification
+        db.chatDao().insertMessage(
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                targetId = roomId,
+                isRoomChat = true,
+                senderId = "system",
+                senderName = "System",
+                senderAvatar = "",
+                senderVip = 0,
+                content = "🚪 Room was closed by Host."
+            )
+        )
+
+        // Mark room inactive
+        db.roomDao().insertOrUpdate(room.copy(isActive = false, onlineCount = 0))
+        _activeRoomId.value = null
+        return@withContext true
+    }
+
+    suspend fun openRoom(roomId: String): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (room.ownerId != currentUid) return@withContext false
+
+        db.roomDao().insertOrUpdate(room.copy(isActive = true, onlineCount = 1))
+        return@withContext true
+    }
+
+    suspend fun updateRoomTitle(roomId: String, newTitle: String): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        val title = newTitle.trim()
+        if (title.isEmpty()) return@withContext false
+        db.roomDao().insertOrUpdate(room.copy(title = title))
+        return@withContext true
+    }
+
+    suspend fun updateRoomRules(roomId: String, rules: String): Boolean = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext false
+        val currentUid = _currentUserId.value
+        if (!isUserOwnerOrAdmin(room, currentUid)) return@withContext false
+
+        db.roomDao().insertOrUpdate(room.copy(description = rules.trim()))
+        return@withContext true
+    }
+
+    suspend fun getRoomMembers(roomId: String): List<User> = withContext(Dispatchers.IO) {
+        val room = db.roomDao().getRoomById(roomId) ?: return@withContext emptyList()
+        val seats = db.seatDao().getSeatsForRoomFlow(roomId).firstOrNull() ?: emptyList()
+        val userIds = mutableSetOf(room.ownerId)
+        seats.forEach { seat -> seat.userId?.let { userIds.add(it) } }
+        val currentUid = _currentUserId.value
+        if (currentUid.isNotEmpty()) userIds.add(currentUid)
+
+        val members = mutableListOf<User>()
+        userIds.forEach { uid ->
+            db.userDao().getUserById(uid)?.let { members.add(it) }
+        }
+        members
     }
 
     suspend fun moveSeat(roomId: String, fromIndex: Int, toIndex: Int) {
@@ -1662,6 +1942,9 @@ class BismaRepository(private val context: Context) {
         db.socialDao().deleteFriendship(senderId, currentId)
     }
 
+    fun getUserFlow(userId: String): Flow<User?> = db.userDao().getUserByIdFlow(userId)
+    suspend fun isFollowingUser(targetUserId: String): Boolean = db.socialDao().isFollowing(_currentUserId.value, targetUserId)
+
     suspend fun toggleFollow(targetUserId: String): Boolean {
         val currentId = _currentUserId.value
         if (currentId.isBlank() || currentId == targetUserId) return false
@@ -1781,21 +2064,43 @@ class BismaRepository(private val context: Context) {
             ?: return@withContext Result.failure(Exception("Account with ID '$trimmedId' not found. Please create an account."))
 
         val inputHash = hashPassword(password)
-        // If the user's passwordHash is empty (legacy) or matches inputHash
         if (user.passwordHash.isNotEmpty() && user.passwordHash != inputHash) {
             return@withContext Result.failure(Exception("Incorrect password. Please try again or use Forgot Password."))
         }
 
+        if (user.isBanned || user.accountStatus == "BANNED") {
+            return@withContext Result.failure(Exception("This account is currently suspended. Please contact support."))
+        }
+
+        val updatedUser = user.copy(
+            lastLoginAt = System.currentTimeMillis()
+        )
+        db.userDao().insertOrUpdate(updatedUser)
+
         // Set session
-        _currentUserId.value = user.id
+        _currentUserId.value = updatedUser.id
         _isLoggedIn.value = true
         prefs.edit()
-            .putString("KEY_CURRENT_USER_ID", user.id)
+            .putString("KEY_CURRENT_USER_ID", updatedUser.id)
             .putBoolean("KEY_IS_LOGGED_IN", true)
             .apply()
 
-        getOrCreatePrimaryRoom()
-        Result.success(user)
+        // Ensure permanent primary room is provisioned
+        val existingRoom = db.roomDao().getRoomByOwnerId(updatedUser.id)
+        if (existingRoom == null) {
+            createOrGetRoom(
+                title = "${updatedUser.username}'s Voice Room",
+                description = "Welcome to ${updatedUser.username}'s official AURA Live room!",
+                coverUrl = updatedUser.avatarUrl,
+                seatCount = 8,
+                country = updatedUser.country,
+                category = "Singing & Chill",
+                isLocked = false,
+                password = ""
+            )
+        }
+
+        Result.success(updatedUser)
     }
 
     suspend fun createAccount(
@@ -1833,7 +2138,11 @@ class BismaRepository(private val context: Context) {
             gender = gender,
             dateOfBirth = dateOfBirth,
             passwordHash = hashPassword(password),
-            email = email,
+            email = email?.trim(),
+            authProvider = "aura_id",
+            createdAt = System.currentTimeMillis(),
+            lastLoginAt = System.currentTimeMillis(),
+            accountStatus = "ACTIVE",
             bio = "Hey there! I am using AURA Live Voice Chat ✨",
             country = "🇵🇰 Pakistan",
             language = "English",
@@ -1846,7 +2155,8 @@ class BismaRepository(private val context: Context) {
             followersCount = 0,
             followingCount = 0,
             friendsCount = 0,
-            equippedFrameId = null
+            visitorsCount = 0,
+            equippedFrameId = "frame_neon_circle"
         )
 
         db.userDao().insertOrUpdate(newUser)
@@ -1859,40 +2169,95 @@ class BismaRepository(private val context: Context) {
             .putBoolean("KEY_IS_LOGGED_IN", true)
             .apply()
 
-        getOrCreatePrimaryRoom()
+        // Ensure permanent primary room is provisioned
+        createOrGetRoom(
+            title = "${newUser.username}'s Voice Room",
+            description = "Welcome to ${newUser.username}'s official AURA Live room!",
+            coverUrl = newUser.avatarUrl,
+            seatCount = 8,
+            country = newUser.country,
+            category = "Singing & Chill",
+            isLocked = false,
+            password = ""
+        )
+
         Result.success(newUser)
     }
 
     suspend fun loginWithGoogle(
         email: String,
         displayName: String,
-        avatarUrl: String
+        avatarUrl: String,
+        providerUserId: String? = null
     ): Result<User> = withContext(Dispatchers.IO) {
-        val existing = db.userDao().getUserByEmail(email.trim())
-        if (existing != null) {
-            _currentUserId.value = existing.id
-            _isLoggedIn.value = true
-            prefs.edit()
-                .putString("KEY_CURRENT_USER_ID", existing.id)
-                .putBoolean("KEY_IS_LOGGED_IN", true)
-                .apply()
-            return@withContext Result.success(existing)
+        val cleanEmail = email.trim().lowercase()
+        val stableId = providerUserId?.ifBlank { null } ?: "google_${cleanEmail.hashCode()}"
+
+        // 1. Recognize existing account by Google provider identity or canonical email
+        var existing = db.userDao().getUserByProvider("google", stableId)
+        if (existing == null) {
+            existing = db.userDao().getUserByEmail(cleanEmail)
         }
 
-        // Create new account for Google user
-        val newId = generateUniqueUserId()
+        if (existing != null) {
+            if (existing.isBanned || existing.accountStatus == "BANNED") {
+                return@withContext Result.failure(Exception("This Google account is suspended."))
+            }
+
+            val updatedUser = existing.copy(
+                lastLoginAt = System.currentTimeMillis(),
+                authProvider = "google",
+                providerUserId = stableId
+            )
+            db.userDao().insertOrUpdate(updatedUser)
+
+            _currentUserId.value = updatedUser.id
+            _isLoggedIn.value = true
+            prefs.edit()
+                .putString("KEY_CURRENT_USER_ID", updatedUser.id)
+                .putBoolean("KEY_IS_LOGGED_IN", true)
+                .putString("KEY_AUTH_PROVIDER", "google")
+                .putString("KEY_AUTH_EMAIL", cleanEmail)
+                .apply()
+
+            // Ensure permanent primary room is provisioned
+            val existingRoom = db.roomDao().getRoomByOwnerId(updatedUser.id)
+            if (existingRoom == null) {
+                createOrGetRoom(
+                    title = "${updatedUser.username}'s Lounge",
+                    description = "Welcome to my official permanent room on AURA Live!",
+                    coverUrl = updatedUser.avatarUrl,
+                    seatCount = 8,
+                    country = updatedUser.country,
+                    category = "Singing & Chill",
+                    isLocked = false,
+                    password = ""
+                )
+            }
+
+            return@withContext Result.success(updatedUser)
+        }
+
+        // 2. First-time registration: Generate permanent unique User ID
+        val permanentId = generateUniqueUserId()
         val googleUser = User(
-            id = newId,
-            username = displayName.ifBlank { "User $newId" },
+            id = permanentId,
+            username = displayName.ifBlank { "User $permanentId" },
             avatarUrl = avatarUrl.ifBlank { "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300" },
-            gender = "Male",
+            gender = "Female",
             dateOfBirth = "2000-01-01",
             passwordHash = hashPassword(UUID.randomUUID().toString()),
-            email = email.trim(),
-            bio = "Hey there! I am using Bisma Voice Chat ✨",
+            email = cleanEmail,
+            authProvider = "google",
+            providerUserId = stableId,
+            createdAt = System.currentTimeMillis(),
+            lastLoginAt = System.currentTimeMillis(),
+            accountStatus = "ACTIVE",
+            bio = "Hey there! I am using AURA Live Voice Chat ✨",
             country = "🇵🇰 Pakistan",
-            coins = 0,
-            diamonds = 0,
+            language = "English",
+            coins = 1000,
+            diamonds = 50,
             userLevel = 1,
             richLevel = 0,
             charmLevel = 0,
@@ -1900,7 +2265,8 @@ class BismaRepository(private val context: Context) {
             followersCount = 0,
             followingCount = 0,
             friendsCount = 0,
-            equippedFrameId = null
+            visitorsCount = 0,
+            equippedFrameId = "frame_neon_circle"
         )
 
         db.userDao().insertOrUpdate(googleUser)
@@ -1910,7 +2276,21 @@ class BismaRepository(private val context: Context) {
         prefs.edit()
             .putString("KEY_CURRENT_USER_ID", googleUser.id)
             .putBoolean("KEY_IS_LOGGED_IN", true)
+            .putString("KEY_AUTH_PROVIDER", "google")
+            .putString("KEY_AUTH_EMAIL", cleanEmail)
             .apply()
+
+        // Provision permanent primary room
+        createOrGetRoom(
+            title = "${googleUser.username}'s Lounge",
+            description = "Welcome to my official permanent room on AURA Live!",
+            coverUrl = googleUser.avatarUrl,
+            seatCount = 8,
+            country = googleUser.country,
+            category = "Singing & Chill",
+            isLocked = false,
+            password = ""
+        )
 
         Result.success(googleUser)
     }
@@ -1931,8 +2311,11 @@ class BismaRepository(private val context: Context) {
 
     fun logout() {
         _isLoggedIn.value = false
+        _currentUserId.value = ""
+        _activeRoomId.value = null
         prefs.edit()
             .putBoolean("KEY_IS_LOGGED_IN", false)
+            .putString("KEY_CURRENT_USER_ID", "")
             .apply()
     }
 

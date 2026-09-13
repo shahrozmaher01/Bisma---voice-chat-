@@ -77,6 +77,7 @@ fun HomeScreen(
 
     var showSearchDialog by remember { mutableStateOf(false) }
     var showCreateRoomDialog by remember { mutableStateOf(false) }
+    var showRoomSettingsDialog by remember { mutableStateOf(false) }
 
     val countries = listOf("🔥 All", "🇵🇰 Pakistan", "🇮🇳 India", "🌐 Global", "🪐 AI")
 
@@ -190,9 +191,17 @@ fun HomeScreen(
                             topWealth = topWealthUsers,
                             topCharm = topCharmUsers,
                             allRooms = allRooms,
+                            myPrimaryRoom = myPrimaryRoom,
                             onOpenRankings = onOpenRankings,
                             onOpenRoom = onOpenRoom,
-                            onCreateRoomClick = { showCreateRoomDialog = true }
+                            onOpenRoomSettings = { showRoomSettingsDialog = true },
+                            onCreateRoomClick = {
+                                if (myPrimaryRoom != null) {
+                                    onOpenRoom(myPrimaryRoom!!.id)
+                                } else {
+                                    showCreateRoomDialog = true
+                                }
+                            }
                         )
                     }
                     HomeMainTab.MINE -> {
@@ -223,8 +232,16 @@ fun HomeScreen(
                                 onSubTabSelected = { currentMineSubTab = it },
                                 followingRooms = followingRooms,
                                 myRooms = myRooms,
+                                myPrimaryRoom = myPrimaryRoom,
                                 onOpenRoom = onOpenRoom,
-                                onCreateRoomClick = { showCreateRoomDialog = true }
+                                onOpenRoomSettings = { showRoomSettingsDialog = true },
+                                onCreateRoomClick = {
+                                    if (myPrimaryRoom != null) {
+                                        onOpenRoom(myPrimaryRoom!!.id)
+                                    } else {
+                                        showCreateRoomDialog = true
+                                    }
+                                }
                             )
                         }
                     }
@@ -281,11 +298,25 @@ fun HomeScreen(
         if (showCreateRoomDialog) {
             CreateRoomDialog(
                 repository = repository,
+                existingRoom = myPrimaryRoom,
                 onDismiss = { showCreateRoomDialog = false },
                 onRoomCreated = { newRoomId ->
                     showCreateRoomDialog = false
                     onOpenRoom(newRoomId)
+                },
+                onOpenSettings = {
+                    showCreateRoomDialog = false
+                    showRoomSettingsDialog = true
                 }
+            )
+        }
+
+        // Room Settings Dialog
+        if (showRoomSettingsDialog && myPrimaryRoom != null) {
+            RoomSettingsDialog(
+                room = myPrimaryRoom!!,
+                repository = repository,
+                onDismiss = { showRoomSettingsDialog = false }
             )
         }
     }
@@ -733,8 +764,10 @@ fun PartyTabContent(
     topWealth: List<User>,
     topCharm: List<User>,
     allRooms: List<VoiceRoom>,
+    myPrimaryRoom: VoiceRoom? = null,
     onOpenRankings: (Int) -> Unit,
     onOpenRoom: (String) -> Unit,
+    onOpenRoomSettings: (VoiceRoom) -> Unit = {},
     onCreateRoomClick: () -> Unit
 ) {
     LazyVerticalGrid(
@@ -776,6 +809,18 @@ fun PartyTabContent(
                 allRooms = allRooms,
                 onOpenRankings = onOpenRankings
             )
+        }
+
+        // 4.5 My Room Dashboard Card
+        if (myPrimaryRoom != null) {
+            item(span = { GridItemSpan(2) }) {
+                MyRoomDashboardCard(
+                    room = myPrimaryRoom,
+                    onEnterRoom = { onOpenRoom(myPrimaryRoom.id) },
+                    onOpenSettings = { onOpenRoomSettings(myPrimaryRoom) },
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
         }
 
         // 5. Voice Rooms or Empty Scenic Card
@@ -1097,7 +1142,9 @@ fun MineTabContent(
     onSubTabSelected: (MineSubTab) -> Unit,
     followingRooms: List<VoiceRoom>,
     myRooms: List<VoiceRoom>,
+    myPrimaryRoom: VoiceRoom? = null,
     onOpenRoom: (String) -> Unit,
+    onOpenRoomSettings: (VoiceRoom) -> Unit = {},
     onCreateRoomClick: () -> Unit
 ) {
     Column(
@@ -1134,7 +1181,7 @@ fun MineTabContent(
                 modifier = Modifier.clickable { onSubTabSelected(MineSubTab.MY_ROOM) }
             ) {
                 Text(
-                    text = "🎧 My Room (${myRooms.size})",
+                    text = "🎧 My Room (${if (myPrimaryRoom != null) 1 else myRooms.size})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (subTab == MineSubTab.MY_ROOM) Color.White else TextSecondary,
@@ -1168,9 +1215,16 @@ fun MineTabContent(
                 }
             }
             MineSubTab.MY_ROOM -> {
-                if (myRooms.isEmpty()) {
+                if (myPrimaryRoom != null) {
+                    MyRoomDashboardCard(
+                        room = myPrimaryRoom,
+                        onEnterRoom = { onOpenRoom(myPrimaryRoom.id) },
+                        onOpenSettings = { onOpenRoomSettings(myPrimaryRoom) },
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else if (myRooms.isEmpty()) {
                     EmptyRoomsCard(
-                        message = "You haven't created your own Voice Room yet.",
+                        message = "You haven't created your permanent Voice Room yet.",
                         onCreateRoomClick = onCreateRoomClick
                     )
                 } else {
@@ -1579,9 +1633,45 @@ fun SearchDialog(
 @Composable
 fun CreateRoomDialog(
     repository: BismaRepository,
+    existingRoom: VoiceRoom? = null,
     onDismiss: () -> Unit,
-    onRoomCreated: (String) -> Unit
+    onRoomCreated: (String) -> Unit,
+    onOpenSettings: () -> Unit = {}
 ) {
+    if (existingRoom != null) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = Color(0xFF140A28),
+            title = {
+                Text("Permanent Room Already Exists", color = Color.White, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Each AURA Live account has one permanent room.\n\nYour Room ID is #${existingRoom.id} (${existingRoom.title}). You can customize your room settings anytime without creating a new room.",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
+            },
+            confirmButton = {
+                NeonButton(
+                    text = "Enter My Room",
+                    onClick = {
+                        onDismiss()
+                        onRoomCreated(existingRoom.id)
+                    }
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = onOpenSettings) {
+                    Text("Room Settings", color = ElectricBlue)
+                }
+            }
+        )
+        return
+    }
+
     val coroutineScope = rememberCoroutineScope()
     var roomTitle by remember { mutableStateOf("") }
     var roomDescription by remember { mutableStateOf("") }

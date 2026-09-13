@@ -82,6 +82,12 @@ fun VoiceRoomScreen(
     var showLuckyBoxDialog by remember { mutableStateOf(false) }
     var showRoomGoalDialog by remember { mutableStateOf(false) }
     var showRoomProfileDialog by remember { mutableStateOf(false) }
+    var selectedUserProfileId by remember { mutableStateOf<String?>(null) }
+    var showRoomMembersDialog by remember { mutableStateOf(false) }
+    var showShareRoomDialog by remember { mutableStateOf(false) }
+    var showRoomInfoRulesDialog by remember { mutableStateOf(false) }
+    var showRoomSettingsDialog by remember { mutableStateOf(false) }
+    var showCloseRoomConfirmDialog by remember { mutableStateOf(false) }
 
     var activeGiftBanner by remember { mutableStateOf<ChatMessage?>(null) }
     var activeRocketAnimation by remember { mutableStateOf<String?>(null) }
@@ -92,6 +98,9 @@ fun VoiceRoomScreen(
 
     val mySeat = seats.find { it.userId == currentUser?.id }
     val isHost = room?.ownerId == currentUser?.id
+    val isCallerHostOrAdmin = remember(room, currentUser) {
+        room != null && currentUser != null && (room!!.ownerId == currentUser!!.id || room!!.adminUserIds.split(",").map { it.trim() }.contains(currentUser!!.id))
+    }
 
     // Collect gift banner events
     LaunchedEffect(Unit) {
@@ -278,16 +287,27 @@ fun VoiceRoomScreen(
                             onSeatClick = {
                                 if (seat.userId == null) {
                                     if (seat.isLocked) {
-                                        Toast.makeText(context, "This seat is locked by host", Toast.LENGTH_SHORT).show()
+                                        if (isCallerHostOrAdmin) {
+                                            showSeatActionDialog = seat
+                                        } else {
+                                            Toast.makeText(context, "This seat is locked by host 🔒", Toast.LENGTH_SHORT).show()
+                                        }
                                     } else {
-                                        coroutineScope.launch {
-                                            repository.takeSeat(currentRoom.id, seat.seatIndex)
+                                        if (isCallerHostOrAdmin) {
+                                            showSeatActionDialog = seat
+                                        } else {
+                                            coroutineScope.launch {
+                                                repository.takeSeat(currentRoom.id, seat.seatIndex)
+                                                Toast.makeText(context, "Joined Seat ${seat.seatIndex + 1} 🎙️", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     }
-                                } else if (isHost || seat.userId == currentUser?.id) {
+                                } else if (seat.userId == currentUser?.id) {
+                                    showSeatActionDialog = seat
+                                } else if (isCallerHostOrAdmin) {
                                     showSeatActionDialog = seat
                                 } else {
-                                    seat.userId?.let { uid -> onOpenUserProfile(uid) }
+                                    selectedUserProfileId = seat.userId
                                 }
                             }
                         )
@@ -536,7 +556,7 @@ fun VoiceRoomScreen(
                     items(filteredMessages) { msg ->
                         RoomChatMessageBubble(
                             message = msg,
-                            onUserClick = { onOpenUserProfile(msg.senderId) }
+                            onUserClick = { selectedUserProfileId = msg.senderId }
                         )
                     }
                 }
@@ -766,13 +786,61 @@ fun VoiceRoomScreen(
             HostToolsBottomSheet(
                 room = currentRoom,
                 isHost = isHost,
+                onRoomDpProfile = {
+                    showHostToolsSheet = false
+                    showRoomProfileDialog = true
+                },
+                onRoomSettings = {
+                    showHostToolsSheet = false
+                    showRoomSettingsDialog = true
+                },
                 onSendLuckyBag = {
                     showHostToolsSheet = false
                     showSendLuckyBagDialog = true
                 },
-                onRoomDpProfile = {
+                onRoomInfoRules = {
                     showHostToolsSheet = false
-                    showRoomProfileDialog = true
+                    showRoomInfoRulesDialog = true
+                },
+                onRoomMembers = {
+                    showHostToolsSheet = false
+                    showRoomMembersDialog = true
+                },
+                onLockEmptySeats = {
+                    showHostToolsSheet = false
+                    coroutineScope.launch {
+                        val ok = repository.lockAllEmptySeats(currentRoom.id, true)
+                        if (ok) Toast.makeText(context, "All empty seats locked 🔒", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onUnlockAllSeats = {
+                    showHostToolsSheet = false
+                    coroutineScope.launch {
+                        val ok = repository.lockAllEmptySeats(currentRoom.id, false)
+                        if (ok) Toast.makeText(context, "All seats unlocked 🔓", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onClearChat = {
+                    showHostToolsSheet = false
+                    coroutineScope.launch {
+                        val ok = repository.clearRoomChat(currentRoom.id)
+                        if (ok) Toast.makeText(context, "Room chat stream cleared 🧹", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onMuteAllSpeakers = {
+                    showHostToolsSheet = false
+                    coroutineScope.launch {
+                        val ok = repository.muteAllSpeakers(currentRoom.id)
+                        if (ok) Toast.makeText(context, "All speakers muted 🔇", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onShareRoom = {
+                    showHostToolsSheet = false
+                    showShareRoomDialog = true
+                },
+                onCloseRoom = {
+                    showHostToolsSheet = false
+                    showCloseRoomConfirmDialog = true
                 },
                 onDismiss = { showHostToolsSheet = false }
             )
@@ -785,37 +853,67 @@ fun VoiceRoomScreen(
             )
         }
 
-        // Seat Action Dialog (Lock, Mute, Kick, Leave Mic)
+        // Seat Action Dialog (Lock, Mute, Take Down, Kick, Leave Mic)
         showSeatActionDialog?.let { seat ->
             SeatActionDialog(
                 seat = seat,
-                isHost = isHost,
+                isCallerHostOrAdmin = isCallerHostOrAdmin,
                 isMySeat = seat.userId == currentUser?.id,
                 onDismiss = { showSeatActionDialog = null },
+                onJoinSeat = {
+                    coroutineScope.launch {
+                        repository.takeSeat(currentRoom.id, seat.seatIndex)
+                        showSeatActionDialog = null
+                        Toast.makeText(context, "Joined Seat ${seat.seatIndex + 1} 🎙️", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onLeaveMic = {
                     coroutineScope.launch {
                         repository.leaveSeat(currentRoom.id, seat.seatIndex)
                         showSeatActionDialog = null
+                        Toast.makeText(context, "Left microphone seat", Toast.LENGTH_SHORT).show()
                     }
                 },
                 onToggleMute = {
                     coroutineScope.launch {
                         repository.toggleMic(currentRoom.id, seat.seatIndex, !seat.isMuted)
                         showSeatActionDialog = null
+                        Toast.makeText(context, if (seat.isMuted) "Microphone unmuted 🎙️" else "Microphone muted 🔇", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onTakeDown = {
+                    coroutineScope.launch {
+                        val ok = repository.takeDownUserFromSeat(currentRoom.id, seat.seatIndex)
+                        showSeatActionDialog = null
+                        if (ok) Toast.makeText(context, "User moved to audience ⬇️", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onToggleLock = {
+                    coroutineScope.launch {
+                        val ok = repository.lockSeat(currentRoom.id, seat.seatIndex, !seat.isLocked)
+                        showSeatActionDialog = null
+                        if (ok) Toast.makeText(context, if (seat.isLocked) "Seat unlocked 🔓" else "Seat locked 🔒", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onViewProfile = {
+                    val uid = seat.userId
+                    showSeatActionDialog = null
+                    if (uid != null) {
+                        selectedUserProfileId = uid
                     }
                 },
                 onKick = {
                     coroutineScope.launch {
                         repository.kickUserFromRoom(currentRoom.id, seat.userId ?: "")
                         showSeatActionDialog = null
-                        Toast.makeText(context, "Kicked user from mic", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "User removed from room", Toast.LENGTH_SHORT).show()
                     }
                 },
                 onBlock = {
                     coroutineScope.launch {
                         repository.blockUserFromRoom(currentRoom.id, seat.userId ?: "")
                         showSeatActionDialog = null
-                        Toast.makeText(context, "User blocked from room", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "User blocked from room 🚫", Toast.LENGTH_SHORT).show()
                     }
                 }
             )
@@ -878,9 +976,101 @@ fun VoiceRoomScreen(
         if (showRoomProfileDialog) {
             RoomProfileDpDialog(
                 room = currentRoom,
-                isHostOrAdmin = isHost || currentRoom.adminUserIds.split(",").contains(currentUser?.id),
+                isHostOrAdmin = isCallerHostOrAdmin,
                 repository = repository,
                 onDismiss = { showRoomProfileDialog = false }
+            )
+        }
+
+        // Compact In-Room User Profile Card Dialog
+        selectedUserProfileId?.let { targetUid ->
+            RoomUserProfileDialog(
+                userId = targetUid,
+                room = currentRoom,
+                repository = repository,
+                isCallerHostOrAdmin = isCallerHostOrAdmin,
+                onDismiss = { selectedUserProfileId = null },
+                onVisitProfile = { uid ->
+                    selectedUserProfileId = null
+                    onOpenUserProfile(uid)
+                }
+            )
+        }
+
+        // Room Members & Admins Panel Dialog
+        if (showRoomMembersDialog) {
+            RoomMembersDialog(
+                room = currentRoom,
+                repository = repository,
+                isCallerHostOrAdmin = isCallerHostOrAdmin,
+                onDismiss = { showRoomMembersDialog = false },
+                onSelectUser = { uid ->
+                    showRoomMembersDialog = false
+                    selectedUserProfileId = uid
+                }
+            )
+        }
+
+        // Share Room Dialog
+        if (showShareRoomDialog) {
+            ShareRoomDialog(
+                room = currentRoom,
+                onDismiss = { showShareRoomDialog = false }
+            )
+        }
+
+        // Room Info & Rules Dialog
+        if (showRoomInfoRulesDialog) {
+            RoomInfoRulesDialog(
+                room = currentRoom,
+                repository = repository,
+                isCallerHostOrAdmin = isCallerHostOrAdmin,
+                onDismiss = { showRoomInfoRulesDialog = false }
+            )
+        }
+
+        // Room Settings Dialog (DP, Wallpaper, Announcement, Rules, Capacity)
+        if (showRoomSettingsDialog) {
+            RoomSettingsDialog(
+                room = currentRoom,
+                repository = repository,
+                onDismiss = { showRoomSettingsDialog = false }
+            )
+        }
+
+        // Close Voice Room Confirmation Dialog
+        if (showCloseRoomConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showCloseRoomConfirmDialog = false },
+                containerColor = Color(0xFF190D2E),
+                title = { Text("Close Voice Room? 🚪", color = Color.White, fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(
+                        "Closing this voice room will release all speaker seats and set the room status to inactive. Your room profile, cover, and rules will be safely preserved.",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 13.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                repository.closeRoom(currentRoom.id)
+                                showCloseRoomConfirmDialog = false
+                                Toast.makeText(context, "Voice room closed", Toast.LENGTH_SHORT).show()
+                                onCloseRoom()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+                    ) {
+                        Text("Close Room", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCloseRoomConfirmDialog = false }) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+                }
             )
         }
     }
@@ -1027,45 +1217,107 @@ fun ExitRoomChoiceDialog(
 @Composable
 fun SeatActionDialog(
     seat: RoomSeat,
-    isHost: Boolean,
+    isCallerHostOrAdmin: Boolean,
     isMySeat: Boolean,
     onDismiss: () -> Unit,
+    onJoinSeat: () -> Unit,
     onLeaveMic: () -> Unit,
     onToggleMute: () -> Unit,
+    onTakeDown: () -> Unit,
+    onToggleLock: () -> Unit,
+    onViewProfile: () -> Unit,
     onKick: () -> Unit,
     onBlock: () -> Unit
 ) {
+    val titleText = if (seat.userId == null) {
+        "Seat ${seat.seatIndex + 1}: Empty"
+    } else {
+        "Seat ${seat.seatIndex + 1}: ${seat.username ?: "Occupied"}"
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceDark,
-        title = { Text("Seat ${seat.seatIndex + 1}: ${seat.username ?: "Occupied"}", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        containerColor = Color(0xFF160A29),
+        title = { Text(titleText, color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                if (isMySeat) {
+                if (seat.userId == null) {
+                    NeonButton(
+                        text = "Join Seat / Sit Here 🎙️",
+                        onClick = onJoinSeat,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (isCallerHostOrAdmin) {
+                        OutlinedButton(
+                            onClick = onToggleLock,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Text(if (seat.isLocked) "Unlock Seat 🔓" else "Lock Seat 🔒")
+                        }
+                    }
+                } else if (isMySeat) {
                     NeonButton(
                         text = "Leave Mic / Seat",
                         onClick = onLeaveMic,
                         modifier = Modifier.fillMaxWidth()
                     )
-                }
 
-                if (isHost || isMySeat) {
                     OutlinedButton(
                         onClick = onToggleMute,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
                     ) {
-                        Text(if (seat.isMuted) "Unmute Mic 🎙️" else "Mute Mic 🔇")
+                        Text(if (seat.isMuted) "Unmute Microphone 🎙️" else "Mute Microphone 🔇")
                     }
-                }
 
-                if (isHost && !isMySeat) {
+                    OutlinedButton(
+                        onClick = onViewProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("My Profile 👤")
+                    }
+                } else if (isCallerHostOrAdmin) {
                     Button(
-                        onClick = onKick,
+                        onClick = onTakeDown,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Kick from Mic", color = Color.White)
+                        Text("Take Down to Audience ⬇️", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = onToggleMute,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text(if (seat.isMuted) "Unmute Speaker 🎙️" else "Mute Speaker 🔇")
+                    }
+
+                    OutlinedButton(
+                        onClick = onViewProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("View Profile 👤")
+                    }
+
+                    OutlinedButton(
+                        onClick = onToggleLock,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text(if (seat.isLocked) "Unlock Seat 🔓" else "Lock Seat 🔒")
+                    }
+
+                    Button(
+                        onClick = onKick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C3AED)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Remove from Room (Kick)", color = Color.White)
                     }
 
                     Button(
@@ -2169,50 +2421,89 @@ fun SoundboardBottomSheet(
 fun HostToolsBottomSheet(
     room: VoiceRoom,
     isHost: Boolean,
+    onRoomDpProfile: () -> Unit,
+    onRoomSettings: () -> Unit,
     onSendLuckyBag: () -> Unit,
-    onRoomDpProfile: () -> Unit = {},
+    onRoomInfoRules: () -> Unit,
+    onRoomMembers: () -> Unit,
+    onLockEmptySeats: () -> Unit,
+    onUnlockAllSeats: () -> Unit,
+    onClearChat: () -> Unit,
+    onMuteAllSpeakers: () -> Unit,
+    onShareRoom: () -> Unit,
+    onCloseRoom: () -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceDark
+        containerColor = Color(0xFF140A28)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = "Host & Room Control Tools",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Room Host & Admin Controls 🛡️",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = if (isHost) "👑 Room Owner" else "🛡️ Room Admin",
+                    color = GoldYellow,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
-            val tools = listOf(
-                Triple(Icons.Default.AccountCircle, "Room Profile & DP Management 🖼️", onRoomDpProfile),
-                Triple(Icons.Default.CardGiftcard, "Drop Lucky Coin Bag 🧧", onSendLuckyBag),
-                Triple(Icons.Default.Campaign, "Update Room Announcement 📢", onRoomDpProfile),
-                Triple(Icons.Default.Wallpaper, "Change Room Wallpaper 🌌", onRoomDpProfile),
-                Triple(Icons.Default.Lock, "Lock Empty Seats", onDismiss),
-                Triple(Icons.Default.CleaningServices, "Clean Chat Stream", onDismiss),
-                Triple(Icons.Default.MicOff, "Mute All Speakers", onDismiss),
-                Triple(Icons.Default.Share, "Share Room Invitation", onDismiss)
-            )
+            val tools = buildList {
+                add(Triple(Icons.Default.Settings, "Permanent Room Settings & Capacity ⚙️", onRoomSettings))
+                add(Triple(Icons.Default.AccountCircle, "Room Profile & DP Management 🖼️", onRoomDpProfile))
+                add(Triple(Icons.Default.CardGiftcard, "Drop Lucky Coin Bag 🧧", onSendLuckyBag))
+                add(Triple(Icons.Default.Description, "Room Rules & Community Info 📜", onRoomInfoRules))
+                add(Triple(Icons.Default.Group, "Room Members & Admin Roles 👥", onRoomMembers))
+                add(Triple(Icons.Default.Lock, "Lock All Empty Seats 🔒", onLockEmptySeats))
+                add(Triple(Icons.Default.LockOpen, "Unlock All Seats 🔓", onUnlockAllSeats))
+                add(Triple(Icons.Default.MicOff, "Mute All Speakers 🔇", onMuteAllSpeakers))
+                add(Triple(Icons.Default.CleaningServices, "Clear Room Chat Stream 🧹", onClearChat))
+                add(Triple(Icons.Default.Share, "Share Room Invitation 💌", onShareRoom))
+                if (isHost) {
+                    add(Triple(Icons.Default.PowerSettingsNew, "Close & End Voice Room 🚪", onCloseRoom))
+                }
+            }
 
             tools.forEach { (icon, name, action) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { action() }
+                        .clickable {
+                            onDismiss()
+                            action()
+                        }
                         .padding(vertical = 10.dp, horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(20.dp))
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (name.contains("Close")) DarkRed else ElectricBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = name,
+                        color = if (name.contains("Close")) DarkRed else Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))

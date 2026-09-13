@@ -41,7 +41,13 @@ data class User(
     val isBanned: Boolean = false,
     val privacyFollowersOnly: Boolean = false,
     val privacyFriendsOnlyMsg: Boolean = true,
-    val privacyVisitorsHidden: Boolean = false
+    val privacyVisitorsHidden: Boolean = false,
+    val authProvider: String = "aura_id", // "google", "aura_id"
+    val providerUserId: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastLoginAt: Long = System.currentTimeMillis(),
+    val visitorsCount: Int = 0,
+    val accountStatus: String = "ACTIVE" // "ACTIVE", "BANNED", "SUSPENDED"
 )
 
 @Entity(tableName = "rooms")
@@ -58,7 +64,7 @@ data class VoiceRoom(
     val seatCount: Int = 8, // 8, 10, 15, 20
     val isLocked: Boolean = false,
     val password: String = "",
-    val announcement: String = "Welcome to our Bisma Voice Chat Room! Please be respectful and enjoy the music & voice interactions.",
+    val announcement: String = "Welcome to our AURA Live Voice Chat Room! Please be respectful and enjoy the music & voice interactions.",
     val onlineCount: Int = 1,
     val backgroundRes: String = "bg_neon_purple",
     val wallpaperUrl: String? = null,
@@ -72,7 +78,16 @@ data class VoiceRoom(
     val blockedUserIds: String = "",
     val adminUserIds: String = "",
     val createdAt: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val rules: String = "1. Respect all speakers.\n2. No abusive language or harassment.\n3. Keep mic muted when not speaking.\n4. Enjoy music and have fun!",
+    val updatedAt: Long = System.currentTimeMillis(),
+    val roomSettings: String = "{}"
+)
+
+data class AuthResult(
+    val user: User,
+    val isNewUser: Boolean,
+    val existingRoom: VoiceRoom? = null
 )
 
 @Entity(tableName = "room_seats", primaryKeys = ["roomId", "seatIndex"])
