@@ -1,0 +1,90 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.aistudio.bismavoicechat.wvkzqp'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.aistudio.bismavoicechat.wvkzqp"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        debug {
+            def keyFile = file("${rootDir}/debug.keystore")
+            def base64File = file("${rootDir}/debug.keystore.base64")
+            if (!keyFile.exists() && base64File.exists()) {
+                try {
+                    byte[] decoded = java.util.Base64.getDecoder().decode(base64File.text.trim())
+                    keyFile.withOutputStream { it.write(decoded) }
+                } catch (Exception ignored) {}
+            }
+            if (keyFile.exists()) {
+                storeFile keyFile
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+}
+
+tasks.register('prepareAssets') {
+    doLast {
+        def assetsDir = file("${projectDir}/src/main/assets")
+        assetsDir.mkdirs()
+        def distDir = file("${rootDir}/dist")
+        if (distDir.exists() && distDir.isDirectory()) {
+            copy {
+                from distDir
+                into assetsDir
+            }
+        }
+    }
+}
+
+tasks.named('preBuild') {
+    dependsOn('prepareAssets')
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.activity:activity-ktx:1.9.2'
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
