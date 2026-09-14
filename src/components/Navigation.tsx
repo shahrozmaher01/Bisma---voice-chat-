@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Sparkles,
   Plus,
+  Search,
 } from 'lucide-react';
 import { useAura } from '../context/AuraContext';
 import { AvatarWithFrame } from './AvatarWithFrame';
@@ -30,6 +31,8 @@ interface NavigationProps {
   onOpenWallet?: () => void;
   onOpenCreateRoom?: () => void;
   onOpenNotifications?: () => void;
+  onOpenSearch?: (category?: 'id' | 'room' | 'user') => void;
+  onOpenCreateId?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -42,6 +45,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenWallet,
   onOpenCreateRoom,
   onOpenNotifications,
+  onOpenSearch,
+  onOpenCreateId,
 }) => {
   const {
     currentUser,
@@ -149,6 +154,19 @@ export const Navigation: React.FC<NavigationProps> = ({
                       </button>
                     ))}
                   </div>
+                  <div className="p-1 border-t border-[#2d1b4e]">
+                    <button
+                      id="nav-create-user-id-btn"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        if (onOpenCreateId) onOpenCreateId();
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gradient-to-r from-[#7c4dff] to-[#00e5ff] text-black font-extrabold text-xs shadow hover:opacity-95 active:scale-95 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Create New User ID</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -156,6 +174,16 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Action Icons & Balances */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Global Search Button */}
+            <button
+              id="nav-search-btn"
+              onClick={() => onOpenSearch && onOpenSearch('id')}
+              className="p-2 rounded-full bg-[#20123f] border border-[#442875] text-[#00e5ff] hover:bg-[#2b1855] hover:border-[#00e5ff] transition-all relative"
+              title="Search ID, Room, or User"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
             {/* Coins & Diamonds Pill */}
             <div
               id="wallet-quick-pill"

@@ -36,6 +36,7 @@ export const VoiceRoomModal: React.FC<VoiceRoomModalProps> = ({ onOpenUserProfil
     activeRoomSeats,
     roomMessages,
     leaveRoom,
+    hostCloseRoom,
     takeSeat,
     leaveSeat,
     toggleMic,
@@ -150,7 +151,12 @@ export const VoiceRoomModal: React.FC<VoiceRoomModalProps> = ({ onOpenUserProfil
               )}
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-400">
-              <span>ID: {activeRoom.id.replace('room_', '')}</span>
+              <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                LIVE
+              </span>
+              <span>•</span>
+              <span className="font-mono text-cyan-300">ID: {activeRoom.id.replace('room_', '')}</span>
               <span>•</span>
               <span className="flex items-center gap-1 text-emerald-400 font-semibold">
                 <Users className="w-3 h-3" />
@@ -186,12 +192,28 @@ export const VoiceRoomModal: React.FC<VoiceRoomModalProps> = ({ onOpenUserProfil
             </button>
           )}
 
+          {/* Host End / Close Room button */}
+          {isHostOrAdmin && (
+            <button
+              id="header-end-room-btn"
+              onClick={() => {
+                if (window.confirm('End and close this room session for everyone? The room will no longer appear as active.')) {
+                  hostCloseRoom(activeRoom.id);
+                }
+              }}
+              className="p-2 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500 hover:text-white transition-colors"
+              title="Close Room Session (End for all)"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
+
           {/* Minimize / Leave Room */}
           <button
             id="header-leave-room-btn"
             onClick={leaveRoom}
             className="p-2 rounded-full bg-[#20123f] border border-[#3e246b] text-slate-300 hover:text-rose-400 hover:border-rose-500 transition-colors"
-            title="Leave Room"
+            title="Leave / Minimize Room"
           >
             <X className="w-4 h-4" />
           </button>

@@ -9,6 +9,8 @@ import { WalletModal } from './components/WalletModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { NotificationsModal } from './components/NotificationsModal';
+import { SearchModal, SearchCategory } from './components/SearchModal';
+import { CreateIdModal } from './components/CreateIdModal';
 import { PartyView } from './views/PartyView';
 import { MomentsView } from './views/MomentsView';
 import { MessagesView } from './views/MessagesView';
@@ -24,10 +26,18 @@ export function App() {
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchCategory, setSearchCategory] = useState<SearchCategory>('id');
+  const [isCreateIdOpen, setIsCreateIdOpen] = useState(false);
   const [inspectedUserId, setInspectedUserId] = useState<string | null>(null);
 
   const handleOpenUserProfile = (userId: string) => {
     setInspectedUserId(userId);
+  };
+
+  const handleOpenSearch = (category: SearchCategory = 'id') => {
+    setSearchCategory(category);
+    setIsSearchOpen(true);
   };
 
   return (
@@ -43,6 +53,8 @@ export function App() {
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenOfficialFrames={() => setIsOfficialFramesOpen(true)}
         onOpenCreateRoom={() => setIsCreateRoomOpen(true)}
+        onOpenSearch={handleOpenSearch}
+        onOpenCreateId={() => setIsCreateIdOpen(true)}
       />
 
       {/* Primary Tab Content Views */}
@@ -52,6 +64,7 @@ export function App() {
             onOpenUserProfile={handleOpenUserProfile}
             onOpenCreateRoom={() => setIsCreateRoomOpen(true)}
             onOpenRankings={() => setIsRankingsOpen(true)}
+            onOpenSearch={handleOpenSearch}
           />
         )}
 
@@ -93,6 +106,7 @@ export function App() {
           setIsAdminPanelOpen(false);
           setIsOfficialFramesOpen(true);
         }}
+        onOpenCreateId={() => setIsCreateIdOpen(true)}
       />
 
       <RankingsModal
@@ -119,6 +133,22 @@ export function App() {
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
+      />
+
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        initialCategory={searchCategory}
+        onOpenUserProfile={handleOpenUserProfile}
+        onOpenCreateId={() => setIsCreateIdOpen(true)}
+      />
+
+      <CreateIdModal
+        isOpen={isCreateIdOpen}
+        onClose={() => setIsCreateIdOpen(false)}
+        onCreated={(userId) => {
+          handleOpenUserProfile(userId);
+        }}
       />
     </div>
   );

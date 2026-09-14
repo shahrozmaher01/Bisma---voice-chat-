@@ -60,6 +60,13 @@ interface AuraContextType {
   // Auth & Session
   login: (idOrEmail: string) => { success: boolean; message?: string };
   register: (username: string, gender: 'Female' | 'Male', customId?: string) => { success: boolean; message?: string };
+  createUserId: (params: {
+    username: string;
+    gender: 'Female' | 'Male' | 'Not specified';
+    customId?: string;
+    country?: string;
+    avatarUrl?: string;
+  }) => { success: boolean; message?: string; user?: User };
   loginWithGoogle: (email: string, name: string) => void;
   logout: () => void;
   switchUser: (userId: string) => void;
@@ -338,8 +345,9 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         bio: 'Hey there! I am using AURA Live Voice Chat ✨',
         country: '🇵🇰 Pakistan',
         language: 'English',
-        coins: 2000,
-        diamonds: 50,
+        // User creation requirement: strictly no initial coin or diamond balance assigned
+        coins: 0,
+        diamonds: 0,
         userLevel: 1,
         richLevel: 0,
         charmLevel: 0,
@@ -348,7 +356,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         followingCount: 0,
         friendsCount: 0,
         visitorsCount: 0,
-        equippedFrameId: 'frame_neon_circle',
+        equippedFrameId: undefined,
         role: 'User',
         isBanned: false,
         accountStatus: 'ACTIVE',
@@ -371,7 +379,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLocked: false,
         category: 'Chat & Friends',
         country: '🇵🇰 Pakistan',
-        announcement: 'Welcome everyone! Tap a seat to speak.',
+        announcement: 'Welcome everyone! Tap an open seat to speak.',
         adminUserIds: [assignedId],
         isActive: true,
         createdAt: Date.now(),
@@ -382,6 +390,97 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setCurrentUserId(assignedId);
 
       return { success: true };
+    },
+    [users]
+  );
+
+  const createUserId = useCallback(
+    ({
+      username,
+      gender,
+      customId,
+      country = '🇵🇰 Pakistan',
+      avatarUrl,
+    }: {
+      username: string;
+      gender: 'Female' | 'Male' | 'Not specified';
+      customId?: string;
+      country?: string;
+      avatarUrl?: string;
+    }) => {
+      const cleanName = username.trim();
+      if (!cleanName) return { success: false, message: 'Please enter a name for the ID.' };
+
+      let assignedId = customId?.trim();
+      if (assignedId) {
+        if (users.some((u) => u.id === assignedId)) {
+          return { success: false, message: `ID "${assignedId}" already exists. Please choose another ID.` };
+        }
+      } else {
+        do {
+          assignedId = Math.floor(100000 + Math.random() * 900000).toString();
+        } while (users.some((u) => u.id === assignedId));
+      }
+
+      const defaultAvatar =
+        avatarUrl ||
+        (gender === 'Female'
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300'
+          : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300');
+
+      const newUser: User = {
+        id: assignedId,
+        username: cleanName,
+        avatarUrl: defaultAvatar,
+        gender,
+        dateOfBirth: '2001-01-01',
+        bio: 'Hey there! I am using AURA Live Voice Chat ✨',
+        country,
+        language: 'English',
+        // CRITICAL: Coin option completely removed from ID creation. Zero starting balance.
+        coins: 0,
+        diamonds: 0,
+        userLevel: 1,
+        richLevel: 0,
+        charmLevel: 0,
+        vipLevel: 0,
+        followersCount: 0,
+        followingCount: 0,
+        friendsCount: 0,
+        visitorsCount: 0,
+        equippedFrameId: undefined,
+        role: 'User',
+        isBanned: false,
+        accountStatus: 'ACTIVE',
+        authProvider: 'aura_id',
+        createdAt: Date.now(),
+        lastLoginAt: Date.now(),
+      };
+
+      const userRoom: VoiceRoom = {
+        id: `room_${assignedId}`,
+        title: `${cleanName}'s Lounge 🎙️`,
+        description: `Welcome to ${cleanName}'s room!`,
+        coverUrl: defaultAvatar,
+        ownerId: assignedId,
+        ownerName: cleanName,
+        ownerAvatar: defaultAvatar,
+        seatCount: 8,
+        onlineCount: 1,
+        isLocked: false,
+        category: 'Chat & Friends',
+        country,
+        announcement: 'Welcome everyone! Tap an open seat to join mic.',
+        adminUserIds: [assignedId],
+        isActive: true,
+        createdAt: Date.now(),
+      };
+
+      setUsers((prev) => [newUser, ...prev]);
+      setRooms((prev) => [userRoom, ...prev]);
+      setCurrentUserId(assignedId);
+
+      return { success: true, user: newUser };
     },
     [users]
   );
@@ -406,12 +505,13 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         bio: 'Connected via Google Account ✨',
         country: '🌐 Global',
         language: 'English',
-        coins: 2500,
-        diamonds: 100,
-        userLevel: 2,
+        // Zero starting coins/diamonds
+        coins: 0,
+        diamonds: 0,
+        userLevel: 1,
         richLevel: 0,
         charmLevel: 0,
-        vipLevel: 1,
+        vipLevel: 0,
         followersCount: 0,
         followingCount: 0,
         friendsCount: 0,
@@ -760,7 +860,9 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const hostCloseRoom = useCallback(
     (roomId: string) => {
-      setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, isActive: false, onlineCount: 0 } : r)));
+      setRooms((prev) =>
+        prev.map((r) => (r.id === roomId ? { ...r, isActive: false, onlineCount: 0 } : r))
+      );
       if (activeRoomId === roomId) {
         leaveRoom();
       }
@@ -771,11 +873,12 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const createRoom = useCallback(
     (title: string, category: string) => {
       if (!currentUser) return '';
-      const newRoomId = `room_${Math.random().toString(36).substring(2, 8)}`;
+      const newRoomId = `room_${Date.now().toString(36)}_${Math.floor(1000 + Math.random() * 9000)}`;
+      const cleanTitle = title.trim() || `${currentUser.username}'s Party Room 🎙️`;
       const newRoom: VoiceRoom = {
         id: newRoomId,
-        title: title.trim() || `${currentUser.username}'s Room`,
-        description: 'Welcome to our voice room! Enjoy the music and chat.',
+        title: cleanTitle,
+        description: `Welcome to ${currentUser.username}'s voice stage! Enjoy chatting and live audio.`,
         coverUrl: currentUser.avatarUrl,
         ownerId: currentUser.id,
         ownerName: currentUser.username,
@@ -785,17 +888,38 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLocked: false,
         category: category || 'Chat & Friends',
         country: currentUser.country,
-        announcement: 'Welcome everyone! Tap an open seat to join mic.',
+        announcement: 'Welcome everyone! Tap an open seat to join the mic.',
         adminUserIds: [currentUser.id],
         isActive: true,
         createdAt: Date.now(),
       };
 
-      setRooms((prev) => [newRoom, ...prev]);
-      enterRoom(newRoomId);
+      // Add to public rooms list at top, ensuring active visibility
+      setRooms((prev) => [newRoom, ...prev.filter((r) => r.id !== newRoomId)]);
+
+      // Directly setup room stage synchronously
+      setActiveRoomId(newRoomId);
+      const initialSeats = createInitialSeats(newRoomId, currentUser);
+      setSeats(initialSeats);
+
+      setRoomMessages([
+        {
+          id: `sys_create_${Date.now()}`,
+          targetId: newRoomId,
+          isRoomChat: true,
+          senderId: 'system',
+          senderName: 'System',
+          senderAvatar: '',
+          senderVip: 0,
+          content: `🎉 Room opened! Welcome to ${cleanTitle}.`,
+          timestamp: Date.now(),
+        },
+      ]);
+
+      soundManager.playMicToggle(false);
       return newRoomId;
     },
-    [currentUser, enterRoom]
+    [currentUser]
   );
 
   const sendRoomMessage = useCallback(
@@ -1014,9 +1138,9 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           bio: 'Official Staff Member',
           country: '🇵🇰 Pakistan',
           language: 'English',
-          coins: 5000,
-          diamonds: 500,
-          userLevel: 5,
+          coins: 0,
+          diamonds: 0,
+          userLevel: 1,
           richLevel: 2,
           charmLevel: 2,
           vipLevel: 2,
@@ -1473,6 +1597,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         login,
         register,
+        createUserId,
         loginWithGoogle,
         logout,
         switchUser,

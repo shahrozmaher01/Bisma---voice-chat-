@@ -25,6 +25,7 @@ interface AdminPanelModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenOfficialFrames: () => void;
+  onOpenCreateId?: () => void;
 }
 
 type AdminTab = 'dashboard' | 'users' | 'link_users' | 'audit' | 'broadcast';
@@ -51,6 +52,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   isOpen,
   onClose,
   onOpenOfficialFrames,
+  onOpenCreateId,
 }) => {
   const {
     currentUser,
@@ -337,7 +339,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           {/* TAB 2: USERS & ROLES */}
           {currentTab === 'users' && (
             <div className="space-y-4">
-              {/* Search Bar */}
+              {/* Search Bar & Create User ID */}
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
@@ -350,6 +352,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     className="w-full bg-[#190e33] border border-[#371f5c] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-hidden"
                   />
                 </div>
+                {onOpenCreateId && (
+                  <button
+                    id="admin-create-user-id-btn"
+                    onClick={onOpenCreateId}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#7c4dff] to-[#00e5ff] text-black font-extrabold text-xs shadow hover:opacity-95 flex-shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create User ID</span>
+                  </button>
+                )}
               </div>
 
               {/* Users Table */}
