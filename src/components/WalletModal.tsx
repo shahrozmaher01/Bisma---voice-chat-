@@ -28,7 +28,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
     e.preventDefault();
     const dollars = parseFloat(customUsdInput);
     if (isNaN(dollars) || dollars <= 0) return;
-    const coinsCalculated = Math.floor(dollars * 3000);
+    const coinsCalculated = Math.floor(dollars * 30000);
     const bonusDiamonds = Math.floor(dollars * 50);
 
     const customPkg: RechargePackage = {
@@ -163,7 +163,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                       </span>
                     </div>
                     <div className="text-xs text-amber-300 font-extrabold mt-0.5">
-                      $1.00 USD = 3,000 Coins 🪙
+                      $1.00 USD = 30,000 Coins 🪙
                     </div>
                   </div>
                 </div>
@@ -180,7 +180,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    Custom Amount Recharge ($1 = 3,000 Coins)
+                    Custom Amount Recharge ($1 = 30,000 Coins)
                   </span>
                 </div>
 
@@ -203,7 +203,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     type="submit"
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 text-black font-extrabold text-xs shadow hover:opacity-95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    Recharge +{Math.floor((parseFloat(customUsdInput) || 0) * 3000).toLocaleString()} Coins
+                    Recharge +{Math.floor((parseFloat(customUsdInput) || 0) * 30000).toLocaleString()} Coins
                   </button>
                 </div>
               </form>

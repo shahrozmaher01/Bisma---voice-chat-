@@ -618,15 +618,15 @@ export const RECHARGE_PACKAGES: RechargePackage[] = [
   {
     id: 'pkg_starter',
     title: 'Starter Pack',
-    coins: 3000,
+    coins: 30000,
     bonusDiamonds: 50,
     priceUsd: 1,
-    tag: '$1 = 3,000 COINS',
+    tag: '$1 = 30,000 COINS',
   },
   {
     id: 'pkg_popular',
     title: 'Popular Host Pack',
-    coins: 15000,
+    coins: 150000,
     bonusDiamonds: 300,
     priceUsd: 5,
     tag: 'MOST POPULAR',
@@ -634,7 +634,7 @@ export const RECHARGE_PACKAGES: RechargePackage[] = [
   {
     id: 'pkg_vip',
     title: 'VIP High Roller',
-    coins: 30000,
+    coins: 300000,
     bonusDiamonds: 800,
     priceUsd: 10,
     tag: 'BEST VALUE',
@@ -642,7 +642,7 @@ export const RECHARGE_PACKAGES: RechargePackage[] = [
   {
     id: 'pkg_pro',
     title: 'Pro Master Chest',
-    coins: 60000,
+    coins: 600000,
     bonusDiamonds: 2000,
     priceUsd: 20,
     tag: 'POPULAR',
@@ -650,7 +650,7 @@ export const RECHARGE_PACKAGES: RechargePackage[] = [
   {
     id: 'pkg_king',
     title: 'Imperial King Chest',
-    coins: 150000,
+    coins: 1500000,
     bonusDiamonds: 6000,
     priceUsd: 50,
     tag: 'ULTIMATE',
@@ -658,7 +658,7 @@ export const RECHARGE_PACKAGES: RechargePackage[] = [
   {
     id: 'pkg_titan',
     title: 'Titan Sovereign Vault',
-    coins: 300000,
+    coins: 3000000,
     bonusDiamonds: 15000,
     priceUsd: 100,
     tag: 'MAX VALUE',
