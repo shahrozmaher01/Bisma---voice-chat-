@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.view.View
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -15,6 +18,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : AppCompatActivity() {
 
@@ -44,11 +48,42 @@ class MainActivity : AppCompatActivity() {
         settings.mediaPlaybackRequiresUserGesture = false
         settings.allowFileAccess = true
         settings.allowContentAccess = true
+        settings.allowFileAccessFromFileURLs = true
+        settings.allowUniversalAccessFromFileURLs = true
         settings.cacheMode = WebSettings.LOAD_DEFAULT
 
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val url = request?.url ?: return null
+                return assetLoader.shouldInterceptRequest(url)
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                return false
+            }
+
+            @Deprecated("Deprecated in Java")
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 return false
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                // Fallback to direct file loading if asset loader fails on main frame
+                if (request?.isForMainFrame == true && view?.url?.startsWith("https://appassets.androidplatform.net") == true) {
+                    view.loadUrl("file:///android_asset/index.html")
+                }
             }
         }
 
@@ -58,19 +93,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Try loading from assets
-        val assetManager = assets
-        val hasDist = try {
-            assetManager.list("dist")?.isNotEmpty() == true
-        } catch (e: Exception) {
-            false
-        }
-
-        if (hasDist) {
-            webView.loadUrl("file:///android_asset/dist/index.html")
-        } else {
-            webView.loadUrl("file:///android_asset/index.html")
-        }
+        // Primary: Load via WebViewAssetLoader (supports ES modules and modern Web APIs)
+        webView.loadUrl("https://appassets.androidplatform.net/assets/index.html")
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
