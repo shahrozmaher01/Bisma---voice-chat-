@@ -33,6 +33,7 @@ import {
   INITIAL_NOTIFICATIONS,
 } from '../data/seedData';
 import { soundManager } from '../utils/audio';
+import { safeStorage, safeJsonParse } from '../utils/storage';
 
 const STORAGE_KEY = 'aura_live_app_state_v1';
 
@@ -154,20 +155,20 @@ function createInitialSeats(roomId: string, owner?: User): RoomSeat[] {
 }
 
 export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Load or fallback to initial seeds
+  // Load or fallback to initial seeds safely
   const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_users`);
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_users`);
+    return safeJsonParse(saved, INITIAL_USERS);
   });
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_uid`);
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_uid`);
     return saved || '565656565666555'; // Default to Sherry (Super Admin / Owner)
   });
 
   const [rooms, setRooms] = useState<VoiceRoom[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_rooms`);
-    return saved ? JSON.parse(saved) : INITIAL_ROOMS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_rooms`);
+    return safeJsonParse(saved, INITIAL_ROOMS);
   });
 
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
@@ -177,38 +178,38 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [floatingGiftAlert, setFloatingGiftAlert] = useState<{ sender: string; gift: VirtualGift; target: string } | null>(null);
 
   const [frameAssignments, setFrameAssignments] = useState<OfficialFrameAssignment[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_assignments`);
-    return saved ? JSON.parse(saved) : INITIAL_FRAME_ASSIGNMENTS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_assignments`);
+    return safeJsonParse(saved, INITIAL_FRAME_ASSIGNMENTS);
   });
 
   const [adminLinkUsers, setAdminLinkUsers] = useState<AdminLinkUser[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_link_users`);
-    return saved ? JSON.parse(saved) : INITIAL_LINK_USERS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_link_users`);
+    return safeJsonParse(saved, INITIAL_LINK_USERS);
   });
 
   const [auditLogs, setAuditLogs] = useState<AuditLogEntity[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_audits`);
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_audits`);
+    return safeJsonParse(saved, INITIAL_AUDIT_LOGS);
   });
 
   const [storeItems, setStoreItems] = useState<StoreItem[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_store`);
-    return saved ? JSON.parse(saved) : STORE_ITEMS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_store`);
+    return safeJsonParse(saved, STORE_ITEMS);
   });
 
   const [moments, setMoments] = useState<Moment[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_moments`);
-    return saved ? JSON.parse(saved) : INITIAL_MOMENTS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_moments`);
+    return safeJsonParse(saved, INITIAL_MOMENTS);
   });
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_notifs`);
-    return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_notifs`);
+    return safeJsonParse(saved, INITIAL_NOTIFICATIONS);
   });
 
   const [tasks, setTasks] = useState<AuraTask[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_tasks`);
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
+    const saved = safeStorage.getItem(`${STORAGE_KEY}_tasks`);
+    return safeJsonParse(saved, INITIAL_TASKS);
   });
 
   const [currentTab, setCurrentTab] = useState<TabType>('party');
@@ -218,45 +219,45 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Synchronize storage
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
+    safeStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
     if (currentUserId) {
-      localStorage.setItem(`${STORAGE_KEY}_uid`, currentUserId);
+      safeStorage.setItem(`${STORAGE_KEY}_uid`, currentUserId);
     }
   }, [currentUserId]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_rooms`, JSON.stringify(rooms));
+    safeStorage.setItem(`${STORAGE_KEY}_rooms`, JSON.stringify(rooms));
   }, [rooms]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(frameAssignments));
+    safeStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(frameAssignments));
   }, [frameAssignments]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_link_users`, JSON.stringify(adminLinkUsers));
+    safeStorage.setItem(`${STORAGE_KEY}_link_users`, JSON.stringify(adminLinkUsers));
   }, [adminLinkUsers]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_audits`, JSON.stringify(auditLogs));
+    safeStorage.setItem(`${STORAGE_KEY}_audits`, JSON.stringify(auditLogs));
   }, [auditLogs]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_store`, JSON.stringify(storeItems));
+    safeStorage.setItem(`${STORAGE_KEY}_store`, JSON.stringify(storeItems));
   }, [storeItems]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_moments`, JSON.stringify(moments));
+    safeStorage.setItem(`${STORAGE_KEY}_moments`, JSON.stringify(moments));
   }, [moments]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_notifs`, JSON.stringify(notifications));
+    safeStorage.setItem(`${STORAGE_KEY}_notifs`, JSON.stringify(notifications));
   }, [notifications]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_tasks`, JSON.stringify(tasks));
+    safeStorage.setItem(`${STORAGE_KEY}_tasks`, JSON.stringify(tasks));
   }, [tasks]);
 
   // Periodic simulated room chatter & speaking wave activity when inside a room

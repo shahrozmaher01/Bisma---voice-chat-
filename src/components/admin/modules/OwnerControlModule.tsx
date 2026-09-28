@@ -16,6 +16,8 @@ import {
 import { useAura } from '../../../context/AuraContext';
 import { adminBackend } from '../../../services/adminBackendService';
 
+import { safeStorage } from '../../../utils/storage';
+
 interface OwnerControlModuleProps {
   isDarkMode: boolean;
 }
@@ -48,8 +50,8 @@ export const OwnerControlModule: React.FC<OwnerControlModuleProps> = ({ isDarkMo
 
   const handleEmergencyReset = () => {
     if (window.confirm('CRITICAL OWNER CONFIRMATION: Are you sure you want to re-seed and reset application database states?')) {
-      localStorage.removeItem('aura_live_app_state_v1');
-      localStorage.removeItem('aura_custom_gifts_v1');
+      safeStorage.removeItem('aura_live_app_state_v1');
+      safeStorage.removeItem('aura_custom_gifts_v1');
       setNotice('Database successfully reset. Reloading environment...');
       setTimeout(() => {
         window.location.reload();

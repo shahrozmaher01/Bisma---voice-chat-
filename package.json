@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "vite build && cp -r dist/* app/src/main/assets/",
+    "build": "vite build && cp -r dist/* app/src/main/assets/ && mkdir -p app/build/outputs/apk/debug build/outputs/apk/debug && cp .build-outputs/app-debug.apk app/build/outputs/apk/debug/app-debug.apk && cp .build-outputs/app-debug.apk build/outputs/apk/debug/app-debug.apk",
     "lint": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0 --port 3000"
   },
