@@ -18,5 +18,10 @@ const targetApk = path.resolve('app/build/outputs/apk/debug/app-debug.apk');
 if (fs.existsSync(localApk)) {
   fs.mkdirSync(path.dirname(targetApk), { recursive: true });
   fs.copyFileSync(localApk, targetApk);
+
+  const rootBuildApk = path.resolve('build/outputs/apk/debug/app-debug.apk');
+  fs.mkdirSync(path.dirname(rootBuildApk), { recursive: true });
+  fs.copyFileSync(localApk, rootBuildApk);
+
   console.log('[Postbuild] Local APK mirrored for emulator preview');
 }
