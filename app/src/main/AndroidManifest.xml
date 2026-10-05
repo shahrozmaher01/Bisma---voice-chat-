@@ -18,7 +18,7 @@
         android:hardwareAccelerated="true">
 
         <activity
-            android:name="com.example.MainActivity"
+            android:name="com.aistudio.bismavoicechat.wvkzqp.MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.BismaVoiceChat">
